@@ -1,0 +1,4 @@
+tags:
+  # Tests that need the real databases from S3; skipped unless SCREENER_DB_DIR
+  # points at a directory holding us.db and asx.db.
+  real-data:
