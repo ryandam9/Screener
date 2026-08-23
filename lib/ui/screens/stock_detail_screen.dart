@@ -28,6 +28,43 @@ enum _DetailTab {
   final IconData icon;
 }
 
+/// Opens [url] in the platform browser, and says so when that is not possible.
+///
+/// url_launcher signals failure two different ways depending on the platform
+/// and the reason: it can return false, or it can throw a PlatformException
+/// (which is what happens when no application is registered for https at all).
+/// Only checking the return value leaves the tap doing nothing at all, so both
+/// are handled here, and the URL can still be copied when it cannot be opened.
+Future<void> openExternalUrl(BuildContext context, String? url) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final uri = url == null ? null : Uri.tryParse(url);
+
+  if (uri == null) {
+    messenger.showSnackBar(
+      const SnackBar(content: Text('This row has no link published')),
+    );
+    return;
+  }
+
+  var launched = false;
+  try {
+    launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+  } on Object {
+    launched = false;
+  }
+  if (launched) return;
+
+  messenger.showSnackBar(
+    SnackBar(
+      content: const Text('Could not open the link'),
+      action: SnackBarAction(
+        label: 'Copy',
+        onPressed: () => Clipboard.setData(ClipboardData(text: url!)),
+      ),
+    ),
+  );
+}
+
 /// Everything one ticker's screens need.
 class _TickerData {
   const _TickerData({required this.rows, required this.volumePercentile});
@@ -292,19 +329,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           context,
         ).showSnackBar(const SnackBar(content: Text('Summary copied')));
       case 'open':
-        final url = row.googleFinanceUrl;
-        if (url == null) return;
-        final uri = Uri.tryParse(url);
-        if (uri == null) return;
-        final launched = await launchUrl(
-          uri,
-          mode: LaunchMode.externalApplication,
-        );
-        if (!launched && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not open the link')),
-          );
-        }
+        await openExternalUrl(context, row.googleFinanceUrl);
     }
   }
 }
@@ -895,21 +920,8 @@ class _LinksTab extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    onTap: () async {
-                      final uri = Uri.tryParse(entry.googleFinanceUrl!);
-                      if (uri == null) return;
-                      final launched = await launchUrl(
-                        uri,
-                        mode: LaunchMode.externalApplication,
-                      );
-                      if (!launched && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Could not open the link'),
-                          ),
-                        );
-                      }
-                    },
+                    onTap: () =>
+                        openExternalUrl(context, entry.googleFinanceUrl),
                   ),
             ],
           ),
