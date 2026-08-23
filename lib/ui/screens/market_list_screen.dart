@@ -181,8 +181,9 @@ class _MarketListScreenState extends State<MarketListScreen>
           preferredSize: const Size.fromHeight(46),
           child: TabBar(
             controller: _tabs,
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
+            // All four fit at handset width; scrolling would push the last
+            // tab off-screen where it reads as clipped.
+            labelPadding: const EdgeInsets.symmetric(horizontal: 4),
             tabs: [for (final tab in _ListTab.values) Tab(text: tab.label)],
           ),
         ),
@@ -195,7 +196,6 @@ class _MarketListScreenState extends State<MarketListScreen>
                   _SortHeader(
                     sort: _sort,
                     descending: _descending,
-                    windowLabel: window.label,
                     onSort: _toggleSort,
                   ),
                 Expanded(
@@ -464,61 +464,47 @@ class _SortHeader extends StatelessWidget {
   const _SortHeader({
     required this.sort,
     required this.descending,
-    required this.windowLabel,
     required this.onSort,
   });
 
   final StockSort sort;
   final bool descending;
-  final String windowLabel;
   final ValueChanged<StockSort> onSort;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    Widget cell(
-      String label,
-      StockSort value, {
-      int flex = 1,
-      bool end = false,
-    }) {
+    Widget label(String text, StockSort value, {bool end = false}) {
       final active = sort == value;
-      return Expanded(
-        flex: flex,
-        child: InkWell(
-          onTap: () => onSort(value),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Row(
-              mainAxisAlignment: end
-                  ? MainAxisAlignment.end
-                  : MainAxisAlignment.start,
-              children: [
-                Flexible(
-                  child: Text(
-                    label,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                      color: active ? colors.textPrimary : colors.textSecondary,
-                    ),
-                  ),
-                ),
-                if (active)
-                  Icon(
-                    descending ? Icons.arrow_downward : Icons.arrow_upward,
-                    size: 12,
-                    color: colors.textPrimary,
-                  ),
-              ],
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: end
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
+        children: [
+          Flexible(
+            child: Text(
+              text,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                color: active ? colors.textPrimary : colors.textSecondary,
+              ),
             ),
           ),
-        ),
+          if (active)
+            Icon(
+              descending ? Icons.arrow_downward : Icons.arrow_upward,
+              size: 12,
+              color: colors.textPrimary,
+            ),
+        ],
       );
     }
 
+    // Mirrors StockTile's geometry so each heading sits over its own column.
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
@@ -527,11 +513,40 @@ class _SortHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          cell('Ticker', StockSort.ticker, flex: 3),
-          cell('Name', StockSort.name, flex: 4),
-          cell('Price', StockSort.latestPrice, flex: 3, end: true),
-          const SizedBox(width: 10),
-          cell('$windowLabel Change', StockSort.pctChange, flex: 4, end: true),
+          const SizedBox(width: StockTile.leadingColumnWidth),
+          Expanded(
+            child: InkWell(
+              onTap: () => onSort(StockSort.ticker),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: label('Ticker', StockSort.ticker),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          InkWell(
+            onTap: () => onSort(StockSort.latestPrice),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: SizedBox(
+                width: StockTile.priceColumnWidth,
+                child: label('Price', StockSort.latestPrice, end: true),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          InkWell(
+            onTap: () => onSort(StockSort.pctChange),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: SizedBox(
+                width: StockTile.changeColumnWidth,
+                // Just "Change": the window is already named in the title bar,
+                // and "7D Change" plus a sort arrow does not fit this column.
+                child: label('Change', StockSort.pctChange, end: true),
+              ),
+            ),
+          ),
         ],
       ),
     );

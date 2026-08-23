@@ -177,55 +177,63 @@ class _AnalysisBody extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: MetricCard(
-                      label: 'Instruments',
-                      value: Fmt.integer(stat?.count ?? 0),
-                      caption: market.instrumentNoun,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: MetricCard(
-                      label: 'Median change',
-                      value: Fmt.signedPercent(
-                        stat?.medianPctChange ?? 0,
-                        decimals: 2,
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: MetricCard(
+                        label: 'Instruments',
+                        value: Fmt.integer(stat?.count ?? 0),
+                        caption: market.instrumentNoun,
                       ),
-                      valueColor: colors.forChange(stat?.medianPctChange ?? 0),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: MetricCard(
+                        label: 'Median change',
+                        value: Fmt.signedPercent(
+                          stat?.medianPctChange ?? 0,
+                          decimals: 2,
+                        ),
+                        valueColor: colors.forChange(
+                          stat?.medianPctChange ?? 0,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: MetricCard(
-                      label: 'Strongest',
-                      value: Fmt.signedPercent(
-                        stat?.maxPctChange ?? 0,
-                        decimals: 1,
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: MetricCard(
+                        label: 'Strongest',
+                        value: Fmt.signedPercent(
+                          stat?.maxPctChange ?? 0,
+                          decimals: 1,
+                        ),
+                        valueColor: colors.forChange(stat?.maxPctChange ?? 0),
+                        caption: data.summary.topGainer?.ticker,
                       ),
-                      valueColor: colors.forChange(stat?.maxPctChange ?? 0),
-                      caption: data.summary.topGainer?.ticker,
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: MetricCard(
-                      label: 'Weakest',
-                      value: Fmt.signedPercent(
-                        stat?.minPctChange ?? 0,
-                        decimals: 1,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: MetricCard(
+                        label: 'Weakest',
+                        value: Fmt.signedPercent(
+                          stat?.minPctChange ?? 0,
+                          decimals: 1,
+                        ),
+                        valueColor: colors.forChange(stat?.minPctChange ?? 0),
+                        caption: 'screen floor',
                       ),
-                      valueColor: colors.forChange(stat?.minPctChange ?? 0),
-                      caption: 'screen floor',
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),

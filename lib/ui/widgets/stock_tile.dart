@@ -23,6 +23,12 @@ class StockTile extends StatelessWidget {
   final bool showMarketBadge;
   final Widget Function(BuildContext context)? trailingBuilder;
 
+  /// Column geometry shared with the sortable header above the list, so the
+  /// headings sit directly over the values they sort.
+  static const double priceColumnWidth = 58;
+  static const double changeColumnWidth = 80;
+  static const double leadingColumnWidth = 38 + 12;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -75,23 +81,36 @@ class StockTile extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             trailingBuilder?.call(context) ??
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      Fmt.price(row.latestPrice),
-                      style: TextStyle(
-                        fontSize: dense ? 13.5 : 14.5,
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
-                        fontFeatures: const [FontFeature.tabularFigures()],
+                    SizedBox(
+                      width: StockTile.priceColumnWidth,
+                      child: Text(
+                        Fmt.price(row.latestPrice),
+                        textAlign: TextAlign.right,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: dense ? 13.5 : 14.5,
+                          fontWeight: FontWeight.w600,
+                          color: colors.textPrimary,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    ChangeChip(pctChange: row.pctChange, dense: dense),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: StockTile.changeColumnWidth,
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: ChangeChip(
+                          pctChange: row.pctChange,
+                          dense: dense,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
           ],

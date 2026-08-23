@@ -30,6 +30,9 @@ class ChangeChip extends StatelessWidget {
       ),
       child: Text(
         Fmt.signedPercent(pctChange, decimals: decimals),
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.visible,
         style: TextStyle(
           fontSize: dense ? 11 : 12.5,
           fontWeight: FontWeight.w600,

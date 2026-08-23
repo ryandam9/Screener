@@ -75,6 +75,14 @@ class Fmt {
 
   static String shortDate(DateTime date) => _short.format(date);
 
+  /// `2026-08-21` -> `Aug 21`. Used where a column is too narrow for the year;
+  /// the full date is always available on the detail rows.
+  static String dateCompact(String? isoDate) {
+    if (isoDate == null || isoDate.isEmpty) return '—';
+    final parsed = DateTime.tryParse(isoDate);
+    return parsed == null ? isoDate : _short.format(parsed);
+  }
+
   static String dateTime(DateTime value) =>
       '${_long.format(value)}, ${_time.format(value)}';
 

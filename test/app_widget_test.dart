@@ -210,8 +210,8 @@ void main() {
     // The stat grid sits below the chart, so scroll it into view.
     await tester.drag(find.byType(ListView).first, const Offset(0, -500));
     await settle(tester);
-    expect(find.text('Days Covered'), findsOneWidget);
-    expect(find.text('Median Volume'), findsOneWidget);
+    expect(find.text('Days Cov.'), findsOneWidget);
+    expect(find.text('Median Vol.'), findsOneWidget);
   });
 
   testWidgets('the detail screen switches windows and inner tabs', (

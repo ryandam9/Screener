@@ -4,7 +4,7 @@ enum TrendLabel {
   accelerating('Accelerating'),
   steady('Steady'),
   cooling('Cooling'),
-  undetermined('Single window');
+  undetermined('One window');
 
   const TrendLabel(this.label);
   final String label;

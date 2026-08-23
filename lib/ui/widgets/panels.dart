@@ -97,6 +97,7 @@ class MetricRow extends StatelessWidget {
     required this.value,
     this.valueColor,
     this.monospaceValue = true,
+    this.dense = false,
   });
 
   final String label;
@@ -104,11 +105,17 @@ class MetricRow extends StatelessWidget {
   final Color? valueColor;
   final bool monospaceValue;
 
+  /// Tighter type and padding, for rows shown two-up in a narrow column.
+  final bool dense;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      padding: EdgeInsets.symmetric(
+        horizontal: dense ? 11 : 14,
+        vertical: dense ? 10 : 11,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -116,7 +123,10 @@ class MetricRow extends StatelessWidget {
             child: Text(
               label,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 13.5, color: colors.textSecondary),
+              style: TextStyle(
+                fontSize: dense ? 12 : 13.5,
+                color: colors.textSecondary,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -129,7 +139,7 @@ class MetricRow extends StatelessWidget {
               textAlign: TextAlign.right,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 13.5,
+                fontSize: dense ? 12.5 : 13.5,
                 fontWeight: FontWeight.w600,
                 color: valueColor ?? colors.textPrimary,
                 fontFeatures: monospaceValue

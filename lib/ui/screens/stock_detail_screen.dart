@@ -462,23 +462,28 @@ class _OverviewTab extends StatelessWidget {
                     child: Column(
                       children: [
                         MetricRow(
+                          dense: true,
                           label: 'First Date',
-                          value: Fmt.date(row.firstDate),
+                          value: Fmt.dateCompact(row.firstDate),
                         ),
                         MetricRow(
+                          dense: true,
                           label: 'Last Date',
-                          value: Fmt.date(row.lastDate),
+                          value: Fmt.dateCompact(row.lastDate),
                         ),
                         MetricRow(
+                          dense: true,
                           label: 'First Price',
                           value: Fmt.price(row.firstPrice),
                         ),
                         MetricRow(
+                          dense: true,
                           label: 'Last Price',
                           value: Fmt.price(row.latestPrice),
                         ),
                         MetricRow(
-                          label: 'Days Covered',
+                          dense: true,
+                          label: 'Days Cov.',
                           value: Fmt.integer(row.daysCovered),
                         ),
                       ],
@@ -489,22 +494,27 @@ class _OverviewTab extends StatelessWidget {
                     child: Column(
                       children: [
                         MetricRow(
-                          label: 'Observations',
+                          dense: true,
+                          label: 'Obs.',
                           value: Fmt.integer(row.observations),
                         ),
                         MetricRow(
+                          dense: true,
                           label: 'Coverage',
                           value: Fmt.coverage(row.coverage),
                         ),
                         MetricRow(
+                          dense: true,
                           label: 'Obs. Ratio',
                           value: Fmt.coverage(row.observationRatio),
                         ),
                         MetricRow(
-                          label: 'Median Volume',
+                          dense: true,
+                          label: 'Median Vol.',
                           value: Fmt.compact(row.medianVolume),
                         ),
                         MetricRow(
+                          dense: true,
                           label: 'Price Band',
                           value: row.priceBasis.isEmpty ? '—' : row.priceBasis,
                         ),
@@ -552,74 +562,80 @@ class _MetricsTab extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: MetricCard(
-                      label: 'Price Change (${row.window.label})',
-                      value: Fmt.signedPrice(row.priceChange),
-                      valueColor: colors.forChange(row.priceChange),
-                      caption: Fmt.signedPercent(row.pctChange),
-                      captionColor: colors.forChange(row.pctChange),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: MetricCard(
-                      label: 'Latest Price',
-                      value: Fmt.price(row.latestPrice),
-                      caption: row.priceBasis.isEmpty
-                          ? null
-                          : '${row.priceBasis} basis',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: MetricCard(
-                      label: 'Median Daily Volume',
-                      value: Fmt.compact(row.medianVolume),
-                      badge: percentile == null
-                          ? null
-                          : TagBadge(
-                              label: _volumeBand(percentile),
-                              foreground: colors.warning,
-                              background: colors.warningSurface,
-                            ),
-                      caption: percentile == null
-                          ? null
-                          : 'top ${((1 - percentile) * 100).clamp(0, 100).toStringAsFixed(0)}% in window',
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: MetricCard(
-                      label: 'Momentum',
-                      value: trend.label.label,
-                      valueColor: switch (trend.label) {
-                        TrendLabel.accelerating => colors.positive,
-                        TrendLabel.cooling => colors.negative,
-                        _ => colors.textPrimary,
-                      },
-                      trailing: Icon(
-                        switch (trend.label) {
-                          TrendLabel.accelerating => Icons.trending_up,
-                          TrendLabel.cooling => Icons.trending_down,
-                          _ => Icons.trending_flat,
-                        },
-                        size: 18,
-                        color: switch (trend.label) {
-                          TrendLabel.accelerating => colors.positive,
-                          TrendLabel.cooling => colors.negative,
-                          _ => colors.textSecondary,
-                        },
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: MetricCard(
+                        label: 'Price Change (${row.window.label})',
+                        value: Fmt.signedPrice(row.priceChange),
+                        valueColor: colors.forChange(row.priceChange),
+                        caption: Fmt.signedPercent(row.pctChange),
+                        captionColor: colors.forChange(row.pctChange),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: MetricCard(
+                        label: 'Latest Price',
+                        value: Fmt.price(row.latestPrice),
+                        caption: row.priceBasis.isEmpty
+                            ? null
+                            : '${row.priceBasis} basis',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: MetricCard(
+                        label: 'Median Daily Volume',
+                        value: Fmt.compact(row.medianVolume),
+                        badge: percentile == null
+                            ? null
+                            : TagBadge(
+                                label: _volumeBand(percentile),
+                                foreground: colors.warning,
+                                background: colors.warningSurface,
+                              ),
+                        caption: percentile == null
+                            ? null
+                            : 'above ${(percentile * 100).clamp(0, 100).toStringAsFixed(0)}% in window',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: MetricCard(
+                        label: 'Momentum',
+                        value: trend.label.label,
+                        valueColor: switch (trend.label) {
+                          TrendLabel.accelerating => colors.positive,
+                          TrendLabel.cooling => colors.negative,
+                          _ => colors.textPrimary,
+                        },
+                        trailing: Icon(
+                          switch (trend.label) {
+                            TrendLabel.accelerating => Icons.trending_up,
+                            TrendLabel.cooling => Icons.trending_down,
+                            _ => Icons.trending_flat,
+                          },
+                          size: 18,
+                          color: switch (trend.label) {
+                            TrendLabel.accelerating => colors.positive,
+                            TrendLabel.cooling => colors.negative,
+                            _ => colors.textSecondary,
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

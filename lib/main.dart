@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data/db_sync_service.dart';
+import 'data/sqlite_platform.dart';
 import 'state/app_state.dart';
 import 'state/settings_controller.dart';
 import 'state/watchlist_controller.dart';
@@ -11,6 +12,7 @@ import 'ui/screens/home_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  configureDatabaseFactory();
   final preferences = await SharedPreferences.getInstance();
   runApp(ScreenerApp(preferences: preferences));
 }

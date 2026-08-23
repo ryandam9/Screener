@@ -1,6 +1,6 @@
 # Stocks Analysis
 
-A Flutter app for Android that reads the growth-screener SQLite databases
+A Flutter app for Android (and Linux desktop) that reads the growth-screener SQLite databases
 published to `s3://hive-in-the-cloud` and renders them on device.
 
 The two files — `us.db` (US stocks) and `asx.db` (ASX ETFs) — are downloaded
@@ -104,8 +104,9 @@ database keeps serving and the UI says it is showing cached data.
 
 ## Building
 
-Requires the Flutter SDK (developed against 3.47.1 / Dart 3.13) and the Android
-SDK.
+Requires the Flutter SDK (developed against 3.47.1 / Dart 3.13).
+
+### Android
 
 ```bash
 flutter pub get
@@ -120,6 +121,23 @@ config in `android/app/build.gradle.kts` before distributing.
 `android.permission.INTERNET` is declared in the main manifest — Flutter only
 adds it to the debug and profile manifests, so a release build without it would
 fail to reach S3.
+
+### Linux
+
+The same code runs as a Linux desktop app, which is a convenient way to see the
+screens without a device — the window opens at handset width (420x880) and the
+layouts are the phone layouts. Widening the window simply gives them more room.
+
+```bash
+sudo apt-get install libgtk-3-dev   # plus clang, cmake, ninja-build, pkg-config
+flutter build linux --release
+./build/linux/x64/release/bundle/screener
+```
+
+`sqflite` ships an Android plugin but no desktop implementation, so
+`configureDatabaseFactory()` in `lib/data/sqlite_platform.dart` swaps in the FFI
+factory (backed by the system SQLite) when running on Linux, Windows, or macOS.
+Nothing else in the app is platform-specific.
 
 ## Tests
 
