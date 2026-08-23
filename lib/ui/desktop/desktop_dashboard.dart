@@ -18,6 +18,7 @@ import 'widgets/gainers_table.dart';
 import '../info/page_info.dart';
 import '../widgets/google_finance_button.dart';
 import '../widgets/info_dialog.dart';
+import '../widgets/watchlist_star.dart';
 
 /// Everything the desktop dashboard shows, gathered in one pass.
 class DesktopDashboardData {
@@ -558,9 +559,14 @@ class _SecurityChart extends StatelessWidget {
 
     return DesktopPanel(
       title: '${row.ticker} · ${row.shortName}',
-      leadingAction: row.googleFinanceUrl == null
-          ? null
-          : GoogleFinanceButton(url: row.googleFinanceUrl, ticker: row.ticker),
+      leadingAction: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          WatchlistStar(market: row.market, ticker: row.ticker),
+          if (row.googleFinanceUrl != null)
+            GoogleFinanceButton(url: row.googleFinanceUrl, ticker: row.ticker),
+        ],
+      ),
       actionLabel: 'Open details',
       onAction: onOpenDetails,
       child: Padding(

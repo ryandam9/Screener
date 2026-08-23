@@ -62,7 +62,7 @@ class GoogleFinanceButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final size = dense ? 30.0 : 40.0;
+    final size = dense ? 26.0 : 40.0;
 
     return Tooltip(
       message: '$ticker on Google Finance',
@@ -77,7 +77,7 @@ class GoogleFinanceButton extends StatelessWidget {
             onTap: () => openExternalUrl(context, url),
             child: Icon(
               Icons.open_in_new,
-              size: dense ? 16 : 20,
+              size: dense ? 15 : 20,
               color: dense ? colors.textTertiary : colors.textSecondary,
             ),
           ),

@@ -4,6 +4,7 @@ import '../../../models/stock_row.dart';
 import '../../../theme/app_theme.dart';
 import '../../../utils/formatters.dart';
 import '../../widgets/google_finance_button.dart';
+import '../../widgets/watchlist_star.dart';
 import 'desktop_cards.dart';
 
 /// The Top Gainers table: rank, ticker, company, market, price, change, % gain.
@@ -34,7 +35,8 @@ class GainersTable extends StatelessWidget {
   static const _price = 74.0;
   static const _change = 80.0;
   static const _gain = 76.0;
-  static const _link = 32.0;
+  static const _star = 28.0;
+  static const _link = 28.0;
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +80,7 @@ class GainersTable extends StatelessWidget {
               heading('Price', _price, end: true),
               heading('Change', _change, end: true),
               heading('% Gain', _gain, end: true),
-              const SizedBox(width: _link),
+              const SizedBox(width: _star + _link),
             ],
           ),
         ),
@@ -190,6 +192,17 @@ class _GainerRow extends StatelessWidget {
               GainersTable._gain,
               color: colors.forChange(row.pctChange),
               weight: FontWeight.w600,
+            ),
+            SizedBox(
+              width: GainersTable._star,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: WatchlistStar(
+                  market: row.market,
+                  ticker: row.ticker,
+                  dense: true,
+                ),
+              ),
             ),
             SizedBox(
               width: GainersTable._link,
