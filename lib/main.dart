@@ -8,7 +8,7 @@ import 'state/app_state.dart';
 import 'state/settings_controller.dart';
 import 'state/watchlist_controller.dart';
 import 'theme/app_theme.dart';
-import 'ui/screens/home_shell.dart';
+import 'ui/screens/app_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,7 +49,7 @@ class ScreenerApp extends StatelessWidget {
             theme: AppTheme.light(),
             darkTheme: AppTheme.dark(),
             themeMode: settings.themeMode,
-            home: const HomeShell(),
+            home: const AppShell(),
           );
         },
       ),

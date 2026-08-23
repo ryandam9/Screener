@@ -1,7 +1,8 @@
 # Stocks Analysis
 
-A Flutter app for Android (and Linux desktop) that reads the growth-screener SQLite databases
-published to `s3://hive-in-the-cloud` and renders them on device.
+A Flutter app that reads the growth-screener SQLite databases published to
+`s3://hive-in-the-cloud` and renders them on device. One codebase serves a
+handset layout and a desktop layout, chosen from the window width.
 
 The two files — `us.db` (US stocks) and `asx.db` (ASX ETFs) — are downloaded
 over HTTPS, cached locally, and queried with `sqflite`. Everything except the
@@ -9,14 +10,20 @@ refresh works offline.
 
 ## Screens
 
+The layout switches at 900 logical pixels: below it, bottom navigation and one
+column; above it, a sidebar and a multi-column dashboard. Resizing the desktop
+window moves between them live, and every list and query is shared — only the
+navigation chrome and the dashboard differ.
+
 | Screen | What it shows |
 | --- | --- |
-| **Dashboard** | A card per market, the strongest movers in the selected window, and the recent screener runs read from each file's `run_id` / `data_as_of`. |
+| **Dashboard** | Handset: a card per market, the strongest movers, and recent runs. Desktop: four summary cards, a Top Gainers table with the full column set, a weekly price chart for the selected security, plus Recent Analyses and Top Movers panels. |
 | **Markets** | The full instrument list with sortable columns, search, and filters for exchange and minimum change. Tabs: All Stocks, Top Movers, Consistent, Watchlist. |
-| **Stock detail** | Price, change, and the window's endpoints; a price chart; the full published metric set; every window compared; and the Google Finance links carried in the data. |
+| **Stock detail** | Price, change, and the window's endpoints; a weekly price chart for the selected window; the full published metric set; every window compared; and the Google Finance links carried in the data. |
 | **Watchlist** | Starred tickers from both markets, swipe to remove. |
 | **Analysis** | Run-level statistics: instrument count, median/strongest/weakest change, a distribution histogram, a per-exchange breakdown, and the most traded instruments. |
-| **More** | Per-file sync status and size, re-download and cache controls, theme, and row density. |
+| **Reports** | Every published run with its row count, `data_as_of` and `run_id`, and a CSV export per window; below each market, the run metadata behind that file and its screen funnel. Desktop shows it in the sidebar; the handset reaches it from More. |
+| **More / Settings** | Per-file sync status and size, re-download and cache controls, theme, and row density. |
 
 ## Data
 
@@ -52,23 +59,79 @@ observation_ratio, median_volume, price_basis, data_as_of, run_id,
 google_finance
 ```
 
+Alongside those, each file publishes **weekly price history** in a table named
+with the same prefix and no window suffix — `us_stocks_growth` and
+`asx_etf_growth`:
+
+```
+stock_price_date, ticker, open, high, low, close, adj_close, volume,
+growth_count, growth_periods
+```
+
+One year of Friday-aligned bars (2025-08-29 to 2026-08-21, up to 52 per
+ticker), covering more tickers than the window tables do — 1,794 US and 56 ASX
+at the time of writing. Every column is TEXT, prices included, so each numeric
+field is parsed rather than cast. The table is found by its columns rather than
+its name, and a file published before it existed still opens: `hasPriceHistory`
+reports false and the charts fall back to the window endpoints.
+
+Two further tables record how the run itself went, and are read the same way —
+by their columns, so a file without them still opens:
+
+```
+run_metadata   run_id, code_revision, exchange, instrument_type, data_as_of,
+               started_at, finished_at, status, universe_total,
+               universe_screened, provider, source_run_id, source_status,
+               settings_json
+screen_funnel  window, position, stage, count
+```
+
+`run_metadata` holds a single row. `screen_funnel` holds one row per stage per
+window — "Universe in window", "Enough span", "Enough observations", "Still
+trading", "Adjusted prices", "Liquid enough", "Above price floor", "Valid
+baseline", "Return above N%" — and its last count for a window equals that
+window's published row count, so the funnel explains exactly why a window is
+as small as it is (or, for ASX 3-month, empty). Reports shows both, per market,
+and says so plainly where a file carries neither: `us.db` does not yet publish
+them.
+
 A window's table can be empty (ASX has no 3-month rows in the current run), and
 `consistent_growth_stocks` may be absent or empty. Both cases are handled with
 explanatory empty states rather than errors.
 
 ### What the data does *not* contain
 
-Two things in the original design have no backing data, and the app is explicit
-about it rather than inventing numbers:
+- **Weekly bars, not daily.** The history is Friday-aligned, so the charts plot
+  weekly closes at their own dates. A seven-day window therefore holds two of
+  them; the desktop's security panel charts the full published year instead,
+  which is the point of that panel.
 
-- **No daily price bars.** Each row stores only its window's opening and closing
-  price. The detail chart therefore plots exactly the prices the database
-  states: one point per window start, plus the close. Each point is marked, and
-  a caption says the line between them is a straight join, not a price path.
-  A 7-day chart is legitimately just two points.
+### Two prices for the same window
+
+The window tables and the weekly history disagree, and neither is wrong. A
+window opens on a calendar date (MRNA's year starts 2025-08-25 at 25.10) while
+the bars are Friday closes (the first is 2025-08-29 at 24.09), so the endpoints
+— and the percentages derived from them — differ:
+
+| Window | Screener | From weekly bars |
+| --- | --- | --- |
+| 7D | 63.89 → 139.23, +117.91% | 63.32 → 145.13, +129.20% |
+| 1Y | 25.10 → 145.13, +478.21% | 24.09 → 145.13, +502.45% |
+
+The detail screen shows the **weekly** figures, so its numbers match the line
+above them, and prints the screener's own change directly beneath
+("screener: +478.21%") with both sets listed and attributed under Detailed
+Metrics. The lists and rankings keep the **screener's** figures — they are what
+the pipeline screened and sorted on, and changing them there would make the app
+disagree with its own source.
 - **No index level.** There is no ASX or S&P value to show, so each market card
   leads with the *median percentage change* for the selected window over the
-  instrument count, and its sparkline is that median across every window.
+  instrument count. Its sparkline is a chain-linked index built from the weekly
+  bars: the median week-over-week return, compounded. Normalising each ticker
+  against its own first bar is the obvious alternative and is wrong here — the
+  constituents enter the history at different dates, so that median lurches by
+  tens of percent in a single week whenever the set changes. Chaining only ever
+  compares a ticker with itself.
 
 ### Design deviations
 
@@ -84,6 +147,27 @@ about it rather than inventing numbers:
   absolute threshold — ASX ETF turnover and US stock turnover are orders of
   magnitude apart.
 
+The desktop mockup asks for four more things the data cannot support:
+
+- **No market-session countdown.** Nothing in the files describes trading
+  hours, so the sidebar card reports what the app does know — whether both
+  databases are current and how fresh the run is — over a live local clock.
+- **No month-on-month deltas.** Each file carries a single `run_id`, so there
+  is no earlier run to compare against. The Analysis Summary card shows the
+  run's totals and says "no earlier run to compare against" instead of an
+  invented "+23%".
+- **No market-trend panel.** The mockup charts a market index below the table.
+  That space instead charts the *security selected in the table* over its full
+  published year, which is what the weekly history is for; clicking a row
+  charts it in place, and "Open details" opens the full screen.
+- **No "today" movers and no user account.** The shortest window is seven days,
+  so that panel is "Top Movers (shortest window)"; the account chip is replaced
+  by the sync status and a refresh button, since the app has no accounts.
+
+Counts are labelled for what they are: the Analysis Summary "Rows" figure sums
+rows across every window, so a ticker present in five windows contributes five
+rows — it is not a distinct instrument count.
+
 ## Architecture
 
 ```
@@ -92,7 +176,10 @@ lib/
   data/         DbSyncService (S3 + cache), MarketDatabase (discovery + queries)
   state/        AppState (sync/selection), WatchlistController, SettingsController
   theme/        ScreenerColors theme extension, light and dark palettes
-  ui/           screens/ and widgets/ (chart, sparkline, tiles, panels)
+  ui/           responsive.dart picks the layout
+                screens/  shared screens plus the handset shell
+                desktop/  sidebar shell, dashboard and its widgets
+                widgets/  chart, sparkline, tiles, panels
 ```
 
 Sync is offline-first. On start each cached file is opened and shown
@@ -124,9 +211,9 @@ fail to reach S3.
 
 ### Linux
 
-The same code runs as a Linux desktop app, which is a convenient way to see the
-screens without a device — the window opens at handset width (420x880) and the
-layouts are the phone layouts. Widening the window simply gives them more room.
+The same code runs as a Linux desktop app. The window opens at 1280x860, wide
+enough for the sidebar layout; narrowing it below 900px switches to the handset
+layout live.
 
 ```bash
 sudo apt-get install libgtk-3-dev   # plus clang, cmake, ninja-build, pkg-config
@@ -146,15 +233,19 @@ flutter analyze
 flutter test
 ```
 
-58 tests cover the table discovery and every query (against fixture databases
-built to the published schema, including the differing prefixes), the price
-series assembly, the sync service (conditional requests, progress, corrupt
-downloads, failure handling), the formatters and trend classifier, opening the
-published Google Finance links, and the whole widget tree driven end to end
-against a fake S3.
+101 tests cover the table discovery and every query (against fixture databases
+built to the published schema, including the differing prefixes and the weekly
+history), the run metadata and screen funnel (including the degraded path for
+files without them), the price-series assembly and the chain-linked growth
+curve, the sync
+service (conditional requests, progress, corrupt downloads, failure handling),
+the formatters and trend classifier, CSV rendering and the export's write path,
+opening the published Google Finance links, and both layouts driven end to end
+against a fake S3 — including that a wide window gets the sidebar and a narrow
+one does not.
 
-Five of those are the real-data tests below; they report as skipped unless
-`SCREENER_DB_DIR` is set, so a plain `flutter test` shows `+53 ~5`.
+Seven of those are the real-data tests below; they report as skipped unless
+`SCREENER_DB_DIR` is set, so a plain `flutter test` shows `+82 ~7`.
 
 To additionally verify the data layer against the real published files:
 

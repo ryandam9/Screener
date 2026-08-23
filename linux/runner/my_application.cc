@@ -52,7 +52,9 @@ static void my_application_activate(GApplication* application) {
     gtk_window_set_title(window, "Stocks Analysis");
   }
 
-  gtk_window_set_default_size(window, 420, 880);
+  // Wide enough for the desktop layout, which the app switches to at 900
+  // logical pixels; narrowing the window falls back to the handset layout.
+  gtk_window_set_default_size(window, 1280, 860);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(

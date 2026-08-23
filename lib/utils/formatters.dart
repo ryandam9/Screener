@@ -83,6 +83,12 @@ class Fmt {
     return parsed == null ? isoDate : _short.format(parsed);
   }
 
+  static final DateFormat _clock = DateFormat('h:mm:ss a');
+
+  /// Wall clock with the host's zone abbreviation, e.g. `10:44:12 AM AEST`.
+  static String clock(DateTime value) =>
+      '${_clock.format(value)} ${value.timeZoneName}';
+
   static String dateTime(DateTime value) =>
       '${_long.format(value)}, ${_time.format(value)}';
 

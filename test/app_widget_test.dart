@@ -2,36 +2,14 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:screener/data/db_sync_service.dart';
-import 'package:screener/main.dart';
 import 'package:screener/ui/screens/stock_detail_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import 'support/fixture_database.dart';
+import 'support/app_harness.dart';
 
-/// Drives the whole app with fixture databases served by a fake S3.
-///
-/// This exercises the real widget tree — download, open, query, render — so
-/// layout and data-binding mistakes surface without a device.
-///
-/// Two testing constraints shape the helpers below. `testWidgets` runs its body
-/// in a fake-async zone, where the sync service's real file I/O and sqflite's
-/// FFI calls never complete; [settle] therefore hands time back to the real
-/// event loop via `runAsync` between frames. And `pumpAndSettle` cannot be used
-/// at all, because the loading and download indicators animate continuously and
-/// would keep it spinning until its timeout.
-Future<void> settle(WidgetTester tester, {int frames = 30}) async {
-  for (var i = 0; i < frames; i++) {
-    await tester.pump(const Duration(milliseconds: 50));
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 8)),
-    );
-  }
-}
-
+/// The handset layout, driven end to end against the fixture databases served
+/// by a fake S3. The harness explains why `pumpAndSettle` cannot be used here.
 void main() {
   late Directory tempDir;
   late Directory serveDir;
@@ -48,84 +26,7 @@ void main() {
     tempDir = await Directory.systemTemp.createTemp('screener_app_test');
     serveDir = await Directory.systemTemp.createTemp('screener_app_serve');
     SharedPreferences.setMockInitialValues({});
-
-    final usPath = await createFixtureDatabase(
-      directory: serveDir,
-      fileName: 'us.db',
-      tablePrefix: 'us_stocks_growth',
-      consistent: const [
-        ('MRNA', 'Moderna, Inc. - Common Stock', 'NASDAQ', 117.91),
-      ],
-      rowsBySuffix: const {
-        '_7_days': [
-          FixtureRow(
-            ticker: 'MRNA',
-            name: 'Moderna, Inc. - Common Stock',
-            exchange: 'NASDAQ',
-            firstDate: '2026-08-14',
-            firstPrice: 63.89,
-            lastDate: '2026-08-21',
-            latestPrice: 139.225,
-            pctChange: 117.91,
-            medianVolume: 45924100,
-          ),
-          FixtureRow(
-            ticker: 'AMLX',
-            name: 'Amylyx Pharmaceuticals, Inc. - Common Stock',
-            exchange: 'NASDAQ',
-            firstDate: '2026-08-14',
-            firstPrice: 21.53,
-            lastDate: '2026-08-21',
-            latestPrice: 39.16,
-            pctChange: 81.89,
-            medianVolume: 6451750,
-          ),
-        ],
-        '_1_year': [
-          FixtureRow(
-            ticker: 'MRNA',
-            name: 'Moderna, Inc. - Common Stock',
-            exchange: 'NASDAQ',
-            firstDate: '2025-08-22',
-            firstPrice: 25.35,
-            lastDate: '2026-08-21',
-            latestPrice: 145.13,
-            pctChange: 472.5,
-            observations: 251,
-            daysCovered: 364,
-            medianVolume: 8359900,
-          ),
-        ],
-      },
-    );
-
-    final asxPath = await createFixtureDatabase(
-      directory: serveDir,
-      fileName: 'asx.db',
-      tablePrefix: 'asx_etf_growth',
-      includeConsistentTable: false,
-      rowsBySuffix: const {
-        '_7_days': [
-          FixtureRow(
-            ticker: 'QETH',
-            name: 'Betashares Ethereum ETF',
-            exchange: 'ASX',
-            assetType: 'etf',
-            firstDate: '2026-08-14',
-            firstPrice: 18.53,
-            lastDate: '2026-08-21',
-            latestPrice: 22.42,
-            pctChange: 20.99,
-            medianVolume: 7518,
-          ),
-        ],
-      },
-    );
-
-    payloads = {
-      'us.db': await File(usPath).readAsBytes(),
-      'asx.db': await File(asxPath).readAsBytes(),
-    };
+    payloads = await buildFixturePayloads(serveDir);
   });
 
   tearDown(() async {
@@ -134,48 +35,14 @@ void main() {
     }
   });
 
-  DbSyncService serviceWith(
-    SharedPreferences prefs, {
-    bool Function()? shouldFail,
-  }) {
-    return DbSyncService(
-      preferences: prefs,
-      directoryResolver: () async => tempDir,
-      client: MockClient((request) async {
-        if (shouldFail?.call() ?? false) {
-          return http.Response('server error', 500);
-        }
-        final name = request.url.pathSegments.last;
-        final bytes = payloads[name];
-        if (bytes == null) return http.Response('not found', 404);
-        return http.Response.bytes(bytes, 200, headers: {'etag': '"$name-1"'});
-      }),
-    );
-  }
-
-  /// Starts the app on a phone-sized surface and waits for the first render.
-  Future<SharedPreferences> launch(
-    WidgetTester tester, {
-    bool Function()? shouldFail,
-  }) async {
-    tester.view.physicalSize = const Size(1080, 2340);
-    tester.view.devicePixelRatio = 3.0;
-    addTearDown(tester.view.reset);
-
-    late SharedPreferences prefs;
-    await tester.runAsync(() async {
-      prefs = await SharedPreferences.getInstance();
-    });
-
-    await tester.pumpWidget(
-      ScreenerApp(
-        preferences: prefs,
-        syncService: serviceWith(prefs, shouldFail: shouldFail),
-      ),
-    );
-    await settle(tester);
-    return prefs;
-  }
+  /// Starts the app on a phone-sized surface.
+  Future<void> launch(WidgetTester tester, {bool Function()? shouldFail}) =>
+      launchApp(
+        tester,
+        cacheDir: tempDir,
+        payloads: payloads,
+        shouldFail: shouldFail,
+      ).then((_) {});
 
   testWidgets('dashboard renders both markets and the top gainers', (
     tester,
@@ -225,12 +92,25 @@ void main() {
     // MRNA appears in both the 7D and 1Y fixture tables.
     await tester.tap(find.text('1Y'));
     await settle(tester);
-    expect(find.textContaining('472.50%'), findsWidgets);
+
+    // The headline follows the weekly closes the chart draws: the fixture's
+    // bars run 57.10 -> 139.225, which is +143.83%, not the screener's
+    // +472.50% measured from its own calendar start.
+    expect(find.textContaining('+143.83%'), findsWidgets);
+    expect(find.text('1 Year change, weekly closes'), findsOneWidget);
+    // The published figure stays on screen rather than being replaced.
+    expect(find.text('screener: +472.50%'), findsOneWidget);
 
     await tester.tap(find.text('Metrics'));
     await settle(tester);
     expect(find.text('Key Metrics'), findsOneWidget);
     expect(find.text('Detailed Metrics'), findsOneWidget);
+
+    // Both sources are listed, each attributed.
+    await tester.drag(find.byType(ListView).first, const Offset(0, -400));
+    await settle(tester);
+    expect(find.text('Screener change'), findsOneWidget);
+    expect(find.text('Weekly change'), findsOneWidget);
 
     await tester.tap(find.text('Windows'));
     await settle(tester);
@@ -303,6 +183,21 @@ void main() {
     await settle(tester);
     expect(find.text('Data sources'), findsOneWidget);
     expect(find.textContaining('us.db'), findsWidgets);
+  });
+
+  testWidgets('Reports stacks the run panels on a handset', (tester) async {
+    await launch(tester);
+
+    await tester.tap(find.text('More'));
+    await settle(tester);
+    await tester.tap(find.text('Runs and CSV export'));
+    await settle(tester);
+
+    // The ASX fixture publishes both tables; at handset width they stack
+    // rather than sitting side by side.
+    expect(find.text('Run metadata'), findsOneWidget);
+    expect(find.text('Screen funnel'), findsOneWidget);
+    expect(find.text('Universe in window'), findsOneWidget);
   });
 
   testWidgets('a failed refresh keeps serving the cached databases', (

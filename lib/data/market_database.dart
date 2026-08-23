@@ -2,6 +2,8 @@ import 'package:sqflite/sqflite.dart';
 
 import '../models/growth_window.dart';
 import '../models/market.dart';
+import '../models/price_bar.dart';
+import '../models/run_details.dart';
 import '../models/stock_row.dart';
 
 /// Columns a list can be sorted by. Values are physical column names and are
@@ -167,15 +169,29 @@ class MarketDatabase {
     required Database database,
     required Map<GrowthWindow, String> tables,
     required String? consistentTable,
+    required String? seriesTable,
+    required String? metadataTable,
+    required String? funnelTable,
   }) : _db = database,
        _tables = tables,
-       _consistentTable = consistentTable;
+       _consistentTable = consistentTable,
+       _seriesTable = seriesTable,
+       _metadataTable = metadataTable,
+       _funnelTable = funnelTable;
 
   final Market market;
   final String path;
   final Database _db;
   final Map<GrowthWindow, String> _tables;
   final String? _consistentTable;
+  final String? _seriesTable;
+  final String? _metadataTable;
+  final String? _funnelTable;
+
+  /// The full growth curve costs roughly 650ms against the US file, and the
+  /// dashboard asks for it on every rebuild, so it is computed once per open
+  /// database. A filtered curve is cheap enough not to bother.
+  List<GrowthPoint>? _growthCache;
 
   /// Windows this file actually contains, shortest first.
   List<GrowthWindow> get availableWindows {
@@ -185,6 +201,16 @@ class MarketDatabase {
   }
 
   bool get hasConsistentTable => _consistentTable != null;
+
+  /// True when the file publishes weekly price history alongside the windows.
+  /// Older files carry only the per-window tables.
+  bool get hasPriceHistory => _seriesTable != null;
+
+  /// True when the file describes the run that produced it.
+  bool get hasRunMetadata => _metadataTable != null;
+
+  /// True when the file records how the universe narrowed at each stage.
+  bool get hasScreenFunnel => _funnelTable != null;
 
   static Future<MarketDatabase> open(Market market, String path) async {
     final database = await databaseFactory.openDatabase(
@@ -198,6 +224,7 @@ class MarketDatabase {
 
     final tables = <GrowthWindow, String>{};
     String? consistent;
+    final candidates = <String>[];
     for (final row in rows) {
       final name = row['name'] as String?;
       if (name == null) continue;
@@ -206,6 +233,35 @@ class MarketDatabase {
         tables[window] = name;
       } else if (name.toLowerCase().contains('consistent')) {
         consistent = name;
+      } else {
+        candidates.add(name);
+      }
+    }
+
+    // The remaining tables are identified by their columns rather than their
+    // names, because the pipeline has already renamed and added tables twice.
+    String? series;
+    String? metadata;
+    String? funnel;
+    for (final name in candidates) {
+      final columns = await database.rawQuery('PRAGMA table_info("$name")');
+      final names = {
+        for (final column in columns)
+          if (column['name'] case final String value) value,
+      };
+
+      if (series == null &&
+          names.contains('stock_price_date') &&
+          names.contains('close')) {
+        series = name;
+      } else if (metadata == null &&
+          names.contains('run_id') &&
+          names.contains('universe_total')) {
+        metadata = name;
+      } else if (funnel == null &&
+          names.contains('stage') &&
+          names.contains('count')) {
+        funnel = name;
       }
     }
 
@@ -222,6 +278,9 @@ class MarketDatabase {
       database: database,
       tables: tables,
       consistentTable: consistent,
+      seriesTable: series,
+      metadataTable: metadata,
+      funnelTable: funnel,
     );
   }
 
@@ -446,6 +505,170 @@ class MarketDatabase {
       for (final row in rows) ConsistentStock.fromMap(row, market: market),
     ];
   }
+
+  /// Mean percentage change for a window, or null when the window is empty.
+  ///
+  /// The dashboard reports this alongside the median: the screener's long tail
+  /// pulls the two a long way apart, and showing both makes that visible.
+  Future<double?> averagePctChange(GrowthWindow window) async {
+    final table = _tableFor(window);
+    if (table == null) return null;
+    final rows = await _db.rawQuery(
+      'SELECT AVG(pct_change) AS a, COUNT(pct_change) AS n FROM "$table" '
+      'WHERE pct_change IS NOT NULL',
+    );
+    final count = (rows.first['n'] as num?)?.toInt() ?? 0;
+    if (count == 0) return null;
+    return (rows.first['a'] as num?)?.toDouble();
+  }
+
+  /// How the published run was produced, when the file records it.
+  Future<RunMetadata?> runMetadata() async {
+    final table = _metadataTable;
+    if (table == null) return null;
+    final rows = await _db.rawQuery('SELECT * FROM "$table" LIMIT 1');
+    if (rows.isEmpty) return null;
+    return RunMetadata.fromMap(rows.first);
+  }
+
+  /// The screen funnel, ordered by window then stage.
+  ///
+  /// Pass [window] to get one window's stages; omit it for all of them.
+  Future<List<FunnelStage>> screenFunnel({GrowthWindow? window}) async {
+    final table = _funnelTable;
+    if (table == null) return const [];
+
+    final rows = await _db.rawQuery(
+      'SELECT * FROM "$table" ORDER BY window, position',
+    );
+    final stages = [
+      for (final row in rows)
+        if (FunnelStage.fromMap(row) case final stage?) stage,
+    ];
+    if (window == null) return stages;
+    return [
+      for (final stage in stages)
+        if (stage.window == window) stage,
+    ];
+  }
+
+  /// Weekly bars for one ticker, oldest first.
+  ///
+  /// [from] and [to] bound the range inclusively; the dates are ISO strings in
+  /// the file, so a lexicographic comparison is also a chronological one.
+  Future<List<PriceBar>> priceHistory(
+    String ticker, {
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    final table = _seriesTable;
+    if (table == null) return const [];
+
+    final clauses = <String>['ticker = ?'];
+    final args = <Object?>[ticker];
+    if (from != null) {
+      clauses.add('stock_price_date >= ?');
+      args.add(_isoDate(from));
+    }
+    if (to != null) {
+      clauses.add('stock_price_date <= ?');
+      args.add(_isoDate(to));
+    }
+
+    final rows = await _db.rawQuery(
+      'SELECT * FROM "$table" WHERE ${clauses.join(' AND ')} '
+      'ORDER BY stock_price_date',
+      args,
+    );
+    return [
+      for (final row in rows)
+        if (PriceBar.fromMap(row) case final bar?) bar,
+    ];
+  }
+
+  /// A market-wide growth curve: a chain-linked index of median weekly return.
+  ///
+  /// Normalising every ticker against its own first bar looks simpler, but the
+  /// constituents are not fixed — tickers enter the history at different dates
+  /// — so that median lurches whenever the set changes, which shows up as
+  /// spikes of tens of percent in a single week. Chaining the median
+  /// *week-over-week* return instead only ever compares a ticker with itself,
+  /// which is how an index handles changing membership.
+  Future<List<GrowthPoint>> medianGrowthSeries({DateTime? from}) async {
+    final table = _seriesTable;
+    if (table == null) return const [];
+    if (from == null && _growthCache != null) return _growthCache!;
+
+    final args = <Object?>[];
+    var where = '';
+    if (from != null) {
+      where = 'WHERE stock_price_date >= ?';
+      args.add(_isoDate(from));
+    }
+
+    final rows = await _db.rawQuery(
+      'SELECT ticker, stock_price_date AS d, CAST(close AS REAL) AS c '
+      'FROM "$table" $where ORDER BY ticker, stock_price_date',
+      args,
+    );
+
+    final byTicker = <String, Map<String, double>>{};
+    final dates = <String>{};
+    for (final row in rows) {
+      final ticker = row['ticker'] as String?;
+      final date = row['d'] as String?;
+      final close = (row['c'] as num?)?.toDouble();
+      if (ticker == null || date == null || close == null || close <= 0) {
+        continue;
+      }
+      (byTicker[ticker] ??= <String, double>{})[date] = close;
+      dates.add(date);
+    }
+    if (dates.isEmpty) return const [];
+
+    final ordered = dates.toList()..sort();
+    final points = <GrowthPoint>[
+      GrowthPoint(date: DateTime.parse(ordered.first), pctChange: 0),
+    ];
+
+    var level = 1.0;
+    for (var i = 1; i < ordered.length; i++) {
+      final previous = ordered[i - 1];
+      final current = ordered[i];
+
+      // Only tickers with a price in both weeks contribute a return.
+      final returns = <double>[];
+      for (final series in byTicker.values) {
+        final before = series[previous];
+        final after = series[current];
+        if (before == null || after == null || before <= 0) continue;
+        returns.add(after / before - 1);
+      }
+
+      if (returns.isNotEmpty) {
+        returns.sort();
+        final middle = returns.length ~/ 2;
+        final median = returns.length.isOdd
+            ? returns[middle]
+            : (returns[middle - 1] + returns[middle]) / 2;
+        level *= 1 + median;
+      }
+      points.add(
+        GrowthPoint(
+          date: DateTime.parse(current),
+          pctChange: (level - 1) * 100,
+        ),
+      );
+    }
+
+    if (from == null) _growthCache = points;
+    return points;
+  }
+
+  static String _isoDate(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-'
+      '${value.month.toString().padLeft(2, '0')}-'
+      '${value.day.toString().padLeft(2, '0')}';
 
   /// Raw percentage changes for a window, used to draw the distribution.
   Future<List<double>> pctChanges(GrowthWindow window) async {

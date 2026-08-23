@@ -1,24 +1,59 @@
 import 'package:flutter/material.dart';
 
+import '../../models/price_bar.dart';
 import '../../models/price_series.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 
+/// One plotted price. The chart takes these rather than a concrete row type so
+/// it can draw the weekly history or, for a file that predates it, the window
+/// endpoints.
+class ChartPoint {
+  const ChartPoint({
+    required this.date,
+    required this.price,
+    required this.caption,
+  });
+
+  final DateTime date;
+  final double price;
+
+  /// Second line of the tooltip, e.g. `weekly close` or `7D open`.
+  final String caption;
+
+  /// The published weekly bars, which is what the app plots when the file
+  /// carries price history.
+  static List<ChartPoint> fromBars(Iterable<PriceBar> bars) => [
+    for (final bar in bars)
+      ChartPoint(date: bar.date, price: bar.plotPrice, caption: 'weekly close'),
+  ];
+
+  /// Fallback for files published before the history table existed.
+  static List<ChartPoint> fromSeries(PriceSeries series) => [
+    for (final point in series.points)
+      ChartPoint(
+        date: point.date,
+        price: point.price,
+        caption: point.isEndpoint
+            ? 'close'
+            : '${point.sourceWindow.label} open',
+      ),
+  ];
+}
+
 /// The price chart on the stock detail screen.
 ///
-/// Every plotted point is a price the database states outright — a window's
-/// opening price, or the closing price. Segments between points are drawn as
-/// straight lines and labelled as such, because the dataset holds no
-/// intermediate bars to curve through.
+/// Points are plotted at their real dates, so a gap in the weekly series shows
+/// as a longer segment rather than being evenly spaced away.
 class PriceChart extends StatefulWidget {
   const PriceChart({
     super.key,
-    required this.series,
+    required this.points,
     required this.lineColor,
     this.height = 210,
   });
 
-  final PriceSeries series;
+  final List<ChartPoint> points;
   final Color lineColor;
   final double height;
 
@@ -35,32 +70,48 @@ class _PriceChartState extends State<PriceChart> {
   static const _bottomPadding = 26.0;
 
   void _handlePointer(Offset position, Size size) {
-    final points = widget.series.points;
+    final points = widget.points;
     if (points.length < 2) return;
     final usableWidth = size.width - _leftPadding - _rightPadding;
     if (usableWidth <= 0) return;
 
-    final relative = (position.dx - _leftPadding) / usableWidth;
-    final index = (relative * (points.length - 1)).round().clamp(
-      0,
-      points.length - 1,
+    // Pick the point nearest the pointer along the real date axis.
+    final first = points.first.date.millisecondsSinceEpoch;
+    final last = points.last.date.millisecondsSinceEpoch;
+    final span = (last - first) == 0 ? 1 : last - first;
+    final relative = ((position.dx - _leftPadding) / usableWidth).clamp(
+      0.0,
+      1.0,
     );
+    final target = first + span * relative;
+
+    var index = 0;
+    var best = double.infinity;
+    for (var i = 0; i < points.length; i++) {
+      final distance = (points[i].date.millisecondsSinceEpoch - target)
+          .abs()
+          .toDouble();
+      if (distance < best) {
+        best = distance;
+        index = i;
+      }
+    }
     if (index != _selectedIndex) setState(() => _selectedIndex = index);
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final series = widget.series;
+    final points = widget.points;
 
-    if (!series.hasShape) {
+    if (points.length < 2) {
       return SizedBox(
         height: widget.height,
         child: Center(
           child: Text(
-            series.isEmpty
-                ? 'No price points for this window'
-                : 'Only one price point in this window',
+            points.isEmpty
+                ? 'No prices published for this window'
+                : 'Only one price in this window',
             style: TextStyle(color: colors.textTertiary, fontSize: 13),
           ),
         ),
@@ -84,7 +135,7 @@ class _PriceChartState extends State<PriceChart> {
             child: CustomPaint(
               size: size,
               painter: _PriceChartPainter(
-                series: series,
+                points: points,
                 lineColor: widget.lineColor,
                 gridColor: colors.chartGrid,
                 labelColor: colors.textTertiary,
@@ -103,7 +154,7 @@ class _PriceChartState extends State<PriceChart> {
 
 class _PriceChartPainter extends CustomPainter {
   _PriceChartPainter({
-    required this.series,
+    required this.points,
     required this.lineColor,
     required this.gridColor,
     required this.labelColor,
@@ -113,7 +164,7 @@ class _PriceChartPainter extends CustomPainter {
     required this.textDirection,
   });
 
-  final PriceSeries series;
+  final List<ChartPoint> points;
   final Color lineColor;
   final Color gridColor;
   final Color labelColor;
@@ -128,18 +179,25 @@ class _PriceChartPainter extends CustomPainter {
   static const _bottomPadding = _PriceChartState._bottomPadding;
   static const _gridLines = 4;
 
+  /// A dot per point reads well for a handful of prices and turns into noise
+  /// for a year of weekly ones.
+  static const _maxDots = 14;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final points = series.points;
     if (points.length < 2) return;
 
     final plotWidth = size.width - _leftPadding - _rightPadding;
     final plotHeight = size.height - _topPadding - _bottomPadding;
     if (plotWidth <= 0 || plotHeight <= 0) return;
 
+    var rawMin = points.first.price;
+    var rawMax = points.first.price;
+    for (final point in points) {
+      if (point.price < rawMin) rawMin = point.price;
+      if (point.price > rawMax) rawMax = point.price;
+    }
     // Pad the value axis so the line never touches the frame.
-    final rawMin = series.minPrice;
-    final rawMax = series.maxPrice;
     final rawSpan = (rawMax - rawMin).abs() < 1e-9
         ? rawMax.abs() * 0.1 + 1
         : rawMax - rawMin;
@@ -147,8 +205,14 @@ class _PriceChartPainter extends CustomPainter {
     final max = rawMax + rawSpan * 0.12;
     final span = max - min;
 
+    final firstMs = points.first.date.millisecondsSinceEpoch;
+    final lastMs = points.last.date.millisecondsSinceEpoch;
+    final msSpan = (lastMs - firstMs) == 0 ? 1 : lastMs - firstMs;
+
     double xFor(int index) =>
-        _leftPadding + plotWidth * (index / (points.length - 1));
+        _leftPadding +
+        plotWidth *
+            ((points[index].date.millisecondsSinceEpoch - firstMs) / msSpan);
     double yFor(double price) =>
         _topPadding + plotHeight * (1 - (price - min) / span);
 
@@ -215,15 +279,15 @@ class _PriceChartPainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round,
     );
 
-    // Mark each known price so it is obvious the line is interpolated between
-    // a small number of real observations.
-    for (final offset in offsets) {
-      canvas
-        ..drawCircle(offset, 3.4, Paint()..color = lineColor)
-        ..drawCircle(offset, 1.6, Paint()..color = tooltipForeground);
+    if (points.length <= _maxDots) {
+      for (final offset in offsets) {
+        canvas
+          ..drawCircle(offset, 3.4, Paint()..color = lineColor)
+          ..drawCircle(offset, 1.6, Paint()..color = tooltipForeground);
+      }
     }
 
-    _paintAxisDates(canvas, points, xFor, size);
+    _paintAxisDates(canvas, xFor, size);
 
     final selected = selectedIndex;
     if (selected != null && selected >= 0 && selected < points.length) {
@@ -231,24 +295,18 @@ class _PriceChartPainter extends CustomPainter {
     }
   }
 
-  void _paintAxisDates(
-    Canvas canvas,
-    List<PricePoint> points,
-    double Function(int) xFor,
-    Size size,
-  ) {
-    // Show at most four date labels so they never collide.
+  void _paintAxisDates(Canvas canvas, double Function(int) xFor, Size size) {
+    // At most four date labels, so they never collide.
     final maxLabels = points.length <= 4 ? points.length : 4;
     final y = size.height - _bottomPadding + 7;
     for (var i = 0; i < maxLabels; i++) {
       final index = maxLabels == 1
           ? 0
           : ((points.length - 1) * i / (maxLabels - 1)).round();
-      final label = Fmt.shortDate(points[index].date);
       final x = xFor(index);
       _paintText(
         canvas,
-        label,
+        Fmt.shortDate(points[index].date),
         Offset(x, y),
         color: labelColor,
         fontSize: 10,
@@ -262,7 +320,7 @@ class _PriceChartPainter extends CustomPainter {
     Canvas canvas,
     Size size,
     Offset offset,
-    PricePoint point,
+    ChartPoint point,
   ) {
     canvas.drawLine(
       Offset(offset.dx, _topPadding),
@@ -285,8 +343,7 @@ class _PriceChartPainter extends CustomPainter {
             ),
           ),
           TextSpan(
-            text:
-                '${Fmt.shortDate(point.date)} · ${point.isEndpoint ? 'close' : '${point.sourceWindow.label} open'}',
+            text: '${Fmt.shortDate(point.date)} · ${point.caption}',
             style: TextStyle(
               color: tooltipForeground.withValues(alpha: 0.75),
               fontSize: 10.5,
@@ -339,7 +396,7 @@ class _PriceChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_PriceChartPainter old) =>
-      old.series != series ||
+      old.points != points ||
       old.selectedIndex != selectedIndex ||
       old.lineColor != lineColor ||
       old.gridColor != gridColor;

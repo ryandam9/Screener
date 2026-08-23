@@ -73,6 +73,86 @@ class FixtureRow {
   ];
 }
 
+/// One weekly bar, written as TEXT exactly as the pipeline does.
+class FixtureBar {
+  const FixtureBar({
+    required this.date,
+    required this.ticker,
+    required this.close,
+    this.open,
+    this.high,
+    this.low,
+    double? adjClose,
+    this.volume = 1000000,
+    this.growthPeriods = '1Y,6M,3M,1M,5D',
+  }) : adjClose = adjClose ?? close;
+
+  final String date;
+  final String ticker;
+  final double close;
+  final double? open;
+  final double? high;
+  final double? low;
+  final double adjClose;
+  final double volume;
+  final String growthPeriods;
+}
+
+/// The `run_metadata` row, as the pipeline writes it.
+class FixtureRun {
+  const FixtureRun({
+    this.runId = '20260822T224430Z-a4761276',
+    this.codeRevision = '63ad976',
+    this.exchange = 'NASDAQ',
+    this.instrumentType = 'common_stock',
+    this.dataAsOf = '2026-08-21',
+    this.startedAt = '2026-08-22T22:44:30.987183+00:00',
+    this.finishedAt = '2026-08-22T22:44:32.391127+00:00',
+    this.status = 'success',
+    this.universeTotal = 403,
+    this.universeScreened = 402,
+    this.provider = 'yahoo_finance',
+    this.sourceRunId = '20260822T033603Z-628bdcfe',
+    this.sourceStatus = 'success',
+    this.settingsJson =
+        '{"min_price": 2.0, "min_coverage": 0.8, '
+        '"min_median_volume": 1000.0, "min_observation_ratio": 0.5, '
+        '"max_data_age_days": 5, "endpoint_window": 3, '
+        '"price_history_sampling": "weekly"}',
+  });
+
+  final String? runId;
+  final String? codeRevision;
+  final String? exchange;
+  final String? instrumentType;
+  final String? dataAsOf;
+  final String? startedAt;
+  final String? finishedAt;
+  final String? status;
+  final int? universeTotal;
+  final int? universeScreened;
+  final String? provider;
+  final String? sourceRunId;
+  final String? sourceStatus;
+  final String? settingsJson;
+}
+
+/// One `screen_funnel` row. [window] is the table suffix without its leading
+/// underscore, exactly as the pipeline writes it.
+class FixtureStage {
+  const FixtureStage({
+    required this.window,
+    required this.position,
+    required this.stage,
+    required this.count,
+  });
+
+  final String window;
+  final int position;
+  final String stage;
+  final int count;
+}
+
 /// Writes a SQLite file shaped like the published databases.
 ///
 /// [tablePrefix] varies in production (`us_stocks_growth`, `asx_etf_growth`),
@@ -83,6 +163,9 @@ Future<String> createFixtureDatabase({
   required String tablePrefix,
   required Map<String, List<FixtureRow>> rowsBySuffix,
   bool includeConsistentTable = true,
+  List<FixtureBar> weeklyBars = const [],
+  FixtureRun? run,
+  List<FixtureStage> funnel = const [],
   List<(String ticker, String name, String exchange, double pct)> consistent =
       const [],
 }) async {
@@ -114,6 +197,71 @@ Future<String> createFixtureDatabase({
         'data_as_of': row.dataAsOf,
         'run_id': row.runId,
         'google_finance': row.values.last,
+      });
+    }
+  }
+
+  if (weeklyBars.isNotEmpty) {
+    // Every column is TEXT in the published files, prices included.
+    await db.execute(
+      'CREATE TABLE "$tablePrefix" ('
+      '  "stock_price_date" TEXT, "ticker" TEXT, "open" TEXT, "high" TEXT,'
+      '  "low" TEXT, "close" TEXT, "adj_close" TEXT, "volume" TEXT,'
+      '  "growth_count" TEXT, "growth_periods" TEXT)',
+    );
+    for (final bar in weeklyBars) {
+      await db.insert(tablePrefix, {
+        'stock_price_date': bar.date,
+        'ticker': bar.ticker,
+        'open': '${bar.open ?? bar.close}',
+        'high': '${bar.high ?? bar.close}',
+        'low': '${bar.low ?? bar.close}',
+        'close': '${bar.close}',
+        'adj_close': '${bar.adjClose}',
+        'volume': '${bar.volume}',
+        'growth_count': '${bar.growthPeriods.split(',').length}',
+        'growth_periods': bar.growthPeriods,
+      });
+    }
+  }
+
+  if (run != null) {
+    await db.execute(
+      'CREATE TABLE run_metadata ('
+      '  run_id TEXT, code_revision TEXT, exchange TEXT, instrument_type TEXT,'
+      '  data_as_of TEXT, started_at TEXT, finished_at TEXT, status TEXT,'
+      '  universe_total INTEGER, universe_screened INTEGER, provider TEXT,'
+      '  source_run_id TEXT, source_status TEXT, settings_json TEXT)',
+    );
+    await db.insert('run_metadata', {
+      'run_id': run.runId,
+      'code_revision': run.codeRevision,
+      'exchange': run.exchange,
+      'instrument_type': run.instrumentType,
+      'data_as_of': run.dataAsOf,
+      'started_at': run.startedAt,
+      'finished_at': run.finishedAt,
+      'status': run.status,
+      'universe_total': run.universeTotal,
+      'universe_screened': run.universeScreened,
+      'provider': run.provider,
+      'source_run_id': run.sourceRunId,
+      'source_status': run.sourceStatus,
+      'settings_json': run.settingsJson,
+    });
+  }
+
+  if (funnel.isNotEmpty) {
+    await db.execute(
+      'CREATE TABLE screen_funnel ('
+      '  "window" TEXT, position INTEGER, stage TEXT, count INTEGER)',
+    );
+    for (final stage in funnel) {
+      await db.insert('screen_funnel', {
+        'window': stage.window,
+        'position': stage.position,
+        'stage': stage.stage,
+        'count': stage.count,
       });
     }
   }

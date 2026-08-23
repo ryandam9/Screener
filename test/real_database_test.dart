@@ -127,6 +127,47 @@ void main() {
         }
       });
 
+      test('both files publish a year of weekly bars', () async {
+        for (final market in Market.values) {
+          final db = await MarketDatabase.open(
+            market,
+            '$directory/${market.objectKey}',
+          );
+          addTearDown(db.close);
+
+          expect(db.hasPriceHistory, isTrue, reason: market.objectKey);
+
+          final top = await db.stocks(
+            GrowthWindow.sevenDays,
+            const StockQuery(limit: 1),
+          );
+          final bars = await db.priceHistory(top.single.ticker);
+          expect(bars, isNotEmpty);
+          expect(bars.length, lessThanOrEqualTo(53));
+
+          for (var i = 1; i < bars.length; i++) {
+            expect(bars[i].date.isAfter(bars[i - 1].date), isTrue);
+            final gap = bars[i].date.difference(bars[i - 1].date).inDays;
+            expect(gap, lessThanOrEqualTo(10), reason: 'weekly cadence');
+          }
+          for (final bar in bars) {
+            expect(bar.plotPrice, greaterThan(0));
+          }
+        }
+      });
+
+      test('the market growth curve spans the published year', () async {
+        final db = await MarketDatabase.open(Market.us, '$directory/us.db');
+        addTearDown(db.close);
+
+        final series = await db.medianGrowthSeries();
+        expect(series.length, greaterThan(40));
+        expect(series.first.pctChange, closeTo(0, 0.001));
+        for (var i = 1; i < series.length; i++) {
+          expect(series[i].date.isAfter(series[i - 1].date), isTrue);
+        }
+      });
+
       test('run metadata parses into a real timestamp', () async {
         final db = await MarketDatabase.open(Market.us, '$directory/us.db');
         addTearDown(db.close);

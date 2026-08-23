@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../data/market_database.dart';
 import '../../models/growth_window.dart';
 import '../../models/market.dart';
+import '../../models/price_bar.dart';
 import '../../models/price_series.dart';
 import '../../models/stock_row.dart';
 import '../../state/app_state.dart';
@@ -16,6 +17,7 @@ import '../../utils/trend.dart';
 import '../widgets/change_chip.dart';
 import '../widgets/panels.dart';
 import '../widgets/price_chart.dart';
+import '../widgets/readable_width.dart';
 
 enum _DetailTab {
   overview('Overview', Icons.description_outlined),
@@ -67,10 +69,18 @@ Future<void> openExternalUrl(BuildContext context, String? url) async {
 
 /// Everything one ticker's screens need.
 class _TickerData {
-  const _TickerData({required this.rows, required this.volumePercentile});
+  const _TickerData({
+    required this.rows,
+    required this.volumePercentile,
+    this.bars = const [],
+  });
 
   /// One row per window that contains this ticker, shortest window first.
   final List<StockRow> rows;
+
+  /// A year of weekly bars, oldest first. Empty for files published before the
+  /// history table existed.
+  final List<PriceBar> bars;
 
   /// Rank of the selected window's median volume within that window, 0..1.
   final double? volumePercentile;
@@ -128,7 +138,10 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         row.medianVolume,
       );
     }
-    return _TickerData(rows: rows, volumePercentile: percentile);
+    // 52 bars at most, so the whole year is fetched once and the window pills
+    // filter it without another query.
+    final bars = await database.priceHistory(widget.ticker);
+    return _TickerData(rows: rows, volumePercentile: percentile, bars: bars);
   }
 
   @override
@@ -159,73 +172,76 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: FutureBuilder<_TickerData>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return Column(
-                children: [
-                  _header(context, null),
-                  Expanded(
-                    child: StatusView(
-                      icon: Icons.error_outline,
-                      title: 'Could not read ${widget.ticker}',
-                      message: '${snapshot.error}',
+        child: ReadableWidth(
+          maxWidth: 900,
+          child: FutureBuilder<_TickerData>(
+            future: _future,
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Column(
+                  children: [
+                    _header(context, null),
+                    Expanded(
+                      child: StatusView(
+                        icon: Icons.error_outline,
+                        title: 'Could not read ${widget.ticker}',
+                        message: '${snapshot.error}',
+                      ),
                     ),
-                  ),
-                ],
-              );
-            }
-            final data = snapshot.data;
-            if (data == null) {
-              return Column(
-                children: [
-                  _header(context, null),
-                  const Expanded(
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-                ],
-              );
-            }
-            if (data.rows.isEmpty) {
-              return Column(
-                children: [
-                  _header(context, null),
-                  Expanded(
-                    child: StatusView(
-                      icon: Icons.search_off,
-                      title: '${widget.ticker} is not in this database',
-                      message:
-                          'It may have dropped out of the latest screener run.',
+                  ],
+                );
+              }
+              final data = snapshot.data;
+              if (data == null) {
+                return Column(
+                  children: [
+                    _header(context, null),
+                    const Expanded(
+                      child: Center(child: CircularProgressIndicator()),
                     ),
-                  ),
-                ],
-              );
-            }
+                  ],
+                );
+              }
+              if (data.rows.isEmpty) {
+                return Column(
+                  children: [
+                    _header(context, null),
+                    Expanded(
+                      child: StatusView(
+                        icon: Icons.search_off,
+                        title: '${widget.ticker} is not in this database',
+                        message:
+                            'It may have dropped out of the latest screener run.',
+                      ),
+                    ),
+                  ],
+                );
+              }
 
-            final window = _resolveWindow(data);
-            final row = data.rowFor(window)!;
+              final window = _resolveWindow(data);
+              final row = data.rowFor(window)!;
 
-            return Column(
-              children: [
-                _header(context, row),
-                Expanded(
-                  child: switch (_tab) {
-                    _DetailTab.overview => _OverviewTab(
-                      data: data,
-                      row: row,
-                      window: window,
-                      onWindowChanged: (value) =>
-                          setState(() => _window = value),
-                    ),
-                    _DetailTab.metrics => _MetricsTab(data: data, row: row),
-                    _DetailTab.windows => _WindowsTab(data: data),
-                    _DetailTab.links => _LinksTab(data: data, row: row),
-                  },
-                ),
-              ],
-            );
-          },
+              return Column(
+                children: [
+                  _header(context, row),
+                  Expanded(
+                    child: switch (_tab) {
+                      _DetailTab.overview => _OverviewTab(
+                        data: data,
+                        row: row,
+                        window: window,
+                        onWindowChanged: (value) =>
+                            setState(() => _window = value),
+                      ),
+                      _DetailTab.metrics => _MetricsTab(data: data, row: row),
+                      _DetailTab.windows => _WindowsTab(data: data),
+                      _DetailTab.links => _LinksTab(data: data, row: row),
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
       bottomNavigationBar: DecoratedBox(
@@ -350,7 +366,41 @@ class _OverviewTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final series = PriceSeries.build(data.rows, window);
+
+    // Prefer the published weekly bars, clipped to the window the pills select.
+    // Files without price history fall back to the window endpoints.
+    final from = DateTime.tryParse(row.firstDate ?? '');
+    final to = DateTime.tryParse(row.lastDate ?? '');
+    final windowBars = [
+      for (final bar in data.bars)
+        if ((from == null || !bar.date.isBefore(from)) &&
+            (to == null || !bar.date.isAfter(to)))
+          bar,
+    ];
+    final usingHistory = windowBars.length >= 2;
+    final points = usingHistory
+        ? ChartPoint.fromBars(windowBars)
+        : ChartPoint.fromSeries(PriceSeries.build(data.rows, window));
+
+    // With history, the headline figures come from the same bars the chart
+    // draws, so the numbers and the line agree. They differ from the screener's
+    // own endpoints — the window opens on a calendar date, the bars are weekly
+    // closes — so the published change stays on screen beside them rather than
+    // being quietly replaced.
+    final firstBar = usingHistory ? windowBars.first : null;
+    final lastBar = usingHistory ? windowBars.last : null;
+    final shownFirstPrice = firstBar?.plotPrice ?? row.firstPrice;
+    final shownLastPrice = lastBar?.plotPrice ?? row.latestPrice;
+    final shownChange = shownLastPrice - shownFirstPrice;
+    final shownPct = shownFirstPrice > 0
+        ? (shownLastPrice / shownFirstPrice - 1) * 100
+        : row.pctChange;
+    final shownFirstDate = firstBar == null
+        ? Fmt.dateCompact(row.firstDate)
+        : Fmt.shortDate(firstBar.date);
+    final shownLastDate = lastBar == null
+        ? Fmt.dateCompact(row.lastDate)
+        : Fmt.shortDate(lastBar.date);
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
@@ -389,7 +439,7 @@ class _OverviewTab extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          Fmt.price(row.latestPrice),
+                          Fmt.price(shownLastPrice),
                           style: TextStyle(
                             fontSize: 34,
                             fontWeight: FontWeight.w700,
@@ -401,23 +451,35 @@ class _OverviewTab extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${Fmt.signedPrice(row.priceChange)} '
-                          '(${Fmt.signedPercent(row.pctChange)})',
+                          '${Fmt.signedPrice(shownChange)} '
+                          '(${Fmt.signedPercent(shownPct)})',
                           style: TextStyle(
                             fontSize: 14.5,
                             fontWeight: FontWeight.w600,
-                            color: colors.forChange(row.pctChange),
+                            color: colors.forChange(shownPct),
                             fontFeatures: const [FontFeature.tabularFigures()],
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${row.window.longLabel} change',
+                          usingHistory
+                              ? '${row.window.longLabel} change, weekly closes'
+                              : '${row.window.longLabel} change',
                           style: TextStyle(
                             fontSize: 12,
                             color: colors.textSecondary,
                           ),
                         ),
+                        if (usingHistory) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            'screener: ${Fmt.signedPercent(row.pctChange)}',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: colors.textTertiary,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -427,12 +489,12 @@ class _OverviewTab extends StatelessWidget {
                     children: [
                       _MiniStat(
                         label: 'First Price',
-                        value: Fmt.price(row.firstPrice),
+                        value: Fmt.price(shownFirstPrice),
                       ),
                       const SizedBox(height: 10),
                       _MiniStat(
                         label: 'Last Price',
-                        value: Fmt.price(row.latestPrice),
+                        value: Fmt.price(shownLastPrice),
                       ),
                     ],
                   ),
@@ -454,18 +516,23 @@ class _OverviewTab extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               PriceChart(
-                series: series,
+                points: points,
                 lineColor: colors.forChange(row.pctChange),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
                 child: Text(
-                  series.hasShape
-                      ? 'Each dot is a published price: the opening price of a '
-                            'window, or the closing price. The dataset holds no '
-                            'daily bars, so the line between dots is a straight '
-                            'join, not a price path.'
-                      : 'This window publishes a single price point.',
+                  usingHistory
+                      ? '${windowBars.length} weekly closes published for this '
+                            'window, plotted at their own dates. The prices and '
+                            'dates above come from these bars; the screener '
+                            'measures the window from ${Fmt.dateCompact(row.firstDate)} '
+                            'at ${Fmt.price(row.firstPrice)}.'
+                      : points.length >= 2
+                      ? 'No weekly history covers this window, so the chart '
+                            'falls back to the prices the window itself '
+                            'publishes: its open and its close.'
+                      : 'This window publishes a single price.',
                   style: TextStyle(
                     fontSize: 11,
                     height: 1.4,
@@ -489,22 +556,22 @@ class _OverviewTab extends StatelessWidget {
                         MetricRow(
                           dense: true,
                           label: 'First Date',
-                          value: Fmt.dateCompact(row.firstDate),
+                          value: shownFirstDate,
                         ),
                         MetricRow(
                           dense: true,
                           label: 'Last Date',
-                          value: Fmt.dateCompact(row.lastDate),
+                          value: shownLastDate,
                         ),
                         MetricRow(
                           dense: true,
                           label: 'First Price',
-                          value: Fmt.price(row.firstPrice),
+                          value: Fmt.price(shownFirstPrice),
                         ),
                         MetricRow(
                           dense: true,
                           label: 'Last Price',
-                          value: Fmt.price(row.latestPrice),
+                          value: Fmt.price(shownLastPrice),
                         ),
                         MetricRow(
                           dense: true,
@@ -570,11 +637,27 @@ class _MetricsTab extends StatelessWidget {
   final _TickerData data;
   final StockRow row;
 
+  /// The weekly bars inside this row's window, if any are published.
+  List<PriceBar> get _windowBars {
+    final from = DateTime.tryParse(row.firstDate ?? '');
+    final to = DateTime.tryParse(row.lastDate ?? '');
+    return [
+      for (final bar in data.bars)
+        if ((from == null || !bar.date.isBefore(from)) &&
+            (to == null || !bar.date.isAfter(to)))
+          bar,
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final trend = assessTrend(data.rows);
     final percentile = data.volumePercentile;
+    final bars = _windowBars;
+    final weeklyPct = bars.length >= 2 && bars.first.plotPrice > 0
+        ? (bars.last.plotPrice / bars.first.plotPrice - 1) * 100
+        : row.pctChange;
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
@@ -689,15 +772,47 @@ class _MetricsTab extends StatelessWidget {
                 value: _prettyAssetType(row.assetType),
               ),
               _divider(colors),
-              MetricRow(label: 'First Price', value: Fmt.price(row.firstPrice)),
-              _divider(colors),
-              MetricRow(label: 'Last Price', value: Fmt.price(row.latestPrice)),
+              MetricRow(
+                label: 'Screener first price',
+                value:
+                    '${Fmt.price(row.firstPrice)}'
+                    ' · ${Fmt.date(row.firstDate)}',
+              ),
               _divider(colors),
               MetricRow(
-                label: 'Pct Change',
+                label: 'Screener last price',
+                value:
+                    '${Fmt.price(row.latestPrice)}'
+                    ' · ${Fmt.date(row.lastDate)}',
+              ),
+              _divider(colors),
+              MetricRow(
+                label: 'Screener change',
                 value: Fmt.signedPercent(row.pctChange),
                 valueColor: colors.forChange(row.pctChange),
               ),
+              if (bars.length >= 2) ...[
+                _divider(colors),
+                MetricRow(
+                  label: 'Weekly first close',
+                  value:
+                      '${Fmt.price(bars.first.plotPrice)}'
+                      ' · ${Fmt.date(bars.first.date.toIso8601String())}',
+                ),
+                _divider(colors),
+                MetricRow(
+                  label: 'Weekly last close',
+                  value:
+                      '${Fmt.price(bars.last.plotPrice)}'
+                      ' · ${Fmt.date(bars.last.date.toIso8601String())}',
+                ),
+                _divider(colors),
+                MetricRow(
+                  label: 'Weekly change',
+                  value: Fmt.signedPercent(weeklyPct),
+                  valueColor: colors.forChange(weeklyPct),
+                ),
+              ],
               _divider(colors),
               MetricRow(
                 label: 'Observations',
