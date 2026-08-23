@@ -447,6 +447,22 @@ class MarketDatabase {
     ];
   }
 
+  /// Mean percentage change for a window, or null when the window is empty.
+  ///
+  /// The dashboard reports this alongside the median: the screener's long tail
+  /// pulls the two a long way apart, and showing both makes that visible.
+  Future<double?> averagePctChange(GrowthWindow window) async {
+    final table = _tableFor(window);
+    if (table == null) return null;
+    final rows = await _db.rawQuery(
+      'SELECT AVG(pct_change) AS a, COUNT(pct_change) AS n FROM "$table" '
+      'WHERE pct_change IS NOT NULL',
+    );
+    final count = (rows.first['n'] as num?)?.toInt() ?? 0;
+    if (count == 0) return null;
+    return (rows.first['a'] as num?)?.toDouble();
+  }
+
   /// Raw percentage changes for a window, used to draw the distribution.
   Future<List<double>> pctChanges(GrowthWindow window) async {
     final table = _tableFor(window);

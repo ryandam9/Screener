@@ -33,10 +33,19 @@ enum _ListTab {
 }
 
 class MarketListScreen extends StatefulWidget {
-  const MarketListScreen({super.key, required this.market, this.initialWindow});
+  const MarketListScreen({
+    super.key,
+    required this.market,
+    this.initialWindow,
+    this.initialSearch,
+  });
 
   final Market market;
   final GrowthWindow? initialWindow;
+
+  /// Seeds the search box, so the desktop top bar can hand a query straight to
+  /// this screen.
+  final String? initialSearch;
 
   @override
   State<MarketListScreen> createState() => _MarketListScreenState();
@@ -64,6 +73,12 @@ class _MarketListScreenState extends State<MarketListScreen>
   void initState() {
     super.initState();
     _window = widget.initialWindow;
+    final search = widget.initialSearch;
+    if (search != null && search.isNotEmpty) {
+      _search = search;
+      _searching = true;
+      _searchController.text = search;
+    }
     _tabs.addListener(() {
       if (!_tabs.indexIsChanging) setState(() {});
     });

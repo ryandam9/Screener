@@ -9,6 +9,7 @@ import '../../state/watchlist_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../widgets/panels.dart';
+import 'reports_screen.dart';
 
 /// Data source status, cache controls and appearance settings.
 class MoreScreen extends StatelessWidget {
@@ -115,6 +116,18 @@ class MoreScreen extends StatelessWidget {
                   onChanged: settings.setCompactRows,
                 ),
               ],
+            ),
+          ),
+          const SectionHeader(title: 'Reports'),
+          Panel(
+            child: ListTile(
+              leading: Icon(Icons.description_outlined, color: colors.positive),
+              title: const Text('Runs and CSV export'),
+              subtitle: const Text('Every published run, exportable as CSV'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const ReportsScreen()),
+              ),
             ),
           ),
           const SectionHeader(title: 'Watchlist'),

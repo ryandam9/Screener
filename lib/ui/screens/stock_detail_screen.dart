@@ -16,6 +16,7 @@ import '../../utils/trend.dart';
 import '../widgets/change_chip.dart';
 import '../widgets/panels.dart';
 import '../widgets/price_chart.dart';
+import '../widgets/readable_width.dart';
 
 enum _DetailTab {
   overview('Overview', Icons.description_outlined),
@@ -159,73 +160,76 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: FutureBuilder<_TickerData>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return Column(
-                children: [
-                  _header(context, null),
-                  Expanded(
-                    child: StatusView(
-                      icon: Icons.error_outline,
-                      title: 'Could not read ${widget.ticker}',
-                      message: '${snapshot.error}',
+        child: ReadableWidth(
+          maxWidth: 900,
+          child: FutureBuilder<_TickerData>(
+            future: _future,
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Column(
+                  children: [
+                    _header(context, null),
+                    Expanded(
+                      child: StatusView(
+                        icon: Icons.error_outline,
+                        title: 'Could not read ${widget.ticker}',
+                        message: '${snapshot.error}',
+                      ),
                     ),
-                  ),
-                ],
-              );
-            }
-            final data = snapshot.data;
-            if (data == null) {
-              return Column(
-                children: [
-                  _header(context, null),
-                  const Expanded(
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-                ],
-              );
-            }
-            if (data.rows.isEmpty) {
-              return Column(
-                children: [
-                  _header(context, null),
-                  Expanded(
-                    child: StatusView(
-                      icon: Icons.search_off,
-                      title: '${widget.ticker} is not in this database',
-                      message:
-                          'It may have dropped out of the latest screener run.',
+                  ],
+                );
+              }
+              final data = snapshot.data;
+              if (data == null) {
+                return Column(
+                  children: [
+                    _header(context, null),
+                    const Expanded(
+                      child: Center(child: CircularProgressIndicator()),
                     ),
-                  ),
-                ],
-              );
-            }
+                  ],
+                );
+              }
+              if (data.rows.isEmpty) {
+                return Column(
+                  children: [
+                    _header(context, null),
+                    Expanded(
+                      child: StatusView(
+                        icon: Icons.search_off,
+                        title: '${widget.ticker} is not in this database',
+                        message:
+                            'It may have dropped out of the latest screener run.',
+                      ),
+                    ),
+                  ],
+                );
+              }
 
-            final window = _resolveWindow(data);
-            final row = data.rowFor(window)!;
+              final window = _resolveWindow(data);
+              final row = data.rowFor(window)!;
 
-            return Column(
-              children: [
-                _header(context, row),
-                Expanded(
-                  child: switch (_tab) {
-                    _DetailTab.overview => _OverviewTab(
-                      data: data,
-                      row: row,
-                      window: window,
-                      onWindowChanged: (value) =>
-                          setState(() => _window = value),
-                    ),
-                    _DetailTab.metrics => _MetricsTab(data: data, row: row),
-                    _DetailTab.windows => _WindowsTab(data: data),
-                    _DetailTab.links => _LinksTab(data: data, row: row),
-                  },
-                ),
-              ],
-            );
-          },
+              return Column(
+                children: [
+                  _header(context, row),
+                  Expanded(
+                    child: switch (_tab) {
+                      _DetailTab.overview => _OverviewTab(
+                        data: data,
+                        row: row,
+                        window: window,
+                        onWindowChanged: (value) =>
+                            setState(() => _window = value),
+                      ),
+                      _DetailTab.metrics => _MetricsTab(data: data, row: row),
+                      _DetailTab.windows => _WindowsTab(data: data),
+                      _DetailTab.links => _LinksTab(data: data, row: row),
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
       bottomNavigationBar: DecoratedBox(

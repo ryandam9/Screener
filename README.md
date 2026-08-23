@@ -1,7 +1,8 @@
 # Stocks Analysis
 
-A Flutter app for Android (and Linux desktop) that reads the growth-screener SQLite databases
-published to `s3://hive-in-the-cloud` and renders them on device.
+A Flutter app that reads the growth-screener SQLite databases published to
+`s3://hive-in-the-cloud` and renders them on device. One codebase serves a
+handset layout and a desktop layout, chosen from the window width.
 
 The two files — `us.db` (US stocks) and `asx.db` (ASX ETFs) — are downloaded
 over HTTPS, cached locally, and queried with `sqflite`. Everything except the
@@ -9,14 +10,20 @@ refresh works offline.
 
 ## Screens
 
+The layout switches at 900 logical pixels: below it, bottom navigation and one
+column; above it, a sidebar and a multi-column dashboard. Resizing the desktop
+window moves between them live, and every list and query is shared — only the
+navigation chrome and the dashboard differ.
+
 | Screen | What it shows |
 | --- | --- |
-| **Dashboard** | A card per market, the strongest movers in the selected window, and the recent screener runs read from each file's `run_id` / `data_as_of`. |
+| **Dashboard** | Handset: a card per market, the strongest movers, and recent runs. Desktop: four summary cards, a Top Gainers table with the full column set, median growth per window charted per market, plus Recent Analyses and Top Movers panels. |
 | **Markets** | The full instrument list with sortable columns, search, and filters for exchange and minimum change. Tabs: All Stocks, Top Movers, Consistent, Watchlist. |
 | **Stock detail** | Price, change, and the window's endpoints; a price chart; the full published metric set; every window compared; and the Google Finance links carried in the data. |
 | **Watchlist** | Starred tickers from both markets, swipe to remove. |
 | **Analysis** | Run-level statistics: instrument count, median/strongest/weakest change, a distribution histogram, a per-exchange breakdown, and the most traded instruments. |
-| **More** | Per-file sync status and size, re-download and cache controls, theme, and row density. |
+| **Reports** | Every published run with its row count, `data_as_of` and `run_id`, and a CSV export per window. Desktop shows it in the sidebar; the handset reaches it from More. |
+| **More / Settings** | Per-file sync status and size, re-download and cache controls, theme, and row density. |
 
 ## Data
 
@@ -84,6 +91,27 @@ about it rather than inventing numbers:
   absolute threshold — ASX ETF turnover and US stock turnover are orders of
   magnitude apart.
 
+The desktop mockup asks for four more things the data cannot support:
+
+- **No market-session countdown.** Nothing in the files describes trading
+  hours, so the sidebar card reports what the app does know — whether both
+  databases are current and how fresh the run is — over a live local clock.
+- **No month-on-month deltas.** Each file carries a single `run_id`, so there
+  is no earlier run to compare against. The Analysis Summary card shows the
+  run's totals and says "no earlier run to compare against" instead of an
+  invented "+23%".
+- **No dated market trend.** The "Market Trend" chart plots a dated index
+  series. With only window endpoints published, the desktop chart plots median
+  percentage change *per look-back window* (7D through 1Y), one line per
+  market, and labels the axis accordingly.
+- **No "today" movers and no user account.** The shortest window is seven days,
+  so that panel is "Top Movers (shortest window)"; the account chip is replaced
+  by the sync status and a refresh button, since the app has no accounts.
+
+Counts are labelled for what they are: the Analysis Summary "Rows" figure sums
+rows across every window, so a ticker present in five windows contributes five
+rows — it is not a distinct instrument count.
+
 ## Architecture
 
 ```
@@ -92,7 +120,10 @@ lib/
   data/         DbSyncService (S3 + cache), MarketDatabase (discovery + queries)
   state/        AppState (sync/selection), WatchlistController, SettingsController
   theme/        ScreenerColors theme extension, light and dark palettes
-  ui/           screens/ and widgets/ (chart, sparkline, tiles, panels)
+  ui/           responsive.dart picks the layout
+                screens/  shared screens plus the handset shell
+                desktop/  sidebar shell, dashboard and its widgets
+                widgets/  chart, sparkline, tiles, panels
 ```
 
 Sync is offline-first. On start each cached file is opened and shown
@@ -124,9 +155,9 @@ fail to reach S3.
 
 ### Linux
 
-The same code runs as a Linux desktop app, which is a convenient way to see the
-screens without a device — the window opens at handset width (420x880) and the
-layouts are the phone layouts. Widening the window simply gives them more room.
+The same code runs as a Linux desktop app. The window opens at handset width
+(420x880) so it starts on the phone layout; widening it past 900px switches to
+the sidebar layout live.
 
 ```bash
 sudo apt-get install libgtk-3-dev   # plus clang, cmake, ninja-build, pkg-config
@@ -146,15 +177,16 @@ flutter analyze
 flutter test
 ```
 
-58 tests cover the table discovery and every query (against fixture databases
+75 tests cover the table discovery and every query (against fixture databases
 built to the published schema, including the differing prefixes), the price
 series assembly, the sync service (conditional requests, progress, corrupt
-downloads, failure handling), the formatters and trend classifier, opening the
-published Google Finance links, and the whole widget tree driven end to end
-against a fake S3.
+downloads, failure handling), the formatters and trend classifier, CSV
+rendering and the export's write path, opening the published Google Finance
+links, and both layouts driven end to end against a fake S3 — including that a
+wide window gets the sidebar and a narrow one does not.
 
 Five of those are the real-data tests below; they report as skipped unless
-`SCREENER_DB_DIR` is set, so a plain `flutter test` shows `+53 ~5`.
+`SCREENER_DB_DIR` is set, so a plain `flutter test` shows `+70 ~5`.
 
 To additionally verify the data layer against the real published files:
 

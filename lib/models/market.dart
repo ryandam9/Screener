@@ -9,6 +9,7 @@ enum Market {
     id: 'asx',
     label: 'ASX',
     subtitle: 'Australian Market',
+    longName: 'Australian Securities Exchange',
     objectKey: 'asx.db',
     instrumentNoun: 'ETFs',
   ),
@@ -16,6 +17,7 @@ enum Market {
     id: 'us',
     label: 'US',
     subtitle: 'US Market',
+    longName: 'NASDAQ, NYSE and affiliates',
     objectKey: 'us.db',
     instrumentNoun: 'stocks',
   );
@@ -24,6 +26,7 @@ enum Market {
     required this.id,
     required this.label,
     required this.subtitle,
+    required this.longName,
     required this.objectKey,
     required this.instrumentNoun,
   });
@@ -36,6 +39,10 @@ enum Market {
 
   /// Longer display name shown under [label].
   final String subtitle;
+
+  /// What the file actually covers, used where [subtitle] would repeat the
+  /// heading above it.
+  final String longName;
 
   /// Object name within the S3 bucket.
   final String objectKey;
