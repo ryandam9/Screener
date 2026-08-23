@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../data/market_database.dart';
 import '../../models/growth_window.dart';
 import '../../models/market.dart';
+import '../../models/price_bar.dart';
 import '../../models/stock_row.dart';
 import '../../state/app_state.dart';
 import '../../state/watchlist_controller.dart';
@@ -11,9 +12,9 @@ import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../screens/stock_detail_screen.dart';
 import '../widgets/panels.dart';
+import '../widgets/price_chart.dart';
 import 'widgets/desktop_cards.dart';
 import 'widgets/gainers_table.dart';
-import 'widgets/median_trend_chart.dart';
 
 /// Everything the desktop dashboard shows, gathered in one pass.
 class DesktopDashboardData {
@@ -26,6 +27,7 @@ class DesktopDashboardData {
     required this.analysesCount,
     required this.rowsAnalysed,
     required this.averageReturn,
+    required this.growthSeries,
   });
 
   final Map<Market, MarketSummary> summaries;
@@ -47,6 +49,9 @@ class DesktopDashboardData {
 
   /// Mean percentage change in the selected window, across both markets.
   final double? averageReturn;
+
+  /// Weekly growth curve per market, from the published price history.
+  final Map<Market, List<GrowthPoint>> growthSeries;
 
   /// Median percentage change of the watchlisted rows, or null when empty.
   double? get watchlistMedian {
@@ -78,6 +83,10 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
   Future<DesktopDashboardData>? _future;
   String _signature = '';
 
+  /// The security charted below the table. Defaults to the strongest mover
+  /// and follows whichever row is clicked.
+  StockRow? _selected;
+
   @override
   void dispose() {
     _search.dispose();
@@ -94,6 +103,7 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
     final movers = <StockRow>[];
     final runs = <RunInfo>[];
     final watched = <StockRow>[];
+    final growth = <Market, List<GrowthPoint>>{};
 
     var analyses = 0;
     var instruments = 0;
@@ -112,6 +122,11 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
       }
 
       runs.addAll(await database.allRuns());
+
+      // Memoised inside MarketDatabase: the full curve is ~650ms to build and
+      // the dashboard rebuilds often.
+      final curve = await database.medianGrowthSeries();
+      if (curve.isNotEmpty) growth[market] = curve;
 
       if (database.availableWindows.contains(window)) {
         gainers.addAll(
@@ -163,7 +178,23 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
       analysesCount: analyses,
       rowsAnalysed: instruments,
       averageReturn: weightedCount == 0 ? null : weightedSum / weightedCount,
+      growthSeries: growth,
     );
+  }
+
+  /// The selection survives a reload when the ticker is still listed;
+  /// otherwise it falls back to the strongest mover.
+  StockRow? _resolveSelection(DesktopDashboardData data) {
+    if (data.topGainers.isEmpty) return null;
+    final current = _selected;
+    if (current != null) {
+      for (final row in data.topGainers) {
+        if (row.ticker == current.ticker && row.market == current.market) {
+          return row;
+        }
+      }
+    }
+    return data.topGainers.first;
   }
 
   void _openStock(StockRow row) {
@@ -228,9 +259,16 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
                         ),
                 );
               }
+              // Keep the selection valid across reloads and window changes.
+              final selected = _resolveSelection(data);
+              if (selected == null) {
+                return const Center(child: Text('No rows in this window'));
+              }
               return _DashboardBody(
                 data: data,
                 window: appState.selectedWindow,
+                selected: selected,
+                onSelect: (row) => setState(() => _selected = row),
                 onOpenStock: _openStock,
                 onViewAllGainers: widget.onViewAllGainers,
               );
@@ -358,12 +396,16 @@ class _DashboardBody extends StatelessWidget {
   const _DashboardBody({
     required this.data,
     required this.window,
+    required this.selected,
+    required this.onSelect,
     required this.onOpenStock,
     this.onViewAllGainers,
   });
 
   final DesktopDashboardData data;
   final GrowthWindow window;
+  final StockRow selected;
+  final ValueChanged<StockRow> onSelect;
   final ValueChanged<StockRow> onOpenStock;
   final VoidCallback? onViewAllGainers;
 
@@ -388,6 +430,7 @@ class _DashboardBody extends StatelessWidget {
                       summary: data.summaries[market],
                       window: window,
                       instrumentNoun: market.instrumentNoun,
+                      trend: data.growthSeries[market] ?? const [],
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -426,19 +469,14 @@ class _DashboardBody extends StatelessWidget {
                       onAction: onViewAllGainers,
                       child: GainersTable(
                         rows: data.topGainers,
-                        onTap: onOpenStock,
+                        selected: selected,
+                        onTap: onSelect,
                       ),
                     ),
                     const SizedBox(height: 18),
-                    DesktopPanel(
-                      title: 'Median growth by window',
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 6, 18, 16),
-                        child: MedianTrendChart(
-                          summaries: data.summaries,
-                          highlighted: window,
-                        ),
-                      ),
+                    _SecurityChart(
+                      row: selected,
+                      onOpenDetails: () => onOpenStock(selected),
                     ),
                   ],
                 ),
@@ -494,6 +532,74 @@ class _DashboardBody extends StatelessWidget {
             style: TextStyle(fontSize: 11.5, color: colors.textTertiary),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Weekly price history for the security selected in the table.
+class _SecurityChart extends StatelessWidget {
+  const _SecurityChart({required this.row, required this.onOpenDetails});
+
+  final StockRow row;
+  final VoidCallback onOpenDetails;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final database = context.watch<AppState>().databaseOf(row.market);
+
+    return DesktopPanel(
+      title: '${row.ticker} · ${row.shortName}',
+      actionLabel: 'Open details',
+      onAction: onOpenDetails,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 0, 8, 14),
+        child: FutureBuilder<List<PriceBar>>(
+          // Keyed by ticker so switching rows reloads.
+          key: ValueKey('${row.market.id}-${row.ticker}'),
+          future: database?.priceHistory(row.ticker),
+          builder: (context, snapshot) {
+            final bars = snapshot.data;
+            if (bars == null) {
+              return const SizedBox(
+                height: 236,
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+
+            // The whole published year, not the table's window: a seven-day
+            // window holds two weekly closes, which is a line rather than a
+            // history, and this panel exists to show the security itself.
+            final plotted = bars;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                PriceChart(
+                  points: ChartPoint.fromBars(plotted),
+                  lineColor: colors.forChange(row.pctChange),
+                  height: 236,
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+                  child: Text(
+                    plotted.isEmpty
+                        ? 'No weekly prices published for ${row.ticker}.'
+                        : '${plotted.length} weekly closes, '
+                              'the full published history · click a row above '
+                              'to chart it.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.4,
+                      color: colors.textTertiary,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

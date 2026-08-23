@@ -10,10 +10,18 @@ import 'desktop_cards.dart';
 /// Desktop has the width for the columns the handset layout has to stack, so
 /// this is a real table rather than a list of tiles.
 class GainersTable extends StatelessWidget {
-  const GainersTable({super.key, required this.rows, required this.onTap});
+  const GainersTable({
+    super.key,
+    required this.rows,
+    required this.onTap,
+    this.selected,
+  });
 
   final List<StockRow> rows;
   final ValueChanged<StockRow> onTap;
+
+  /// Row currently charted below the table, marked so the link is obvious.
+  final StockRow? selected;
 
   static const _rank = 34.0;
   static const _ticker = 108.0;
@@ -69,7 +77,14 @@ class GainersTable extends StatelessWidget {
         ),
         Divider(height: 1, color: colors.divider),
         for (var i = 0; i < rows.length; i++) ...[
-          _GainerRow(rank: i + 1, row: rows[i], onTap: () => onTap(rows[i])),
+          _GainerRow(
+            rank: i + 1,
+            row: rows[i],
+            selected:
+                rows[i].ticker == selected?.ticker &&
+                rows[i].market == selected?.market,
+            onTap: () => onTap(rows[i]),
+          ),
           if (i != rows.length - 1)
             Divider(
               height: 1,
@@ -87,11 +102,13 @@ class _GainerRow extends StatelessWidget {
   const _GainerRow({
     required this.rank,
     required this.row,
+    required this.selected,
     required this.onTap,
   });
 
   final int rank;
   final StockRow row;
+  final bool selected;
   final VoidCallback onTap;
 
   @override
@@ -115,7 +132,8 @@ class _GainerRow extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      child: Padding(
+      child: Container(
+        color: selected ? colors.positiveSurface : null,
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         child: Row(
           children: [

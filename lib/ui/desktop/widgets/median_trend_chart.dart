@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../../data/market_database.dart';
-import '../../../models/growth_window.dart';
 import '../../../models/market.dart';
+import '../../../models/price_bar.dart';
 import '../../../theme/app_theme.dart';
 import '../../../utils/formatters.dart';
 
-/// One market's median change plotted across the windows it publishes.
+/// One market's growth curve.
 class TrendSeries {
   const TrendSeries({
     required this.label,
@@ -16,28 +15,18 @@ class TrendSeries {
 
   final String label;
   final Color color;
-
-  /// Median percentage change keyed by window.
-  final Map<GrowthWindow, double> points;
+  final List<GrowthPoint> points;
 }
 
-/// Median growth per look-back window, one line per market.
+/// Market trend over the published year, one line per market.
 ///
-/// The mockup charts a market index against calendar dates. The databases hold
-/// no dated series to plot, so the x axis is the look-back window itself —
-/// 7D through 1Y — and each point is that window's median percentage change.
-/// It answers the same question ("is growth broad and holding up?") from data
-/// that actually exists.
-class MedianTrendChart extends StatelessWidget {
-  const MedianTrendChart({
-    super.key,
-    required this.summaries,
-    required this.highlighted,
-    this.height = 236,
-  });
+/// Each point is the median percentage change since each ticker's own first
+/// weekly bar, so the curve tracks how the constituents moved rather than the
+/// price level of the largest of them. Points sit at their real dates.
+class MarketTrendChart extends StatelessWidget {
+  const MarketTrendChart({super.key, required this.series, this.height = 236});
 
-  final Map<Market, MarketSummary> summaries;
-  final GrowthWindow highlighted;
+  final Map<Market, List<GrowthPoint>> series;
   final double height;
 
   static const _usColor = Color(0xFF3B72E8);
@@ -46,26 +35,22 @@ class MedianTrendChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    final series = <TrendSeries>[
+    final lines = <TrendSeries>[
       for (final market in Market.values)
-        if (summaries[market] != null)
+        if ((series[market] ?? const []).isNotEmpty)
           TrendSeries(
             label: '${market.label} (median)',
             color: market == Market.asx ? colors.positive : _usColor,
-            points: {
-              for (final stat in summaries[market]!.stats)
-                if (stat.count > 0) stat.window: stat.medianPctChange,
-            },
+            points: series[market]!,
           ),
     ];
 
-    final hasData = series.any((s) => s.points.isNotEmpty);
-    if (!hasData) {
+    if (lines.isEmpty) {
       return SizedBox(
         height: height,
         child: Center(
           child: Text(
-            'No windows with rows',
+            'No weekly history published',
             style: TextStyle(fontSize: 13, color: colors.textTertiary),
           ),
         ),
@@ -79,7 +64,7 @@ class MedianTrendChart extends StatelessWidget {
           spacing: 18,
           runSpacing: 6,
           children: [
-            for (final entry in series)
+            for (final line in lines)
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -87,13 +72,13 @@ class MedianTrendChart extends StatelessWidget {
                     width: 9,
                     height: 9,
                     decoration: BoxDecoration(
-                      color: entry.color,
+                      color: line.color,
                       shape: BoxShape.circle,
                     ),
                   ),
                   const SizedBox(width: 7),
                   Text(
-                    entry.label,
+                    line.label,
                     style: TextStyle(fontSize: 12, color: colors.textSecondary),
                   ),
                 ],
@@ -106,19 +91,18 @@ class MedianTrendChart extends StatelessWidget {
           child: CustomPaint(
             size: Size.infinite,
             painter: _TrendPainter(
-              series: series,
-              highlighted: highlighted,
+              lines: lines,
               gridColor: colors.chartGrid,
               labelColor: colors.textTertiary,
-              highlightColor: colors.neutralSurface,
+              zeroColor: colors.textTertiary,
               textDirection: Directionality.of(context),
             ),
           ),
         ),
         const SizedBox(height: 8),
         Text(
-          'Each point is the median change of a look-back window, not a dated '
-          'price series — the databases publish window endpoints only.',
+          'Median change since each ticker’s first published week, from the '
+          'weekly bars in the databases.',
           style: TextStyle(
             fontSize: 11,
             height: 1.4,
@@ -132,19 +116,17 @@ class MedianTrendChart extends StatelessWidget {
 
 class _TrendPainter extends CustomPainter {
   _TrendPainter({
-    required this.series,
-    required this.highlighted,
+    required this.lines,
     required this.gridColor,
     required this.labelColor,
-    required this.highlightColor,
+    required this.zeroColor,
     required this.textDirection,
   });
 
-  final List<TrendSeries> series;
-  final GrowthWindow highlighted;
+  final List<TrendSeries> lines;
   final Color gridColor;
   final Color labelColor;
-  final Color highlightColor;
+  final Color zeroColor;
   final TextDirection textDirection;
 
   static const _leftPadding = 46.0;
@@ -155,46 +137,33 @@ class _TrendPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final windows = GrowthWindow.values;
     final plotWidth = size.width - _leftPadding - _rightPadding;
     final plotHeight = size.height - _topPadding - _bottomPadding;
     if (plotWidth <= 0 || plotHeight <= 0) return;
 
-    var min = 0.0;
-    var max = 0.0;
-    for (final entry in series) {
-      for (final value in entry.points.values) {
-        if (value < min) min = value;
-        if (value > max) max = value;
+    var minPct = 0.0;
+    var maxPct = 0.0;
+    var firstMs = lines.first.points.first.date.millisecondsSinceEpoch;
+    var lastMs = firstMs;
+    for (final line in lines) {
+      for (final point in line.points) {
+        if (point.pctChange < minPct) minPct = point.pctChange;
+        if (point.pctChange > maxPct) maxPct = point.pctChange;
+        final ms = point.date.millisecondsSinceEpoch;
+        if (ms < firstMs) firstMs = ms;
+        if (ms > lastMs) lastMs = ms;
       }
     }
-    if (max <= min) max = min + 1;
-    // Head room so the top line never rides the frame.
-    max += (max - min) * 0.12;
+    if (maxPct <= minPct) maxPct = minPct + 1;
+    maxPct += (maxPct - minPct) * 0.12;
+    final pctSpan = maxPct - minPct;
+    final msSpan = (lastMs - firstMs) == 0 ? 1 : lastMs - firstMs;
 
-    double xFor(int index) =>
-        _leftPadding + plotWidth * (index / (windows.length - 1));
-    double yFor(double value) =>
-        _topPadding + plotHeight * (1 - (value - min) / (max - min));
-
-    // Column behind the window currently selected in the top bar.
-    final highlightIndex = windows.indexOf(highlighted);
-    if (highlightIndex >= 0) {
-      final centre = xFor(highlightIndex);
-      final half = plotWidth / (windows.length - 1) / 2;
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTRB(
-            (centre - half).clamp(_leftPadding, size.width),
-            _topPadding,
-            (centre + half).clamp(_leftPadding, size.width),
-            _topPadding + plotHeight,
-          ),
-          const Radius.circular(6),
-        ),
-        Paint()..color = highlightColor,
-      );
-    }
+    double xFor(DateTime date) =>
+        _leftPadding +
+        plotWidth * ((date.millisecondsSinceEpoch - firstMs) / msSpan);
+    double yFor(double pct) =>
+        _topPadding + plotHeight * (1 - (pct - minPct) / pctSpan);
 
     final gridPaint = Paint()
       ..color = gridColor
@@ -209,50 +178,85 @@ class _TrendPainter extends CustomPainter {
       );
       _text(
         canvas,
-        Fmt.signedPercent(max - (max - min) * t, decimals: 0),
+        Fmt.signedPercent(maxPct - pctSpan * t, decimals: 0),
         Offset(_leftPadding - 8, y - 7),
         alignRight: true,
       );
     }
 
-    for (var i = 0; i < windows.length; i++) {
-      _text(
-        canvas,
-        windows[i].label,
-        Offset(xFor(i), size.height - _bottomPadding + 8),
-        centre: true,
+    // The zero line is the reference the whole chart is read against.
+    if (minPct < 0 && maxPct > 0) {
+      final y = yFor(0);
+      canvas.drawLine(
+        Offset(_leftPadding, y),
+        Offset(size.width - _rightPadding, y),
+        Paint()
+          ..color = zeroColor.withValues(alpha: 0.5)
+          ..strokeWidth = 1,
       );
     }
 
-    for (final entry in series) {
-      final offsets = <Offset>[];
-      for (var i = 0; i < windows.length; i++) {
-        final value = entry.points[windows[i]];
-        if (value == null) continue;
-        offsets.add(Offset(xFor(i), yFor(value)));
-      }
-      if (offsets.isEmpty) continue;
-
-      if (offsets.length > 1) {
-        final path = Path()..moveTo(offsets.first.dx, offsets.first.dy);
-        for (final offset in offsets.skip(1)) {
+    for (final line in lines) {
+      if (line.points.length < 2) continue;
+      final path = Path();
+      for (var i = 0; i < line.points.length; i++) {
+        final offset = Offset(
+          xFor(line.points[i].date),
+          yFor(line.points[i].pctChange),
+        );
+        if (i == 0) {
+          path.moveTo(offset.dx, offset.dy);
+        } else {
           path.lineTo(offset.dx, offset.dy);
         }
-        canvas.drawPath(
-          path,
-          Paint()
-            ..color = entry.color
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 2.2
-            ..strokeCap = StrokeCap.round
-            ..strokeJoin = StrokeJoin.round,
+      }
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = line.color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.2
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round,
+      );
+      // Mark only the latest point; a dot per week would be noise.
+      final last = line.points.last;
+      canvas
+        ..drawCircle(
+          Offset(xFor(last.date), yFor(last.pctChange)),
+          4,
+          Paint()..color = line.color,
+        )
+        ..drawCircle(
+          Offset(xFor(last.date), yFor(last.pctChange)),
+          1.8,
+          Paint()..color = const Color(0xFFFFFFFF),
         );
-      }
-      for (final offset in offsets) {
-        canvas
-          ..drawCircle(offset, 4, Paint()..color = entry.color)
-          ..drawCircle(offset, 1.8, Paint()..color = const Color(0xFFFFFFFF));
-      }
+    }
+
+    _paintDates(canvas, size, firstMs, msSpan, xFor);
+  }
+
+  void _paintDates(
+    Canvas canvas,
+    Size size,
+    int firstMs,
+    int msSpan,
+    double Function(DateTime) xFor,
+  ) {
+    const labels = 5;
+    final y = size.height - _bottomPadding + 8;
+    for (var i = 0; i < labels; i++) {
+      final ms = firstMs + (msSpan * i / (labels - 1)).round();
+      final date = DateTime.fromMillisecondsSinceEpoch(ms);
+      final x = xFor(date);
+      _text(
+        canvas,
+        Fmt.shortDate(date),
+        Offset(x, y),
+        centre: true,
+        maxX: size.width - _rightPadding,
+      );
     }
   }
 
@@ -262,6 +266,7 @@ class _TrendPainter extends CustomPainter {
     Offset offset, {
     bool centre = false,
     bool alignRight = false,
+    double? maxX,
   }) {
     final painter = TextPainter(
       text: TextSpan(
@@ -274,12 +279,11 @@ class _TrendPainter extends CustomPainter {
     var dx = offset.dx;
     if (centre) dx -= painter.width / 2;
     if (alignRight) dx -= painter.width;
+    if (maxX != null) dx = dx.clamp(0.0, maxX - painter.width);
     painter.paint(canvas, Offset(dx, offset.dy));
   }
 
   @override
   bool shouldRepaint(_TrendPainter old) =>
-      old.highlighted != highlighted ||
-      old.gridColor != gridColor ||
-      old.series != series;
+      old.lines != lines || old.gridColor != gridColor;
 }

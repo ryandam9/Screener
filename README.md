@@ -17,9 +17,9 @@ navigation chrome and the dashboard differ.
 
 | Screen | What it shows |
 | --- | --- |
-| **Dashboard** | Handset: a card per market, the strongest movers, and recent runs. Desktop: four summary cards, a Top Gainers table with the full column set, median growth per window charted per market, plus Recent Analyses and Top Movers panels. |
+| **Dashboard** | Handset: a card per market, the strongest movers, and recent runs. Desktop: four summary cards, a Top Gainers table with the full column set, a weekly price chart for the selected security, plus Recent Analyses and Top Movers panels. |
 | **Markets** | The full instrument list with sortable columns, search, and filters for exchange and minimum change. Tabs: All Stocks, Top Movers, Consistent, Watchlist. |
-| **Stock detail** | Price, change, and the window's endpoints; a price chart; the full published metric set; every window compared; and the Google Finance links carried in the data. |
+| **Stock detail** | Price, change, and the window's endpoints; a weekly price chart for the selected window; the full published metric set; every window compared; and the Google Finance links carried in the data. |
 | **Watchlist** | Starred tickers from both markets, swipe to remove. |
 | **Analysis** | Run-level statistics: instrument count, median/strongest/weakest change, a distribution histogram, a per-exchange breakdown, and the most traded instruments. |
 | **Reports** | Every published run with its row count, `data_as_of` and `run_id`, and a CSV export per window. Desktop shows it in the sidebar; the handset reaches it from More. |
@@ -59,23 +59,40 @@ observation_ratio, median_volume, price_basis, data_as_of, run_id,
 google_finance
 ```
 
+Alongside those, each file publishes **weekly price history** in a table named
+with the same prefix and no window suffix — `us_stocks_growth` and
+`asx_etf_growth`:
+
+```
+stock_price_date, ticker, open, high, low, close, adj_close, volume,
+growth_count, growth_periods
+```
+
+One year of Friday-aligned bars (2025-08-29 to 2026-08-21, up to 52 per
+ticker), covering more tickers than the window tables do — 1,794 US and 56 ASX
+at the time of writing. Every column is TEXT, prices included, so each numeric
+field is parsed rather than cast. The table is found by its columns rather than
+its name, and a file published before it existed still opens: `hasPriceHistory`
+reports false and the charts fall back to the window endpoints.
+
 A window's table can be empty (ASX has no 3-month rows in the current run), and
 `consistent_growth_stocks` may be absent or empty. Both cases are handled with
 explanatory empty states rather than errors.
 
 ### What the data does *not* contain
 
-Two things in the original design have no backing data, and the app is explicit
-about it rather than inventing numbers:
-
-- **No daily price bars.** Each row stores only its window's opening and closing
-  price. The detail chart therefore plots exactly the prices the database
-  states: one point per window start, plus the close. Each point is marked, and
-  a caption says the line between them is a straight join, not a price path.
-  A 7-day chart is legitimately just two points.
+- **Weekly bars, not daily.** The history is Friday-aligned, so the charts plot
+  weekly closes at their own dates. A seven-day window therefore holds two of
+  them; the desktop's security panel charts the full published year instead,
+  which is the point of that panel.
 - **No index level.** There is no ASX or S&P value to show, so each market card
   leads with the *median percentage change* for the selected window over the
-  instrument count, and its sparkline is that median across every window.
+  instrument count. Its sparkline is a chain-linked index built from the weekly
+  bars: the median week-over-week return, compounded. Normalising each ticker
+  against its own first bar is the obvious alternative and is wrong here — the
+  constituents enter the history at different dates, so that median lurches by
+  tens of percent in a single week whenever the set changes. Chaining only ever
+  compares a ticker with itself.
 
 ### Design deviations
 
@@ -100,10 +117,10 @@ The desktop mockup asks for four more things the data cannot support:
   is no earlier run to compare against. The Analysis Summary card shows the
   run's totals and says "no earlier run to compare against" instead of an
   invented "+23%".
-- **No dated market trend.** The "Market Trend" chart plots a dated index
-  series. With only window endpoints published, the desktop chart plots median
-  percentage change *per look-back window* (7D through 1Y), one line per
-  market, and labels the axis accordingly.
+- **No market-trend panel.** The mockup charts a market index below the table.
+  That space instead charts the *security selected in the table* over its full
+  published year, which is what the weekly history is for; clicking a row
+  charts it in place, and "Open details" opens the full screen.
 - **No "today" movers and no user account.** The shortest window is seven days,
   so that panel is "Top Movers (shortest window)"; the account chip is replaced
   by the sync status and a refresh button, since the app has no accounts.
@@ -177,16 +194,17 @@ flutter analyze
 flutter test
 ```
 
-75 tests cover the table discovery and every query (against fixture databases
-built to the published schema, including the differing prefixes), the price
-series assembly, the sync service (conditional requests, progress, corrupt
-downloads, failure handling), the formatters and trend classifier, CSV
-rendering and the export's write path, opening the published Google Finance
-links, and both layouts driven end to end against a fake S3 — including that a
-wide window gets the sidebar and a narrow one does not.
+89 tests cover the table discovery and every query (against fixture databases
+built to the published schema, including the differing prefixes and the weekly
+history), the price-series assembly and the chain-linked growth curve, the sync
+service (conditional requests, progress, corrupt downloads, failure handling),
+the formatters and trend classifier, CSV rendering and the export's write path,
+opening the published Google Finance links, and both layouts driven end to end
+against a fake S3 — including that a wide window gets the sidebar and a narrow
+one does not.
 
-Five of those are the real-data tests below; they report as skipped unless
-`SCREENER_DB_DIR` is set, so a plain `flutter test` shows `+70 ~5`.
+Seven of those are the real-data tests below; they report as skipped unless
+`SCREENER_DB_DIR` is set, so a plain `flutter test` shows `+82 ~7`.
 
 To additionally verify the data layer against the real published files:
 

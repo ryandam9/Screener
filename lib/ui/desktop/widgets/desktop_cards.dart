@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../data/market_database.dart';
 import '../../../models/growth_window.dart';
+import '../../../models/price_bar.dart';
 import '../../../theme/app_theme.dart';
 import '../../../utils/formatters.dart';
 import '../../widgets/sparkline.dart';
@@ -160,6 +161,7 @@ class MarketSummaryCard extends StatelessWidget {
     required this.summary,
     required this.window,
     required this.instrumentNoun,
+    this.trend = const [],
   });
 
   final String title;
@@ -168,14 +170,20 @@ class MarketSummaryCard extends StatelessWidget {
   final GrowthWindow window;
   final String instrumentNoun;
 
+  /// Weekly growth curve; when empty the sparkline falls back to the median
+  /// of each window, which is all an older file supports.
+  final List<GrowthPoint> trend;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final stat = summary?.statFor(window);
-    final trend = [
-      for (final entry in summary?.stats ?? const <WindowStat>[])
-        if (entry.count > 0) entry.medianPctChange,
-    ];
+    final values = trend.isNotEmpty
+        ? [for (final point in trend) point.pctChange]
+        : [
+            for (final entry in summary?.stats ?? const <WindowStat>[])
+              if (entry.count > 0) entry.medianPctChange,
+          ];
 
     return _StatCardFrame(
       title: title,
@@ -186,8 +194,8 @@ class MarketSummaryCard extends StatelessWidget {
         children: [
           SizedBox(
             height: 52,
-            child: trend.length >= 2
-                ? Sparkline(values: trend, color: colors.positive)
+            child: values.length >= 2
+                ? Sparkline(values: values, color: colors.positive)
                 : const SizedBox.shrink(),
           ),
           const SizedBox(height: 12),

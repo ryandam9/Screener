@@ -33,10 +33,31 @@ Future<void> settle(WidgetTester tester, {int frames = 30}) async {
 /// Call from `setUp`, which runs outside the fake-async zone, so ordinary
 /// async I/O completes.
 Future<Map<String, List<int>>> buildFixturePayloads(Directory serveDir) async {
+  // Six Fridays of history, enough for the charts to have a real shape.
+  const usBars = [
+    FixtureBar(date: '2026-07-17', ticker: 'MRNA', close: 57.10),
+    FixtureBar(date: '2026-07-24', ticker: 'MRNA', close: 60.40),
+    FixtureBar(date: '2026-07-31', ticker: 'MRNA', close: 59.20),
+    FixtureBar(date: '2026-08-07', ticker: 'MRNA', close: 62.75),
+    FixtureBar(date: '2026-08-14', ticker: 'MRNA', close: 63.89),
+    FixtureBar(date: '2026-08-21', ticker: 'MRNA', close: 139.225),
+    FixtureBar(date: '2026-08-14', ticker: 'AMLX', close: 21.53),
+    FixtureBar(date: '2026-08-21', ticker: 'AMLX', close: 39.16),
+  ];
+  const asxBars = [
+    FixtureBar(date: '2026-07-17', ticker: 'QETH', close: 15.80),
+    FixtureBar(date: '2026-07-24', ticker: 'QETH', close: 16.40),
+    FixtureBar(date: '2026-07-31', ticker: 'QETH', close: 17.05),
+    FixtureBar(date: '2026-08-07', ticker: 'QETH', close: 17.90),
+    FixtureBar(date: '2026-08-14', ticker: 'QETH', close: 18.53),
+    FixtureBar(date: '2026-08-21', ticker: 'QETH', close: 22.42),
+  ];
+
   final usPath = await createFixtureDatabase(
     directory: serveDir,
     fileName: 'us.db',
     tablePrefix: 'us_stocks_growth',
+    weeklyBars: usBars,
     consistent: const [
       ('MRNA', 'Moderna, Inc. - Common Stock', 'NASDAQ', 117.91),
     ],
@@ -103,6 +124,7 @@ Future<Map<String, List<int>>> buildFixturePayloads(Directory serveDir) async {
     fileName: 'asx.db',
     tablePrefix: 'asx_etf_growth',
     includeConsistentTable: false,
+    weeklyBars: asxBars,
     rowsBySuffix: const {
       '_7_days': [
         FixtureRow(

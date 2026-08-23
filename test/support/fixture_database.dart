@@ -73,6 +73,31 @@ class FixtureRow {
   ];
 }
 
+/// One weekly bar, written as TEXT exactly as the pipeline does.
+class FixtureBar {
+  const FixtureBar({
+    required this.date,
+    required this.ticker,
+    required this.close,
+    this.open,
+    this.high,
+    this.low,
+    double? adjClose,
+    this.volume = 1000000,
+    this.growthPeriods = '1Y,6M,3M,1M,5D',
+  }) : adjClose = adjClose ?? close;
+
+  final String date;
+  final String ticker;
+  final double close;
+  final double? open;
+  final double? high;
+  final double? low;
+  final double adjClose;
+  final double volume;
+  final String growthPeriods;
+}
+
 /// Writes a SQLite file shaped like the published databases.
 ///
 /// [tablePrefix] varies in production (`us_stocks_growth`, `asx_etf_growth`),
@@ -83,6 +108,7 @@ Future<String> createFixtureDatabase({
   required String tablePrefix,
   required Map<String, List<FixtureRow>> rowsBySuffix,
   bool includeConsistentTable = true,
+  List<FixtureBar> weeklyBars = const [],
   List<(String ticker, String name, String exchange, double pct)> consistent =
       const [],
 }) async {
@@ -114,6 +140,30 @@ Future<String> createFixtureDatabase({
         'data_as_of': row.dataAsOf,
         'run_id': row.runId,
         'google_finance': row.values.last,
+      });
+    }
+  }
+
+  if (weeklyBars.isNotEmpty) {
+    // Every column is TEXT in the published files, prices included.
+    await db.execute(
+      'CREATE TABLE "$tablePrefix" ('
+      '  "stock_price_date" TEXT, "ticker" TEXT, "open" TEXT, "high" TEXT,'
+      '  "low" TEXT, "close" TEXT, "adj_close" TEXT, "volume" TEXT,'
+      '  "growth_count" TEXT, "growth_periods" TEXT)',
+    );
+    for (final bar in weeklyBars) {
+      await db.insert(tablePrefix, {
+        'stock_price_date': bar.date,
+        'ticker': bar.ticker,
+        'open': '${bar.open ?? bar.close}',
+        'high': '${bar.high ?? bar.close}',
+        'low': '${bar.low ?? bar.close}',
+        'close': '${bar.close}',
+        'adj_close': '${bar.adjClose}',
+        'volume': '${bar.volume}',
+        'growth_count': '${bar.growthPeriods.split(',').length}',
+        'growth_periods': bar.growthPeriods,
       });
     }
   }

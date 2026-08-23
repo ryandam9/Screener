@@ -95,7 +95,10 @@ void main() {
 
     // Real fixture values, not placeholders.
     expect(find.text('MRNA'), findsWidgets);
-    expect(find.textContaining('Median growth by window'), findsOneWidget);
+    // The panel under the table charts the selected security.
+    expect(find.textContaining('Moderna'), findsWidgets);
+    expect(find.text('Open details'), findsOneWidget);
+    expect(find.textContaining('weekly closes'), findsOneWidget);
     expect(find.text('Recent Analyses'), findsOneWidget);
   });
 
@@ -134,6 +137,20 @@ void main() {
 
     expect(find.text('AMLX'), findsWidgets);
     expect(find.text('MRNA'), findsNothing);
+  });
+
+  testWidgets('clicking a row charts that security', (tester) async {
+    await launchDesktop(tester);
+
+    // Defaults to the strongest mover.
+    expect(find.textContaining('MRNA · Moderna'), findsOneWidget);
+
+    await tester.tap(find.text('Amylyx Pharmaceuticals, Inc.').first);
+    await settle(tester);
+
+    expect(find.textContaining('AMLX · Amylyx'), findsOneWidget);
+    // Selecting charts in place rather than navigating away.
+    expect(find.text('ASX Market'), findsOneWidget);
   });
 
   testWidgets('the window dropdown drives the dashboard', (tester) async {

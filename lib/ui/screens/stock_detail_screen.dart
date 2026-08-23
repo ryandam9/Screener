@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../data/market_database.dart';
 import '../../models/growth_window.dart';
 import '../../models/market.dart';
+import '../../models/price_bar.dart';
 import '../../models/price_series.dart';
 import '../../models/stock_row.dart';
 import '../../state/app_state.dart';
@@ -68,10 +69,18 @@ Future<void> openExternalUrl(BuildContext context, String? url) async {
 
 /// Everything one ticker's screens need.
 class _TickerData {
-  const _TickerData({required this.rows, required this.volumePercentile});
+  const _TickerData({
+    required this.rows,
+    required this.volumePercentile,
+    this.bars = const [],
+  });
 
   /// One row per window that contains this ticker, shortest window first.
   final List<StockRow> rows;
+
+  /// A year of weekly bars, oldest first. Empty for files published before the
+  /// history table existed.
+  final List<PriceBar> bars;
 
   /// Rank of the selected window's median volume within that window, 0..1.
   final double? volumePercentile;
@@ -129,7 +138,10 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         row.medianVolume,
       );
     }
-    return _TickerData(rows: rows, volumePercentile: percentile);
+    // 52 bars at most, so the whole year is fetched once and the window pills
+    // filter it without another query.
+    final bars = await database.priceHistory(widget.ticker);
+    return _TickerData(rows: rows, volumePercentile: percentile, bars: bars);
   }
 
   @override
@@ -354,7 +366,21 @@ class _OverviewTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final series = PriceSeries.build(data.rows, window);
+
+    // Prefer the published weekly bars, clipped to the window the pills select.
+    // Files without price history fall back to the window endpoints.
+    final from = DateTime.tryParse(row.firstDate ?? '');
+    final to = DateTime.tryParse(row.lastDate ?? '');
+    final windowBars = [
+      for (final bar in data.bars)
+        if ((from == null || !bar.date.isBefore(from)) &&
+            (to == null || !bar.date.isAfter(to)))
+          bar,
+    ];
+    final usingHistory = windowBars.length >= 2;
+    final points = usingHistory
+        ? ChartPoint.fromBars(windowBars)
+        : ChartPoint.fromSeries(PriceSeries.build(data.rows, window));
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
@@ -458,18 +484,20 @@ class _OverviewTab extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               PriceChart(
-                series: series,
+                points: points,
                 lineColor: colors.forChange(row.pctChange),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
                 child: Text(
-                  series.hasShape
-                      ? 'Each dot is a published price: the opening price of a '
-                            'window, or the closing price. The dataset holds no '
-                            'daily bars, so the line between dots is a straight '
-                            'join, not a price path.'
-                      : 'This window publishes a single price point.',
+                  usingHistory
+                      ? '${windowBars.length} weekly closes published for this '
+                            'window, plotted at their own dates.'
+                      : points.length >= 2
+                      ? 'No weekly history covers this window, so the chart '
+                            'falls back to the prices the window itself '
+                            'publishes: its open and its close.'
+                      : 'This window publishes a single price.',
                   style: TextStyle(
                     fontSize: 11,
                     height: 1.4,
