@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import '../models/growth_window.dart';
 import '../models/market.dart';
 import '../models/price_bar.dart';
+import '../models/run_details.dart';
 import '../models/stock_row.dart';
 
 /// Columns a list can be sorted by. Values are physical column names and are
@@ -169,10 +170,14 @@ class MarketDatabase {
     required Map<GrowthWindow, String> tables,
     required String? consistentTable,
     required String? seriesTable,
+    required String? metadataTable,
+    required String? funnelTable,
   }) : _db = database,
        _tables = tables,
        _consistentTable = consistentTable,
-       _seriesTable = seriesTable;
+       _seriesTable = seriesTable,
+       _metadataTable = metadataTable,
+       _funnelTable = funnelTable;
 
   final Market market;
   final String path;
@@ -180,6 +185,8 @@ class MarketDatabase {
   final Map<GrowthWindow, String> _tables;
   final String? _consistentTable;
   final String? _seriesTable;
+  final String? _metadataTable;
+  final String? _funnelTable;
 
   /// The full growth curve costs roughly 650ms against the US file, and the
   /// dashboard asks for it on every rebuild, so it is computed once per open
@@ -198,6 +205,12 @@ class MarketDatabase {
   /// True when the file publishes weekly price history alongside the windows.
   /// Older files carry only the per-window tables.
   bool get hasPriceHistory => _seriesTable != null;
+
+  /// True when the file describes the run that produced it.
+  bool get hasRunMetadata => _metadataTable != null;
+
+  /// True when the file records how the universe narrowed at each stage.
+  bool get hasScreenFunnel => _funnelTable != null;
 
   static Future<MarketDatabase> open(Market market, String path) async {
     final database = await databaseFactory.openDatabase(
@@ -225,19 +238,30 @@ class MarketDatabase {
       }
     }
 
-    // The price history is the leftover table carrying a date column; its name
-    // is the window tables' prefix without a suffix ("us_stocks_growth"), but
-    // it is identified by its columns rather than by that convention.
+    // The remaining tables are identified by their columns rather than their
+    // names, because the pipeline has already renamed and added tables twice.
     String? series;
+    String? metadata;
+    String? funnel;
     for (final name in candidates) {
       final columns = await database.rawQuery('PRAGMA table_info("$name")');
-      final hasDate = columns.any(
-        (c) => (c['name'] as String?) == 'stock_price_date',
-      );
-      final hasClose = columns.any((c) => (c['name'] as String?) == 'close');
-      if (hasDate && hasClose) {
+      final names = {
+        for (final column in columns)
+          if (column['name'] case final String value) value,
+      };
+
+      if (series == null &&
+          names.contains('stock_price_date') &&
+          names.contains('close')) {
         series = name;
-        break;
+      } else if (metadata == null &&
+          names.contains('run_id') &&
+          names.contains('universe_total')) {
+        metadata = name;
+      } else if (funnel == null &&
+          names.contains('stage') &&
+          names.contains('count')) {
+        funnel = name;
       }
     }
 
@@ -255,6 +279,8 @@ class MarketDatabase {
       tables: tables,
       consistentTable: consistent,
       seriesTable: series,
+      metadataTable: metadata,
+      funnelTable: funnel,
     );
   }
 
@@ -494,6 +520,36 @@ class MarketDatabase {
     final count = (rows.first['n'] as num?)?.toInt() ?? 0;
     if (count == 0) return null;
     return (rows.first['a'] as num?)?.toDouble();
+  }
+
+  /// How the published run was produced, when the file records it.
+  Future<RunMetadata?> runMetadata() async {
+    final table = _metadataTable;
+    if (table == null) return null;
+    final rows = await _db.rawQuery('SELECT * FROM "$table" LIMIT 1');
+    if (rows.isEmpty) return null;
+    return RunMetadata.fromMap(rows.first);
+  }
+
+  /// The screen funnel, ordered by window then stage.
+  ///
+  /// Pass [window] to get one window's stages; omit it for all of them.
+  Future<List<FunnelStage>> screenFunnel({GrowthWindow? window}) async {
+    final table = _funnelTable;
+    if (table == null) return const [];
+
+    final rows = await _db.rawQuery(
+      'SELECT * FROM "$table" ORDER BY window, position',
+    );
+    final stages = [
+      for (final row in rows)
+        if (FunnelStage.fromMap(row) case final stage?) stage,
+    ];
+    if (window == null) return stages;
+    return [
+      for (final stage in stages)
+        if (stage.window == window) stage,
+    ];
   }
 
   /// Weekly bars for one ticker, oldest first.

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:screener/models/growth_window.dart';
 import 'package:screener/ui/desktop/desktop_shell.dart';
+import 'package:screener/ui/widgets/panels.dart';
 import 'package:screener/ui/screens/home_shell.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -116,7 +117,7 @@ void main() {
 
     await tester.tap(find.text('Reports'));
     await settle(tester);
-    expect(find.textContaining('us.db'), findsWidgets);
+    expect(find.textContaining('asx.db'), findsWidgets);
     expect(find.text('CSV'), findsWidgets);
 
     await tester.tap(find.text('Analysis'));
@@ -126,6 +127,51 @@ void main() {
     await tester.tap(find.text('Dashboard'));
     await settle(tester);
     expect(find.text('ASX Market'), findsOneWidget);
+  });
+
+  testWidgets('Reports shows the run metadata and the screen funnel', (
+    tester,
+  ) async {
+    await launchDesktop(tester);
+
+    await tester.tap(find.text('Reports'));
+    await settle(tester);
+
+    // The ASX fixture publishes both tables.
+    expect(find.text('Run metadata'), findsOneWidget);
+    expect(find.text('success'), findsOneWidget);
+    expect(
+      find.text('403'),
+      findsNothing,
+      reason: 'shown as screened of total',
+    );
+    expect(find.text('402 screened of 403'), findsOneWidget);
+    expect(find.text('yahoo_finance'), findsOneWidget);
+    expect(find.text('20260823T090042Z-30ac6f5b'), findsWidgets);
+    expect(find.text('2.0'), findsOneWidget, reason: 'the price floor setting');
+
+    expect(find.text('Screen funnel'), findsOneWidget);
+    expect(find.text('Universe in window'), findsOneWidget);
+    expect(find.text('Return above 10.0%'), findsOneWidget);
+    // The 7D funnel first, with the drop from the stage above it.
+    expect(find.text('6'), findsWidgets);
+    expect(find.text('−204'), findsOneWidget);
+
+    // Switching the window redraws the funnel from the same table.
+    await tester.tap(
+      find.descendant(
+        of: find.byType(PeriodSelector<GrowthWindow>),
+        matching: find.text('1M'),
+      ),
+    );
+    await settle(tester);
+    expect(find.text('16'), findsWidgets);
+
+    // The US fixture publishes neither, and says so rather than showing a gap.
+    // Its section sits below the ASX one, so scroll it into view first.
+    await tester.drag(find.byType(ListView).last, const Offset(0, -900));
+    await settle(tester);
+    expect(find.textContaining('publishes no run metadata'), findsOneWidget);
   });
 
   testWidgets('the top bar search opens Markets filtered', (tester) async {

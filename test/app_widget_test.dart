@@ -185,6 +185,21 @@ void main() {
     expect(find.textContaining('us.db'), findsWidgets);
   });
 
+  testWidgets('Reports stacks the run panels on a handset', (tester) async {
+    await launch(tester);
+
+    await tester.tap(find.text('More'));
+    await settle(tester);
+    await tester.tap(find.text('Runs and CSV export'));
+    await settle(tester);
+
+    // The ASX fixture publishes both tables; at handset width they stack
+    // rather than sitting side by side.
+    expect(find.text('Run metadata'), findsOneWidget);
+    expect(find.text('Screen funnel'), findsOneWidget);
+    expect(find.text('Universe in window'), findsOneWidget);
+  });
+
   testWidgets('a failed refresh keeps serving the cached databases', (
     tester,
   ) async {

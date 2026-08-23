@@ -125,6 +125,63 @@ Future<Map<String, List<int>>> buildFixturePayloads(Directory serveDir) async {
     tablePrefix: 'asx_etf_growth',
     includeConsistentTable: false,
     weeklyBars: asxBars,
+    // Only the ASX file carries these tables, mirroring production: the app
+    // has to show them where they exist and say so where they do not.
+    run: const FixtureRun(
+      runId: '20260823T090042Z-30ac6f5b',
+      exchange: 'ASX',
+      instrumentType: 'etf',
+    ),
+    funnel: const [
+      FixtureStage(
+        window: '7_days',
+        position: 0,
+        stage: 'Universe in window',
+        count: 402,
+      ),
+      FixtureStage(
+        window: '7_days',
+        position: 1,
+        stage: 'Enough span',
+        count: 380,
+      ),
+      FixtureStage(
+        window: '7_days',
+        position: 2,
+        stage: 'Liquid enough',
+        count: 210,
+      ),
+      FixtureStage(
+        window: '7_days',
+        position: 3,
+        stage: 'Return above 10.0%',
+        count: 6,
+      ),
+      FixtureStage(
+        window: '1_month',
+        position: 0,
+        stage: 'Universe in window',
+        count: 402,
+      ),
+      FixtureStage(
+        window: '1_month',
+        position: 1,
+        stage: 'Enough span',
+        count: 395,
+      ),
+      FixtureStage(
+        window: '1_month',
+        position: 2,
+        stage: 'Liquid enough',
+        count: 230,
+      ),
+      FixtureStage(
+        window: '1_month',
+        position: 3,
+        stage: 'Return above 10.0%',
+        count: 16,
+      ),
+    ],
     rowsBySuffix: const {
       '_7_days': [
         FixtureRow(

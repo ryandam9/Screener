@@ -22,7 +22,7 @@ navigation chrome and the dashboard differ.
 | **Stock detail** | Price, change, and the window's endpoints; a weekly price chart for the selected window; the full published metric set; every window compared; and the Google Finance links carried in the data. |
 | **Watchlist** | Starred tickers from both markets, swipe to remove. |
 | **Analysis** | Run-level statistics: instrument count, median/strongest/weakest change, a distribution histogram, a per-exchange breakdown, and the most traded instruments. |
-| **Reports** | Every published run with its row count, `data_as_of` and `run_id`, and a CSV export per window. Desktop shows it in the sidebar; the handset reaches it from More. |
+| **Reports** | Every published run with its row count, `data_as_of` and `run_id`, and a CSV export per window; below each market, the run metadata behind that file and its screen funnel. Desktop shows it in the sidebar; the handset reaches it from More. |
 | **More / Settings** | Per-file sync status and size, re-download and cache controls, theme, and row density. |
 
 ## Data
@@ -74,6 +74,26 @@ at the time of writing. Every column is TEXT, prices included, so each numeric
 field is parsed rather than cast. The table is found by its columns rather than
 its name, and a file published before it existed still opens: `hasPriceHistory`
 reports false and the charts fall back to the window endpoints.
+
+Two further tables record how the run itself went, and are read the same way —
+by their columns, so a file without them still opens:
+
+```
+run_metadata   run_id, code_revision, exchange, instrument_type, data_as_of,
+               started_at, finished_at, status, universe_total,
+               universe_screened, provider, source_run_id, source_status,
+               settings_json
+screen_funnel  window, position, stage, count
+```
+
+`run_metadata` holds a single row. `screen_funnel` holds one row per stage per
+window — "Universe in window", "Enough span", "Enough observations", "Still
+trading", "Adjusted prices", "Liquid enough", "Above price floor", "Valid
+baseline", "Return above N%" — and its last count for a window equals that
+window's published row count, so the funnel explains exactly why a window is
+as small as it is (or, for ASX 3-month, empty). Reports shows both, per market,
+and says so plainly where a file carries neither: `us.db` does not yet publish
+them.
 
 A window's table can be empty (ASX has no 3-month rows in the current run), and
 `consistent_growth_stocks` may be absent or empty. Both cases are handled with
@@ -191,9 +211,9 @@ fail to reach S3.
 
 ### Linux
 
-The same code runs as a Linux desktop app. The window opens at handset width
-(420x880) so it starts on the phone layout; widening it past 900px switches to
-the sidebar layout live.
+The same code runs as a Linux desktop app. The window opens at 1280x860, wide
+enough for the sidebar layout; narrowing it below 900px switches to the handset
+layout live.
 
 ```bash
 sudo apt-get install libgtk-3-dev   # plus clang, cmake, ninja-build, pkg-config
@@ -213,9 +233,11 @@ flutter analyze
 flutter test
 ```
 
-89 tests cover the table discovery and every query (against fixture databases
+101 tests cover the table discovery and every query (against fixture databases
 built to the published schema, including the differing prefixes and the weekly
-history), the price-series assembly and the chain-linked growth curve, the sync
+history), the run metadata and screen funnel (including the degraded path for
+files without them), the price-series assembly and the chain-linked growth
+curve, the sync
 service (conditional requests, progress, corrupt downloads, failure handling),
 the formatters and trend classifier, CSV rendering and the export's write path,
 opening the published Google Finance links, and both layouts driven end to end
