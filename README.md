@@ -166,6 +166,14 @@ would otherwise provide one. The price chart opts out with
 `SelectionContainer.disabled`: it reads horizontal drags to move its cursor,
 which is the same gesture text selection uses.
 
+### Google Finance links
+
+The `google_finance` column the pipeline publishes is reachable in one tap from
+wherever a row is shown — every list row, every Top Gainers row, the stock
+detail header, and the desktop dashboard's security panel. It used to live
+behind the detail screen's overflow menu, which was four taps from a list; the
+menu now offers to copy the link rather than open it.
+
 ### Info sheets
 
 Every screen's app bar carries an info button. The sheets are written as data —
@@ -297,14 +305,15 @@ flutter analyze
 flutter test
 ```
 
-109 tests cover the table discovery and every query (against fixture databases
+111 tests cover the table discovery and every query (against fixture databases
 built to the published schema, including the differing prefixes and the weekly
 history), the run metadata and screen funnel (including the degraded path for
 files without them), the price-series assembly and the chain-linked growth
 curve, the sync
 service (conditional requests, progress, corrupt downloads, failure handling),
 the formatters and trend classifier, CSV rendering and the export's write path,
-opening the published Google Finance links, and both layouts driven end to end
+opening the published Google Finance links (including from a list row and
+from the detail header, without a menu), and both layouts driven end to end
 against a fake S3 — including that a wide window gets the sidebar and a narrow
 one does not, that every screen carries an info button and its sheet renders,
 that the text sits inside the selection area, and that settings split into two

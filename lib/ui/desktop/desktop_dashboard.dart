@@ -16,6 +16,7 @@ import '../widgets/price_chart.dart';
 import 'widgets/desktop_cards.dart';
 import 'widgets/gainers_table.dart';
 import '../info/page_info.dart';
+import '../widgets/google_finance_button.dart';
 import '../widgets/info_dialog.dart';
 
 /// Everything the desktop dashboard shows, gathered in one pass.
@@ -557,6 +558,9 @@ class _SecurityChart extends StatelessWidget {
 
     return DesktopPanel(
       title: '${row.ticker} · ${row.shortName}',
+      leadingAction: row.googleFinanceUrl == null
+          ? null
+          : GoogleFinanceButton(url: row.googleFinanceUrl, ticker: row.ticker),
       actionLabel: 'Open details',
       onAction: onOpenDetails,
       child: Padding(

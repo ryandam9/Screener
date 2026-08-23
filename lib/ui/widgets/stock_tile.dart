@@ -5,6 +5,7 @@ import '../../models/stock_row.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import 'change_chip.dart';
+import 'google_finance_button.dart';
 import 'ticker_avatar.dart';
 
 /// A row in the market list: monogram, ticker + name, price, change chip.
@@ -135,6 +136,15 @@ class StockTile extends StatelessWidget {
                   ),
                 ],
               ),
+          // Straight out to the published quote page, from the row itself.
+          if (row.googleFinanceUrl != null) ...[
+            const SizedBox(width: 2),
+            GoogleFinanceButton(
+              url: row.googleFinanceUrl,
+              ticker: row.ticker,
+              dense: true,
+            ),
+          ],
         ],
       ),
     );
@@ -182,6 +192,21 @@ class GainerTile extends StatelessWidget {
 
   Widget _content(BuildContext context) {
     final colors = context.colors;
+    return LayoutBuilder(
+      builder: (context, constraints) => _row(context, colors, constraints),
+    );
+  }
+
+  Widget _row(
+    BuildContext context,
+    ScreenerColors colors,
+    BoxConstraints constraints,
+  ) {
+    // "+75.33 (+117.9%)" needs 188px; on a handset that leaves the company
+    // name nothing. Below that, the percentage alone carries the row — it is
+    // what the list is ranked on, and the absolute change is one tap away.
+    final tight = constraints.maxWidth < 360;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
       child: Row(
@@ -242,7 +267,12 @@ class GainerTile extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                '${Fmt.signedPrice(row.priceChange)} (${Fmt.signedPercent(row.pctChange, decimals: 1)})',
+                tight
+                    ? Fmt.signedPercent(row.pctChange, decimals: 1)
+                    : '${Fmt.signedPrice(row.priceChange)} '
+                          '(${Fmt.signedPercent(row.pctChange, decimals: 1)})',
+                maxLines: 1,
+                softWrap: false,
                 style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
@@ -252,6 +282,14 @@ class GainerTile extends StatelessWidget {
               ),
             ],
           ),
+          if (row.googleFinanceUrl != null) ...[
+            const SizedBox(width: 2),
+            GoogleFinanceButton(
+              url: row.googleFinanceUrl,
+              ticker: row.ticker,
+              dense: true,
+            ),
+          ],
         ],
       ),
     );

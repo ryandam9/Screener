@@ -2,7 +2,6 @@ import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/market_database.dart';
 import '../../models/growth_window.dart';
@@ -16,6 +15,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../../utils/trend.dart';
 import '../widgets/change_chip.dart';
+import '../widgets/google_finance_button.dart';
 import '../widgets/panels.dart';
 import '../widgets/price_chart.dart';
 import '../widgets/readable_width.dart';
@@ -31,43 +31,6 @@ enum _DetailTab {
   const _DetailTab(this.label, this.icon);
   final String label;
   final IconData icon;
-}
-
-/// Opens [url] in the platform browser, and says so when that is not possible.
-///
-/// url_launcher signals failure two different ways depending on the platform
-/// and the reason: it can return false, or it can throw a PlatformException
-/// (which is what happens when no application is registered for https at all).
-/// Only checking the return value leaves the tap doing nothing at all, so both
-/// are handled here, and the URL can still be copied when it cannot be opened.
-Future<void> openExternalUrl(BuildContext context, String? url) async {
-  final messenger = ScaffoldMessenger.of(context);
-  final uri = url == null ? null : Uri.tryParse(url);
-
-  if (uri == null) {
-    messenger.showSnackBar(
-      const SnackBar(content: Text('This row has no link published')),
-    );
-    return;
-  }
-
-  var launched = false;
-  try {
-    launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-  } on Object {
-    launched = false;
-  }
-  if (launched) return;
-
-  messenger.showSnackBar(
-    SnackBar(
-      content: const Text('Could not open the link'),
-      action: SnackBarAction(
-        label: 'Copy',
-        onPressed: () => Clipboard.setData(ClipboardData(text: url!)),
-      ),
-    ),
-  );
 }
 
 /// Everything one ticker's screens need.
@@ -326,6 +289,11 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
               );
             },
           ),
+          if (row?.googleFinanceUrl != null)
+            GoogleFinanceButton(
+              url: row!.googleFinanceUrl,
+              ticker: widget.ticker,
+            ),
           const InfoButton(info: PageInfos.stockDetail),
           PopupMenuButton<String>(
             onSelected: (value) => _onMenu(context, value, row),
@@ -333,8 +301,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
               const PopupMenuItem(value: 'copy', child: Text('Copy summary')),
               if (row?.googleFinanceUrl != null)
                 const PopupMenuItem(
-                  value: 'open',
-                  child: Text('Open in Google Finance'),
+                  value: 'copy-link',
+                  child: Text('Copy Google Finance link'),
                 ),
             ],
           ),
@@ -365,8 +333,14 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Summary copied')));
-      case 'open':
-        await openExternalUrl(context, row.googleFinanceUrl);
+      case 'copy-link':
+        final url = row.googleFinanceUrl;
+        if (url == null) return;
+        await Clipboard.setData(ClipboardData(text: url));
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Link copied')));
     }
   }
 }

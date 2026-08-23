@@ -15,12 +15,16 @@ class DesktopPanel extends StatelessWidget {
     required this.child,
     this.actionLabel,
     this.onAction,
+    this.leadingAction,
   });
 
   final String title;
   final Widget child;
   final String? actionLabel;
   final VoidCallback? onAction;
+
+  /// Extra control shown before [actionLabel], e.g. an external link.
+  final Widget? leadingAction;
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +44,7 @@ class DesktopPanel extends StatelessWidget {
             padding: EdgeInsets.fromLTRB(
               18,
               15,
-              actionLabel == null ? 18 : 8,
+              actionLabel == null && leadingAction == null ? 18 : 8,
               12,
             ),
             child: Row(
@@ -57,6 +61,7 @@ class DesktopPanel extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (leadingAction != null) leadingAction!,
                 if (actionLabel != null)
                   TextButton(
                     onPressed: onAction,
