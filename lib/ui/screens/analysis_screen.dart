@@ -12,6 +12,8 @@ import '../widgets/change_chip.dart';
 import '../widgets/panels.dart';
 import '../widgets/stock_tile.dart';
 import 'stock_detail_screen.dart';
+import '../info/page_info.dart';
+import '../widgets/info_dialog.dart';
 
 /// Aggregate statistics for one market's screener run.
 class _AnalysisData {
@@ -75,7 +77,13 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Analysis')),
+      appBar: AppBar(
+        title: const Text('Analysis'),
+        actions: const [
+          InfoButton(info: PageInfos.analysis),
+          SizedBox(width: 4),
+        ],
+      ),
       body: database == null
           ? StatusView(
               icon: Icons.cloud_off,
@@ -353,14 +361,10 @@ class _AnalysisBody extends StatelessWidget {
               for (final row in data.byVolume) ...[
                 StockTile(
                   row: row,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => StockDetailScreen(
-                        market: row.market,
-                        ticker: row.ticker,
-                        initialWindow: row.window,
-                      ),
-                    ),
+                  opensTo: (_) => StockDetailScreen(
+                    market: row.market,
+                    ticker: row.ticker,
+                    initialWindow: row.window,
                   ),
                   trailingBuilder: (context) => Column(
                     crossAxisAlignment: CrossAxisAlignment.end,

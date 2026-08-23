@@ -1,0 +1,401 @@
+import 'package:flutter/material.dart';
+
+import '../widgets/info_dialog.dart';
+
+/// What each screen's info button explains.
+///
+/// Kept together so the explanations stay consistent with one another, and so
+/// a change in the data model is described in one place rather than five.
+class PageInfos {
+  const PageInfos._();
+
+  /// Repeated wherever a screen shows a percentage change, because it is the
+  /// single most misread number in the app.
+  static const _screenerNumbers = InfoNote(
+    'Every figure here is screener output, not a live quote. A change is '
+    'measured between two published endpoints, not since this morning.',
+  );
+
+  static const dashboard = PageInfo(
+    title: 'Dashboard',
+    subtitle: 'What the app found in the latest run',
+    icon: Icons.dashboard_outlined,
+    blocks: [
+      InfoParagraph(
+        'The dashboard is a summary of the two screener databases the app '
+        'downloads from S3 — one for the ASX, one for the US market. Nothing '
+        'here is computed from live prices; it is all read from the files.',
+      ),
+      InfoHeading('Market cards', icon: Icons.credit_card_outlined),
+      InfoParagraph(
+        'One card per market. The big figure is the median percentage change '
+        'across every instrument that passed the screen for the selected '
+        'window, so a single runaway ticker cannot drag it.',
+      ),
+      InfoBullets([
+        InfoBullet(
+          lead: 'Median, not average',
+          text: 'half the instruments did better, half did worse.',
+        ),
+        InfoBullet(
+          lead: 'The sparkline',
+          text:
+              'traces the market’s weekly path over the published year, '
+              'chained from median weekly returns.',
+        ),
+        InfoBullet(
+          lead: 'The caption',
+          text: 'names the window and how many instruments it covers.',
+        ),
+      ]),
+      InfoDivider(),
+      InfoHeading('Top Gainers', icon: Icons.trending_up),
+      InfoParagraph(
+        'The strongest instruments in the selected window, sorted by '
+        'percentage change. Tap a row to open its detail screen.',
+      ),
+      InfoExample(
+        title: 'Reading a row',
+        lines: [
+          'MRNA · Moderna, Inc. · US',
+          '139.22   +75.33   +117.9%',
+          'Last price, change since the window opened, and that change as a '
+              'percentage.',
+        ],
+      ),
+      InfoHeading('Analysis Summary', icon: Icons.insights_outlined),
+      InfoParagraph(
+        'Totals for the latest run: how many window analyses were published, '
+        'how many rows they hold in total, and the average change across the '
+        'selected window.',
+      ),
+      InfoNote(
+        'Rows counts a ticker once per window it appears in, so a ticker in '
+        'five windows contributes five rows. Each file carries a single run, '
+        'so there is no earlier run to compare against and no month-on-month '
+        'delta to show.',
+      ),
+      _screenerNumbers,
+    ],
+  );
+
+  static const markets = PageInfo(
+    title: 'Markets',
+    subtitle: 'Every instrument that passed the screen',
+    icon: Icons.public,
+    blocks: [
+      InfoParagraph(
+        'The full list for one market and one look-back window, with the '
+        'columns the screener published. Switch market from the title, and '
+        'window from the selector below it.',
+      ),
+      InfoHeading('The four tabs', icon: Icons.tab_outlined),
+      InfoBullets([
+        InfoBullet(
+          lead: 'All Stocks',
+          text: 'everything published for the selected window.',
+        ),
+        InfoBullet(
+          lead: 'Top Movers',
+          text: 'the strongest performers in that window, largest first.',
+        ),
+        InfoBullet(
+          lead: 'Consistent',
+          text:
+              'instruments that cleared the threshold in every window, not '
+              'just one. Published as its own table, and absent from some '
+              'files.',
+        ),
+        InfoBullet(
+          lead: 'Watchlist',
+          text: 'the tickers you have starred, across both markets.',
+        ),
+      ]),
+      InfoDivider(),
+      InfoHeading('Sorting and filtering', icon: Icons.filter_alt_outlined),
+      InfoParagraph(
+        'Tap a column heading to sort by it; tap again to reverse. The filter '
+        'button narrows the list by exchange and by a minimum percentage '
+        'change, and search matches both ticker and company name.',
+      ),
+      InfoExample(
+        title: 'Finding solid movers, not spikes',
+        lines: [
+          '1. Set the window to 1M.',
+          '2. Filter to a minimum change of 25%.',
+          '3. Sort by Median Vol. to put the liquid names first.',
+        ],
+      ),
+      _screenerNumbers,
+    ],
+  );
+
+  static const stockDetail = PageInfo(
+    title: 'Stock detail',
+    subtitle: 'One instrument, in full',
+    icon: Icons.show_chart,
+    blocks: [
+      InfoParagraph(
+        'Everything the databases hold about one instrument: its price path, '
+        'the screener’s metrics, how it performed across every window, '
+        'and the links published with it.',
+      ),
+      InfoHeading('The chart', icon: Icons.timeline),
+      InfoParagraph(
+        'Weekly closing prices, plotted at their real dates — a gap in the '
+        'series shows as a longer segment rather than being spaced evenly. '
+        'Tap or drag across it to read any point.',
+      ),
+      InfoHeading('Two changes, both correct', icon: Icons.compare_arrows),
+      InfoParagraph(
+        'The change under the price is measured between the first and last '
+        'weekly bars in the window. The screener measures its own change '
+        'between the window’s true endpoints, which the weekly sampling '
+        'does not necessarily contain — so the two differ, and both are shown '
+        'rather than one being quietly preferred.',
+      ),
+      InfoExample(
+        title: 'A 7-day window',
+        lines: [
+          'Weekly bars:  Aug 14 → Aug 21   +78.7%',
+          'Screener:     its own endpoints  +81.9%',
+          'The gap is the sampling, not an error in either figure.',
+        ],
+      ),
+      InfoDivider(),
+      InfoHeading('The tabs', icon: Icons.view_agenda_outlined),
+      InfoBullets([
+        InfoBullet(
+          lead: 'Overview',
+          text: 'the chart, the window selector and the headline metrics.',
+        ),
+        InfoBullet(
+          lead: 'Metrics',
+          text:
+              'every published column — coverage, observations, median volume, '
+              'price basis, and the run that produced them.',
+        ),
+        InfoBullet(
+          lead: 'Windows',
+          text:
+              'the same instrument across 7D to 1Y, so a spike and a trend '
+              'are easy to tell apart.',
+        ),
+        InfoBullet(
+          lead: 'Links',
+          text: 'the Google Finance link the pipeline published for it.',
+        ),
+      ]),
+      InfoHeading('Coverage and observations', icon: Icons.rule),
+      InfoBullets([
+        InfoBullet(
+          lead: 'Coverage',
+          text:
+              'how much of the window the data actually spans, 0 to 1. Below '
+              '1 means the instrument was not trading for the whole period.',
+        ),
+        InfoBullet(
+          lead: 'Obs. ratio',
+          text:
+              'observed trading days against expected. A low ratio means a '
+              'thin, gappy series.',
+        ),
+        InfoBullet(
+          lead: 'Price basis',
+          text:
+              '"adjusted" means splits and dividends are already accounted '
+              'for in the prices.',
+        ),
+      ]),
+      _screenerNumbers,
+    ],
+  );
+
+  static const watchlist = PageInfo(
+    title: 'Watchlist',
+    subtitle: 'The tickers you starred',
+    icon: Icons.star_border_rounded,
+    blocks: [
+      InfoParagraph(
+        'Instruments you have starred, from both markets in one list. Star '
+        'from any list row or from the detail screen’s header.',
+      ),
+      InfoBullets([
+        InfoBullet(text: 'Swipe a row to remove it.'),
+        InfoBullet(text: 'Tap a row to open its detail screen.'),
+        InfoBullet(
+          text:
+              'The list is stored on this device only — it is not part of '
+              'the published data and is not synced anywhere.',
+        ),
+      ], icon: Icons.check_circle_outline),
+      InfoNote(
+        'A starred ticker only appears here while it is still in the '
+        'published data. If the next run drops it from every window, the row '
+        'goes with it.',
+      ),
+    ],
+  );
+
+  static const analysis = PageInfo(
+    title: 'Analysis',
+    subtitle: 'The shape of a run, not a single instrument',
+    icon: Icons.speed_outlined,
+    blocks: [
+      InfoParagraph(
+        'Run-level statistics for one market and window: how many instruments '
+        'passed, how they are distributed, and which exchanges and instruments '
+        'they came from.',
+      ),
+      InfoHeading('Distribution', icon: Icons.bar_chart),
+      InfoParagraph(
+        'Instruments bucketed by percentage change. A tall left-hand bar means '
+        'the window is full of modest movers; a long right-hand tail means a '
+        'few names ran away with it.',
+      ),
+      InfoHeading('Median, strongest, weakest', icon: Icons.straighten),
+      InfoParagraph(
+        'The median is the middle instrument, so it describes the typical one. '
+        'Strongest and weakest are the ends of the range — useful for judging '
+        'how wide that range is before reading the median as typical.',
+      ),
+      InfoExample(
+        title: 'Same median, different runs',
+        lines: [
+          'Run A:  median +12%   range +10% to +15%',
+          'Run B:  median +12%   range  +2% to +180%',
+          'Only one of these is a market you could describe in one number.',
+        ],
+      ),
+      InfoDivider(),
+      InfoHeading('By exchange', icon: Icons.account_balance_outlined),
+      InfoParagraph(
+        'How the passing instruments split across the exchanges in the file, '
+        'with each exchange’s own median beside its count.',
+      ),
+      _screenerNumbers,
+    ],
+  );
+
+  static const reports = PageInfo(
+    title: 'Reports',
+    subtitle: 'Where the numbers came from',
+    icon: Icons.description_outlined,
+    blocks: [
+      InfoParagraph(
+        'The provenance of the data: which runs produced the files, how many '
+        'rows each window holds, what the run was configured to do, and where '
+        'the instruments dropped out of the screen.',
+      ),
+      InfoHeading('Run inventory', icon: Icons.list_alt),
+      InfoParagraph(
+        'One line per window with its row count, the date the data was current '
+        'as of, and the run id. The CSV button exports that window exactly as '
+        'published — every column, unchanged.',
+      ),
+      InfoHeading('Run metadata', icon: Icons.badge_outlined),
+      InfoParagraph(
+        'A single row describing the run itself: the universe it started from, '
+        'how many instruments it screened, when it ran and for how long, the '
+        'price provider, the code revision, and the thresholds it applied.',
+      ),
+      InfoDivider(),
+      InfoHeading('Screen funnel', icon: Icons.filter_alt_outlined),
+      InfoParagraph(
+        'How many instruments survived each stage of the screen, for the '
+        'selected window. Read top to bottom: each bar is a share of the '
+        'starting universe, and the red figure is what the stage removed.',
+      ),
+      InfoExample(
+        title: 'An ASX 7-day funnel',
+        lines: [
+          'Universe in window   402',
+          'Liquid enough        339   −63',
+          'Above price floor    319   −20',
+          'Return above 10.0%     6   −313',
+          'The last count is exactly what the window publishes.',
+        ],
+      ),
+      InfoParagraph(
+        'That final line is why a window can look empty: it is not missing '
+        'data, it is a threshold nothing cleared.',
+      ),
+      InfoNote(
+        'Older files carry no run metadata or funnel. Where a market publishes '
+        'neither, the page says so rather than leaving a gap.',
+      ),
+    ],
+  );
+
+  static const settings = PageInfo(
+    title: 'Settings',
+    subtitle: 'Data sources, cache and appearance',
+    icon: Icons.settings_outlined,
+    blocks: [
+      InfoHeading('Data sources', icon: Icons.cloud_download_outlined),
+      InfoParagraph(
+        'The app reads two SQLite files published to S3 and keeps a copy on '
+        'this device. Each row shows the file’s state, its size, and when '
+        'it was last synced.',
+      ),
+      InfoBullets([
+        InfoBullet(
+          lead: 'Re-download',
+          text:
+              'fetches both files unconditionally. A normal refresh sends the '
+              'stored ETag and skips the download when nothing has changed.',
+        ),
+        InfoBullet(
+          lead: 'Clear cache',
+          text:
+              'deletes the local copies. The app has nothing to show until '
+              'the next download completes.',
+        ),
+      ]),
+      InfoNote(
+        'Everything except the refresh works offline. A failed refresh keeps '
+        'serving the cached files rather than emptying the screens.',
+      ),
+      InfoDivider(),
+      InfoHeading('Appearance', icon: Icons.palette_outlined),
+      InfoBullets([
+        InfoBullet(
+          lead: 'Theme',
+          text: 'light, dark, or follow the system setting.',
+        ),
+        InfoBullet(
+          lead: 'Compact rows',
+          text: 'tightens list rows to fit more instruments on screen.',
+        ),
+      ]),
+      InfoHeading('Reports and watchlist', icon: Icons.description_outlined),
+      InfoParagraph(
+        'Reports opens the run inventory, run metadata and screen funnel, and '
+        'exports any window as CSV. The watchlist row shows how many tickers '
+        'are starred in each market and can clear them all.',
+      ),
+    ],
+  );
+
+  static const search = PageInfo(
+    title: 'Search',
+    subtitle: 'Find an instrument in either market',
+    icon: Icons.search,
+    blocks: [
+      InfoParagraph(
+        'Searches both databases at once, matching on ticker and on company '
+        'name. Results are drawn from the selected window.',
+      ),
+      InfoBullets([
+        InfoBullet(text: 'Type a ticker — MRNA, QETH — for an exact hit.'),
+        InfoBullet(text: 'Type part of a name — "pharma" — to sweep a sector.'),
+        InfoBullet(text: 'Tap a result to open its detail screen.'),
+      ], icon: Icons.check_circle_outline),
+      InfoNote(
+        'Only instruments that passed the screen for the selected window are '
+        'searchable. A ticker missing from the results was screened out, not '
+        'lost.',
+      ),
+    ],
+  );
+}

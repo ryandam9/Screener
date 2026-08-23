@@ -11,6 +11,8 @@ import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../widgets/panels.dart';
 import '../widgets/run_panels.dart';
+import '../info/page_info.dart';
+import '../widgets/info_dialog.dart';
 
 /// Every published run, with a CSV export per window.
 ///
@@ -97,7 +99,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Reports')),
+      appBar: AppBar(
+        title: const Text('Reports'),
+        actions: const [
+          InfoButton(info: PageInfos.reports),
+          SizedBox(width: 4),
+        ],
+      ),
       body: FutureBuilder<List<_MarketReport>>(
         future: _future,
         builder: (context, snapshot) {

@@ -10,6 +10,8 @@ import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../widgets/panels.dart';
 import 'reports_screen.dart';
+import '../info/page_info.dart';
+import '../widgets/info_dialog.dart';
 
 /// Data source status, cache controls and appearance settings.
 class MoreScreen extends StatelessWidget {
@@ -23,15 +25,10 @@ class MoreScreen extends StatelessWidget {
     final sync = context.read<DbSyncService>();
     final colors = context.colors;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('More')),
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: 28),
+    final sections = <Widget>[
+      _Section(
+        title: 'Data sources',
         children: [
-          const SectionHeader(
-            title: 'Data sources',
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-          ),
           Panel(
             child: Column(
               children: [
@@ -76,7 +73,11 @@ class MoreScreen extends StatelessWidget {
               style: TextStyle(fontSize: 11.5, color: colors.textTertiary),
             ),
           ),
-          const SectionHeader(title: 'Appearance'),
+        ],
+      ),
+      _Section(
+        title: 'Appearance',
+        children: [
           Panel(
             child: Column(
               children: [
@@ -118,7 +119,11 @@ class MoreScreen extends StatelessWidget {
               ],
             ),
           ),
-          const SectionHeader(title: 'Reports'),
+        ],
+      ),
+      _Section(
+        title: 'Reports',
+        children: [
           Panel(
             child: ListTile(
               leading: Icon(Icons.description_outlined, color: colors.positive),
@@ -130,7 +135,11 @@ class MoreScreen extends StatelessWidget {
               ),
             ),
           ),
-          const SectionHeader(title: 'Watchlist'),
+        ],
+      ),
+      _Section(
+        title: 'Watchlist',
+        children: [
           Panel(
             child: ListTile(
               title: const Text('Starred tickers'),
@@ -148,7 +157,11 @@ class MoreScreen extends StatelessWidget {
                     ),
             ),
           ),
-          const SectionHeader(title: 'About'),
+        ],
+      ),
+      _Section(
+        title: 'About',
+        children: [
           Panel(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -188,6 +201,55 @@ class MoreScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    ];
+
+    return Scaffold(
+      appBar: AppBar(
+        // "More" is the handset tab this screen sits behind; the desktop
+        // sidebar calls the same screen Settings, and the title follows it.
+        title: Text(
+          MediaQuery.sizeOf(context).width < 820 ? 'More' : 'Settings',
+        ),
+        actions: const [
+          InfoButton(info: PageInfos.settings),
+          SizedBox(width: 4),
+        ],
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          // Two columns once there is room for both to stay readable; one
+          // column of settings on a wide window is mostly empty space.
+          if (constraints.maxWidth < 820) {
+            return ListView(
+              padding: const EdgeInsets.only(bottom: 28),
+              children: sections,
+            );
+          }
+
+          // Split by index rather than by height: the sections are close
+          // enough in size that alternating keeps the columns even, and it
+          // keeps Data sources and Appearance at the top of the eye's path.
+          final left = <Widget>[
+            for (var i = 0; i < sections.length; i++)
+              if (i.isEven) sections[i],
+          ];
+          final right = <Widget>[
+            for (var i = 0; i < sections.length; i++)
+              if (i.isOdd) sections[i],
+          ];
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.only(right: 16, bottom: 28),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: Column(children: left)),
+                Expanded(child: Column(children: right)),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -272,6 +334,31 @@ class _MarketStatusTile extends StatelessWidget {
             ? null
             : () => appState.refresh(market, force: true),
       ),
+    );
+  }
+}
+
+/// A settings section: its heading and the panels under it.
+class _Section extends StatelessWidget {
+  const _Section({required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Uniform spacing above every section, so the two columns start their
+        // headings on the same line as each other.
+        SectionHeader(
+          title: title,
+          padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+        ),
+        ...children,
+      ],
     );
   }
 }

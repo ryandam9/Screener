@@ -56,6 +56,17 @@ static void my_application_activate(GApplication* application) {
   // logical pixels; narrowing the window falls back to the handset layout.
   gtk_window_set_default_size(window, 1280, 860);
 
+  // Window icon: the same artwork as the Android launcher, bundled as a
+  // Flutter asset and found relative to the executable.
+  g_autofree gchar* executable = g_file_read_link("/proc/self/exe", nullptr);
+  if (executable != nullptr) {
+    g_autofree gchar* directory = g_path_get_dirname(executable);
+    g_autofree gchar* icon = g_build_filename(
+        directory, "data", "flutter_assets", "assets", "icon", "app_icon.png",
+        nullptr);
+    gtk_window_set_icon_from_file(window, icon, nullptr);
+  }
+
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(
       project, self->dart_entrypoint_arguments);

@@ -11,6 +11,8 @@ import '../../utils/formatters.dart';
 import '../widgets/panels.dart';
 import '../widgets/stock_tile.dart';
 import 'stock_detail_screen.dart';
+import '../info/page_info.dart';
+import '../widgets/info_dialog.dart';
 
 /// Starred tickers from both markets, with their current window figures.
 class WatchlistScreen extends StatelessWidget {
@@ -54,6 +56,7 @@ class WatchlistScreen extends StatelessWidget {
               icon: const Icon(Icons.delete_outline),
               onPressed: () => _confirmClear(context, watchlist),
             ),
+          const InfoButton(info: PageInfos.watchlist),
           const SizedBox(width: 4),
         ],
       ),
@@ -106,14 +109,10 @@ class WatchlistScreen extends StatelessWidget {
                               child: StockTile(
                                 row: row,
                                 showMarketBadge: true,
-                                onTap: () => Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => StockDetailScreen(
-                                      market: row.market,
-                                      ticker: row.ticker,
-                                      initialWindow: row.window,
-                                    ),
-                                  ),
+                                opensTo: (_) => StockDetailScreen(
+                                  market: row.market,
+                                  ticker: row.ticker,
+                                  initialWindow: row.window,
                                 ),
                               ),
                             ),

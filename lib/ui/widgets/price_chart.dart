@@ -120,33 +120,39 @@ class _PriceChartState extends State<PriceChart> {
 
     return SizedBox(
       height: widget.height,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final size = Size(constraints.maxWidth, widget.height);
-          return GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTapDown: (details) => _handlePointer(details.localPosition, size),
-            onHorizontalDragStart: (details) =>
-                _handlePointer(details.localPosition, size),
-            onHorizontalDragUpdate: (details) =>
-                _handlePointer(details.localPosition, size),
-            onHorizontalDragEnd: (_) => setState(() => _selectedIndex = null),
-            onTapCancel: () => setState(() => _selectedIndex = null),
-            child: CustomPaint(
-              size: size,
-              painter: _PriceChartPainter(
-                points: points,
-                lineColor: widget.lineColor,
-                gridColor: colors.chartGrid,
-                labelColor: colors.textTertiary,
-                tooltipBackground: colors.textPrimary,
-                tooltipForeground: colors.card,
-                selectedIndex: _selectedIndex,
-                textDirection: Directionality.of(context),
+      // The chart reads horizontal drags to move its cursor, which is exactly
+      // the gesture the app-wide SelectionArea uses to select text. Nothing
+      // here is selectable text anyway, so it opts out.
+      child: SelectionContainer.disabled(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final size = Size(constraints.maxWidth, widget.height);
+            return GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTapDown: (details) =>
+                  _handlePointer(details.localPosition, size),
+              onHorizontalDragStart: (details) =>
+                  _handlePointer(details.localPosition, size),
+              onHorizontalDragUpdate: (details) =>
+                  _handlePointer(details.localPosition, size),
+              onHorizontalDragEnd: (_) => setState(() => _selectedIndex = null),
+              onTapCancel: () => setState(() => _selectedIndex = null),
+              child: CustomPaint(
+                size: size,
+                painter: _PriceChartPainter(
+                  points: points,
+                  lineColor: widget.lineColor,
+                  gridColor: colors.chartGrid,
+                  labelColor: colors.textTertiary,
+                  tooltipBackground: colors.textPrimary,
+                  tooltipForeground: colors.card,
+                  selectedIndex: _selectedIndex,
+                  textDirection: Directionality.of(context),
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

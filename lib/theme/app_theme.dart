@@ -1,3 +1,4 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 
 /// The app's typeface, bundled in `assets/fonts` at weights 400/500/600/700.
@@ -186,6 +187,17 @@ class AppTheme {
 
     return base.copyWith(
       extensions: [colors],
+      // Pushed routes slide and fade along the horizontal axis on every
+      // platform, so a drill-down reads the same on a handset and a desktop.
+      pageTransitionsTheme: PageTransitionsTheme(
+        builders: {
+          for (final platform in TargetPlatform.values)
+            platform: const SharedAxisPageTransitionsBuilder(
+              transitionType: SharedAxisTransitionType.horizontal,
+              fillColor: Colors.transparent,
+            ),
+        },
+      ),
       textTheme: base.textTheme
           .apply(
             bodyColor: colors.textPrimary,

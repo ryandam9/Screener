@@ -11,6 +11,8 @@ import '../../theme/app_theme.dart';
 import '../widgets/panels.dart';
 import '../widgets/stock_tile.dart';
 import 'stock_detail_screen.dart';
+import '../info/page_info.dart';
+import '../widgets/info_dialog.dart';
 
 /// Search across both markets at once.
 class SearchScreen extends StatefulWidget {
@@ -93,7 +95,10 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           onChanged: _onChanged,
         ),
-        actions: const [SizedBox(width: 8)],
+        actions: const [
+          InfoButton(info: PageInfos.search),
+          SizedBox(width: 8),
+        ],
       ),
       body: _term.isEmpty
           ? StatusView(
@@ -128,14 +133,10 @@ class _SearchScreenState extends State<SearchScreen> {
                     return StockTile(
                       row: row,
                       showMarketBadge: true,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => StockDetailScreen(
-                            market: row.market,
-                            ticker: row.ticker,
-                            initialWindow: row.window,
-                          ),
-                        ),
+                      opensTo: (_) => StockDetailScreen(
+                        market: row.market,
+                        ticker: row.ticker,
+                        initialWindow: row.window,
                       ),
                     );
                   },
