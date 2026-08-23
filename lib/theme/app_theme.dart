@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 
+/// The app's typeface, bundled in `assets/fonts` at weights 400/500/600/700.
+///
+/// Widgets inherit it through the theme; the chart painters do not (a
+/// `TextPainter` has no ancestor to inherit from), so they name it explicitly.
+const String kFontFamily = 'Inter';
+
 /// Colours the design uses that Material's scheme has no slot for.
 @immutable
 class ScreenerColors extends ThemeExtension<ScreenerColors> {
@@ -171,6 +177,7 @@ class AppTheme {
 
     final base = ThemeData(
       useMaterial3: true,
+      fontFamily: kFontFamily,
       brightness: brightness,
       colorScheme: scheme,
       scaffoldBackgroundColor: colors.pageBackground,

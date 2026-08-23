@@ -258,7 +258,7 @@ class _AnalysisBody extends StatelessWidget {
                           entry.window.label,
                           style: TextStyle(
                             fontSize: 13,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
                             color: colors.textPrimary,
                           ),
                         ),

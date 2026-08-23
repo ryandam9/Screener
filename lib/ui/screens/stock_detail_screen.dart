@@ -442,7 +442,7 @@ class _OverviewTab extends StatelessWidget {
                           Fmt.price(shownLastPrice),
                           style: TextStyle(
                             fontSize: 34,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
                             letterSpacing: -1,
                             height: 1.05,
                             color: colors.textPrimary,

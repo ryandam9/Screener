@@ -341,7 +341,7 @@ class _MarketCard extends StatelessWidget {
                 market.label,
                 style: TextStyle(
                   fontSize: 19,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                   letterSpacing: -0.3,
                   color: colors.textPrimary,
                 ),
@@ -370,7 +370,7 @@ class _MarketCard extends StatelessWidget {
                   Fmt.signedPercent(stat.medianPctChange, decimals: 2),
                   style: TextStyle(
                     fontSize: 21,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     letterSpacing: -0.6,
                     color: colors.forChange(stat.medianPctChange),
                     fontFeatures: const [FontFeature.tabularFigures()],

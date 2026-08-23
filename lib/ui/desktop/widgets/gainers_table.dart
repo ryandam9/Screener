@@ -23,12 +23,16 @@ class GainersTable extends StatelessWidget {
   /// Row currently charted below the table, marked so the link is obvious.
   final StockRow? selected;
 
-  static const _rank = 34.0;
-  static const _ticker = 108.0;
-  static const _market = 70.0;
-  static const _price = 96.0;
-  static const _change = 100.0;
-  static const _gain = 92.0;
+  // The company name takes what these leave. They were wide enough that on a
+  // 1280-wide window the name ellipsized to "Moder…", so they are sized to the
+  // values they actually hold ("139.22", "+75.33", "+117.9%") plus a little
+  // slack, not to their headings.
+  static const _rank = 28.0;
+  static const _ticker = 92.0;
+  static const _market = 54.0;
+  static const _price = 74.0;
+  static const _change = 80.0;
+  static const _gain = 76.0;
 
   @override
   Widget build(BuildContext context) {
@@ -115,7 +119,12 @@ class _GainerRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    Widget numeric(String text, double width, {Color? color}) => SizedBox(
+    Widget numeric(
+      String text,
+      double width, {
+      Color? color,
+      FontWeight weight = FontWeight.w500,
+    }) => SizedBox(
       width: width,
       child: Text(
         text,
@@ -123,7 +132,7 @@ class _GainerRow extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontSize: 13,
-          fontWeight: FontWeight.w600,
+          fontWeight: weight,
           color: color ?? colors.textPrimary,
           fontFeatures: const [FontFeature.tabularFigures()],
         ),
@@ -177,6 +186,7 @@ class _GainerRow extends StatelessWidget {
               Fmt.signedPercent(row.pctChange, decimals: 1),
               GainersTable._gain,
               color: colors.forChange(row.pctChange),
+              weight: FontWeight.w600,
             ),
           ],
         ),

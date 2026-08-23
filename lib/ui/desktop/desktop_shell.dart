@@ -316,7 +316,7 @@ class _DataStatusCardState extends State<_DataStatusCard> {
             Fmt.clock(_now),
             style: TextStyle(
               fontSize: 15,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
               color: colors.textPrimary,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),

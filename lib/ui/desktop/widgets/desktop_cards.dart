@@ -51,7 +51,7 @@ class DesktopPanel extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 15,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                       letterSpacing: -0.2,
                       color: colors.textPrimary,
                     ),
@@ -122,7 +122,7 @@ class _StatCardFrame extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 15,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                         letterSpacing: -0.2,
                         color: colors.textPrimary,
                       ),
@@ -209,7 +209,7 @@ class MarketSummaryCard extends StatelessWidget {
               Fmt.signedPercent(stat.medianPctChange, decimals: 2),
               style: TextStyle(
                 fontSize: 25,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
                 letterSpacing: -0.7,
                 color: colors.forChange(stat.medianPctChange),
                 fontFeatures: const [FontFeature.tabularFigures()],
@@ -285,7 +285,7 @@ class WatchlistPerformanceCard extends StatelessWidget {
               Fmt.signedPercent(median, decimals: 2),
               style: TextStyle(
                 fontSize: 25,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
                 letterSpacing: -0.7,
                 color: colors.forChange(median),
                 fontFeatures: const [FontFeature.tabularFigures()],
@@ -331,8 +331,6 @@ class AnalysisSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    // The average needs more room than the two counts: it carries a sign, a
-    // decimal and a percent sign, and ellipsized to "+19.0…" at equal widths.
     Widget stat(String label, String value, {Color? valueColor, int flex = 1}) {
       return Expanded(
         flex: flex,
@@ -344,7 +342,7 @@ class AnalysisSummaryCard extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11.5, color: colors.textSecondary),
+              style: TextStyle(fontSize: 11, color: colors.textSecondary),
             ),
             const SizedBox(height: 5),
             Text(
@@ -353,7 +351,7 @@ class AnalysisSummaryCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 16.5,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
                 letterSpacing: -0.4,
                 color: valueColor ?? colors.textPrimary,
                 fontFeatures: const [FontFeature.tabularFigures()],
@@ -395,7 +393,6 @@ class AnalysisSummaryCard extends StatelessWidget {
                   valueColor: averageReturn == null
                       ? null
                       : colors.forChange(averageReturn!),
-                  flex: 2,
                 ),
               ],
             ),

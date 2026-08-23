@@ -337,14 +337,16 @@ class _PriceChartPainter extends CustomPainter {
           TextSpan(
             text: '${Fmt.price(point.price)}\n',
             style: TextStyle(
+              fontFamily: kFontFamily,
               color: tooltipForeground,
               fontSize: 12.5,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
           TextSpan(
             text: '${Fmt.shortDate(point.date)} · ${point.caption}',
             style: TextStyle(
+              fontFamily: kFontFamily,
               color: tooltipForeground.withValues(alpha: 0.75),
               fontSize: 10.5,
             ),
@@ -384,7 +386,11 @@ class _PriceChartPainter extends CustomPainter {
     final painter = TextPainter(
       text: TextSpan(
         text: text,
-        style: TextStyle(color: color, fontSize: fontSize),
+        style: TextStyle(
+          fontFamily: kFontFamily,
+          color: color,
+          fontSize: fontSize,
+        ),
       ),
       textDirection: textDirection,
     )..layout();

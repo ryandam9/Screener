@@ -133,6 +133,29 @@ disagree with its own source.
   tens of percent in a single week whenever the set changes. Chaining only ever
   compares a ticker with itself.
 
+### Typography
+
+The app is set in **Inter**, bundled at four weights (400/500/600/700) in
+`assets/fonts` rather than fetched at runtime — it is offline-first, and the
+type has to render identically with no connection. Inter is under the SIL Open
+Font License; the licence travels with the files.
+
+| UI element | Weight |
+| --- | --- |
+| Page title | 700 |
+| Card title | 600 |
+| Stock ticker | 700 |
+| Company name | 400 |
+| Large price | 600 |
+| Percentage change | 600 |
+| Table headers | 600 |
+| Table values | 500 |
+| Secondary metadata | 400 |
+
+Widgets inherit the family through the theme. The chart painters name it
+explicitly: a `TextPainter` has no widget ancestor to inherit from, so axis
+labels and tooltips would otherwise fall back to the platform default.
+
 ### Design deviations
 
 - **"Losers" tab → "Consistent".** These files are growth screens; the smallest
