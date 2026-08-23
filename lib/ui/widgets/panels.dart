@@ -258,46 +258,61 @@ class StatusView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: 32,
-          vertical: compact ? 24 : 48,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: compact ? 30 : 38, color: colors.textTertiary),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
+    // Centred while it fits, scrollable when it does not: with large text, or
+    // inside a short panel, the icon and message are taller than the space.
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: constraints.hasBoundedHeight ? constraints.maxHeight : 0,
+          ),
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: 32,
+                vertical: compact ? 24 : 48,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    icon,
+                    size: compact ? 30 : 38,
+                    color: colors.textTertiary,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                  if (message != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      message!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.4,
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
+                  if (actionLabel != null) ...[
+                    const SizedBox(height: 16),
+                    FilledButton.tonal(
+                      onPressed: onAction,
+                      child: Text(actionLabel!),
+                    ),
+                  ],
+                ],
               ),
             ),
-            if (message != null) ...[
-              const SizedBox(height: 6),
-              Text(
-                message!,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  height: 1.4,
-                  color: colors.textSecondary,
-                ),
-              ),
-            ],
-            if (actionLabel != null) ...[
-              const SizedBox(height: 16),
-              FilledButton.tonal(
-                onPressed: onAction,
-                child: Text(actionLabel!),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );

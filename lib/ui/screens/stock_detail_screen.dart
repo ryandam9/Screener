@@ -957,12 +957,17 @@ class _WindowsTab extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Text(
-                        '${Fmt.integer(row.observations)} obs · '
-                        '${Fmt.integer(row.daysCovered)}d',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: colors.textSecondary,
+                      Flexible(
+                        child: Text(
+                          '${Fmt.integer(row.observations)} obs · '
+                          '${Fmt.integer(row.daysCovered)}d',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: colors.textSecondary,
+                          ),
                         ),
                       ),
                     ],

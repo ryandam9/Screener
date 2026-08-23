@@ -166,6 +166,22 @@ would otherwise provide one. The price chart opts out with
 `SelectionContainer.disabled`: it reads horizontal drags to move its cursor,
 which is the same gesture text selection uses.
 
+### Small screens
+
+`test/small_screen_test.dart` walks the whole app — every tab, every sheet,
+every list scrolled to its end — at seven configurations, from 320x640 to
+640x320 landscape and up to 1.6x text. A layout overflow throws, so the
+assertion is simply that the walk finishes without one.
+
+What the rows do as space runs out, in order: the company name ellipsizes, the
+market badge goes, then the price column goes (the change is what the list is
+ranked on, and the price is one tap away). The sortable heading drops its Price
+column in the same breath, so a heading never sits over the wrong values. The
+price and change columns scale with the reader's text size rather than being
+fixed in pixels — a fixed column ellipsizes its own numbers at 1.3x. Under
+360dp the market list also shortens its tab labels and its title, since the
+full ones are clipped rather than merely tight.
+
 ### Starring from a list
 
 The star sits on the row, next to the Google Finance link — in the market
@@ -319,7 +335,7 @@ flutter analyze
 flutter test
 ```
 
-116 tests cover the table discovery and every query (against fixture databases
+123 tests cover the table discovery and every query (against fixture databases
 built to the published schema, including the differing prefixes and the weekly
 history), the run metadata and screen funnel (including the degraded path for
 files without them), the price-series assembly and the chain-linked growth
@@ -330,7 +346,9 @@ opening the published Google Finance links (including from a list row and
 from the detail header, without a menu), starring from a list row and what
 that leaves in the store, and both layouts driven end to end
 against a fake S3 — including that a wide window gets the sidebar and a narrow
-one does not, that every screen carries an info button and its sheet renders,
+one does not, that the whole app lays out without overflow from 320dp to
+landscape and at 1.6x text, that every screen carries an info button and its
+sheet renders,
 that the text sits inside the selection area, and that settings split into two
 columns only when there is room.
 

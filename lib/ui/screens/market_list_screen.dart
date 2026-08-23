@@ -25,13 +25,17 @@ import '../widgets/info_dialog.dart';
 /// "Consistent", backed by the `consistent_growth_stocks` table, which is the
 /// genuinely interesting cut the data supports.
 enum _ListTab {
-  all('All Stocks'),
-  top('Top Movers'),
-  consistent('Consistent'),
-  watchlist('Watchlist');
+  all('All Stocks', 'All'),
+  top('Top Movers', 'Movers'),
+  consistent('Consistent', 'Consistent'),
+  watchlist('Watchlist', 'Starred');
 
-  const _ListTab(this.label);
+  const _ListTab(this.label, this.shortLabel);
   final String label;
+
+  /// Used under 360dp, where the four full labels are clipped rather than
+  /// merely tight.
+  final String shortLabel;
 }
 
 class MarketListScreen extends StatefulWidget {
@@ -128,6 +132,8 @@ class _MarketListScreenState extends State<MarketListScreen>
     final appState = context.watch<AppState>();
     final colors = context.colors;
     final window = _resolveWindow(appState);
+    // 320dp phones clip the full tab labels and the long title.
+    final narrow = MediaQuery.sizeOf(context).width < 360;
     final database = appState.databaseOf(_market);
     final state = appState.stateOf(_market);
 
@@ -159,7 +165,10 @@ class _MarketListScreenState extends State<MarketListScreen>
                     children: [
                       Flexible(
                         child: Text(
-                          '${_market.label} - ${window.longLabel} Analysis',
+                          narrow
+                              ? '${_market.label} · ${window.label}'
+                              : '${_market.label} - ${window.longLabel} '
+                                    'Analysis',
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -200,9 +209,19 @@ class _MarketListScreenState extends State<MarketListScreen>
           child: TabBar(
             controller: _tabs,
             // All four fit at handset width; scrolling would push the last
-            // tab off-screen where it reads as clipped.
+            // tab off-screen where it reads as clipped. Under 360dp they only
+            // fit shortened and a point smaller.
             labelPadding: const EdgeInsets.symmetric(horizontal: 4),
-            tabs: [for (final tab in _ListTab.values) Tab(text: tab.label)],
+            labelStyle: narrow
+                ? const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)
+                : null,
+            unselectedLabelStyle: narrow
+                ? const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500)
+                : null,
+            tabs: [
+              for (final tab in _ListTab.values)
+                Tab(text: narrow ? tab.shortLabel : tab.label),
+            ],
           ),
         ),
       ),
@@ -529,43 +548,61 @@ class _SortHeader extends StatelessWidget {
         color: colors.card,
         border: Border(bottom: BorderSide(color: colors.divider)),
       ),
-      child: Row(
-        children: [
-          const SizedBox(width: StockTile.leadingColumnWidth),
-          Expanded(
-            child: InkWell(
-              onTap: () => onSort(StockSort.ticker),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: label('Ticker', StockSort.ticker),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // The rows drop their price column when the name would be squeezed;
+          // the heading has to go with it or it sits over the wrong values.
+          final showPrice =
+              StockTile.nameSpace(context, constraints.maxWidth + 32) >= 96;
+          return Row(
+            children: [
+              const SizedBox(width: StockTile.leadingColumnWidth),
+              Flexible(
+                child: InkWell(
+                  onTap: () => onSort(StockSort.ticker),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: label('Ticker', StockSort.ticker),
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          InkWell(
-            onTap: () => onSort(StockSort.latestPrice),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: SizedBox(
-                width: StockTile.priceColumnWidth,
-                child: label('Price', StockSort.latestPrice, end: true),
+              const Spacer(),
+              if (showPrice) ...[
+                const SizedBox(width: 8),
+                Flexible(
+                  child: InkWell(
+                    onTap: () => onSort(StockSort.latestPrice),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: SizedBox(
+                        width: StockTile.priceColumn(context),
+                        child: label('Price', StockSort.latestPrice, end: true),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(width: 8),
+              Flexible(
+                child: InkWell(
+                  onTap: () => onSort(StockSort.pctChange),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: SizedBox(
+                      width: StockTile.changeColumn(context),
+                      // Just "Change": the window is already named in the title bar,
+                      // and "7D Change" plus a sort arrow does not fit this column.
+                      child: label('Change', StockSort.pctChange, end: true),
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          InkWell(
-            onTap: () => onSort(StockSort.pctChange),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: SizedBox(
-                width: StockTile.changeColumnWidth,
-                // Just "Change": the window is already named in the title bar,
-                // and "7D Change" plus a sort arrow does not fit this column.
-                child: label('Change', StockSort.pctChange, end: true),
-              ),
-            ),
-          ),
-        ],
+              // The star and link at the end of every row, so the headings stay
+              // over the columns they sort.
+              const SizedBox(width: StockTile.actionsWidth),
+            ],
+          );
+        },
       ),
     );
   }
@@ -715,20 +752,24 @@ class _ConsistentList extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ChangeChip(pctChange: row.pctChangeShortestWindow),
-                        const SizedBox(height: 3),
-                        Text(
-                          'shortest window',
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            color: colors.textTertiary,
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ChangeChip(pctChange: row.pctChangeShortestWindow),
+                          const SizedBox(height: 3),
+                          Text(
+                            'shortest window',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: colors.textTertiary,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -819,16 +860,26 @@ class _ListFooter extends StatelessWidget {
                   count == null
                       ? '—'
                       : '${Fmt.integer(count)} ${tab == _ListTab.consistent ? 'consistent' : database.market.instrumentNoun}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 12, color: colors.textSecondary),
                 );
               },
             ),
           ),
-          Text(
-            tab == _ListTab.consistent
-                ? 'Sorted by shortest window'
-                : sortLabel,
-            style: TextStyle(fontSize: 12, color: colors.textSecondary),
+          const SizedBox(width: 12),
+          // Both halves shrink: at 320dp "107 stocks" and "Sorted by 7D
+          // Change" together are wider than the bar.
+          Flexible(
+            child: Text(
+              tab == _ListTab.consistent
+                  ? 'Sorted by shortest window'
+                  : sortLabel,
+              textAlign: TextAlign.right,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, color: colors.textSecondary),
+            ),
           ),
         ],
       ),

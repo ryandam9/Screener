@@ -97,7 +97,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Stocks Analysis'),
+        // Three actions and a 20px title do not both fit at 320dp, and the
+        // app's own name is a poor thing to ellipsize.
+        title: Text(
+          'Stocks Analysis',
+          style: MediaQuery.sizeOf(context).width < 360
+              ? const TextStyle(fontSize: 17)
+              : null,
+        ),
         actions: [
           IconButton(
             tooltip: 'Search',
@@ -418,6 +425,8 @@ class _RunTile extends StatelessWidget {
                 children: [
                   Text(
                     '${run.market.label} - ${run.window.longLabel} Analysis',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -436,11 +445,16 @@ class _RunTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            Text(
-              startedAt == null
-                  ? Fmt.date(run.dataAsOf)
-                  : Fmt.relativeStamp(startedAt),
-              style: TextStyle(fontSize: 11.5, color: colors.textTertiary),
+            Flexible(
+              child: Text(
+                startedAt == null
+                    ? Fmt.date(run.dataAsOf)
+                    : Fmt.relativeStamp(startedAt),
+                textAlign: TextAlign.right,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11.5, color: colors.textTertiary),
+              ),
             ),
           ],
         ),
