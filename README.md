@@ -146,11 +146,15 @@ flutter analyze
 flutter test
 ```
 
-54 tests cover the table discovery and every query (against fixture databases
+58 tests cover the table discovery and every query (against fixture databases
 built to the published schema, including the differing prefixes), the price
 series assembly, the sync service (conditional requests, progress, corrupt
-downloads, failure handling), the formatters and trend classifier, and the whole
-widget tree driven end to end against a fake S3.
+downloads, failure handling), the formatters and trend classifier, opening the
+published Google Finance links, and the whole widget tree driven end to end
+against a fake S3.
+
+Five of those are the real-data tests below; they report as skipped unless
+`SCREENER_DB_DIR` is set, so a plain `flutter test` shows `+53 ~5`.
 
 To additionally verify the data layer against the real published files:
 
