@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../models/stock_row.dart';
 import '../../../theme/app_theme.dart';
 import '../../../utils/formatters.dart';
+import '../../widgets/google_finance_button.dart';
 import 'desktop_cards.dart';
 
 /// The Top Gainers table: rank, ticker, company, market, price, change, % gain.
@@ -33,6 +34,7 @@ class GainersTable extends StatelessWidget {
   static const _price = 74.0;
   static const _change = 80.0;
   static const _gain = 76.0;
+  static const _link = 32.0;
 
   @override
   Widget build(BuildContext context) {
@@ -76,6 +78,7 @@ class GainersTable extends StatelessWidget {
               heading('Price', _price, end: true),
               heading('Change', _change, end: true),
               heading('% Gain', _gain, end: true),
+              const SizedBox(width: _link),
             ],
           ),
         ),
@@ -187,6 +190,19 @@ class _GainerRow extends StatelessWidget {
               GainersTable._gain,
               color: colors.forChange(row.pctChange),
               weight: FontWeight.w600,
+            ),
+            SizedBox(
+              width: GainersTable._link,
+              child: row.googleFinanceUrl == null
+                  ? null
+                  : Align(
+                      alignment: Alignment.centerRight,
+                      child: GoogleFinanceButton(
+                        url: row.googleFinanceUrl,
+                        ticker: row.ticker,
+                        dense: true,
+                      ),
+                    ),
             ),
           ],
         ),

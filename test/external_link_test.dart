@@ -1,7 +1,14 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:screener/ui/screens/stock_detail_screen.dart';
+import 'package:screener/ui/widgets/google_finance_button.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+import 'support/app_harness.dart';
 
 /// `openExternalUrl` has to survive both ways url_launcher reports failure.
 ///
@@ -92,5 +99,82 @@ void main() {
     await pumpOpener(tester, null);
 
     expect(find.text('This row has no link published'), findsOneWidget);
+  });
+
+  group('reaching the link without a menu', () {
+    late Directory cacheDir;
+    late Directory serveDir;
+    late Map<String, List<int>> payloads;
+    late List<String> launched;
+
+    setUpAll(() {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    });
+
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({});
+      cacheDir = await Directory.systemTemp.createTemp('screener_link_cache');
+      serveDir = await Directory.systemTemp.createTemp('screener_link_serve');
+      payloads = await buildFixturePayloads(serveDir);
+
+      launched = [];
+      binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+        call,
+      ) async {
+        if (call.method == 'launch') {
+          launched.add((call.arguments as Map)['url'] as String);
+        }
+        return true;
+      });
+    });
+
+    tearDown(() async {
+      for (final dir in [cacheDir, serveDir]) {
+        if (await dir.exists()) await dir.delete(recursive: true);
+      }
+    });
+
+    testWidgets('a market list row opens Google Finance in one tap', (
+      tester,
+    ) async {
+      await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
+      await tester.tap(find.text('Markets').last);
+      await settle(tester);
+
+      final buttons = find.byType(GoogleFinanceButton);
+      expect(buttons, findsWidgets, reason: 'every row publishes a link');
+
+      await tester.tap(buttons.first);
+      await settle(tester, frames: 6);
+
+      expect(launched, hasLength(1));
+      expect(launched.single, contains('google.com/finance/quote/MRNA'));
+      expect(
+        find.byType(StockDetailScreen),
+        findsNothing,
+        reason: 'the link must not also open the row',
+      );
+    });
+
+    testWidgets('the detail header carries the link, not a menu', (
+      tester,
+    ) async {
+      await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
+      await tester.tap(find.text('MRNA').first);
+      await settle(tester);
+      expect(find.byType(StockDetailScreen), findsOneWidget);
+
+      await tester.tap(
+        find.descendant(
+          of: find.byType(StockDetailScreen),
+          matching: find.byType(GoogleFinanceButton),
+        ),
+      );
+      await settle(tester, frames: 6);
+
+      expect(launched, hasLength(1));
+      expect(launched.single, contains('MRNA'));
+    });
   });
 }
