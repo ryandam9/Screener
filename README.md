@@ -166,6 +166,20 @@ would otherwise provide one. The price chart opts out with
 `SelectionContainer.disabled`: it reads horizontal drags to move its cursor,
 which is the same gesture text selection uses.
 
+### Starring from a list
+
+The star sits on the row, next to the Google Finance link — in the market
+lists, the watchlist, search results, the dashboard's top gainers and the
+desktop gainers table, as well as in the stock detail header. Tapping it toggles
+the ticker in the watchlist and fills the icon; only the detail screen also
+confirms with a snackbar, since a message per tap would stack up as you work
+down a list.
+
+Stars are stored per market (`us:MRNA`, not `MRNA`) in the app's own
+preferences, never in the downloaded databases — those are read-only and are
+replaced wholesale on every refresh. They survive a restart, a re-download and
+a cache clear.
+
 ### Google Finance links
 
 The `google_finance` column the pipeline publishes is reachable in one tap from
@@ -305,7 +319,7 @@ flutter analyze
 flutter test
 ```
 
-111 tests cover the table discovery and every query (against fixture databases
+116 tests cover the table discovery and every query (against fixture databases
 built to the published schema, including the differing prefixes and the weekly
 history), the run metadata and screen funnel (including the degraded path for
 files without them), the price-series assembly and the chain-linked growth
@@ -313,7 +327,8 @@ curve, the sync
 service (conditional requests, progress, corrupt downloads, failure handling),
 the formatters and trend classifier, CSV rendering and the export's write path,
 opening the published Google Finance links (including from a list row and
-from the detail header, without a menu), and both layouts driven end to end
+from the detail header, without a menu), starring from a list row and what
+that leaves in the store, and both layouts driven end to end
 against a fake S3 — including that a wide window gets the sidebar and a narrow
 one does not, that every screen carries an info button and its sheet renders,
 that the text sits inside the selection area, and that settings split into two

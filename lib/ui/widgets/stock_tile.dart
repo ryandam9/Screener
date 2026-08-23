@@ -7,6 +7,7 @@ import '../../utils/formatters.dart';
 import 'change_chip.dart';
 import 'google_finance_button.dart';
 import 'ticker_avatar.dart';
+import 'watchlist_star.dart';
 
 /// A row in the market list: monogram, ticker + name, price, change chip.
 class StockTile extends StatelessWidget {
@@ -33,8 +34,11 @@ class StockTile extends StatelessWidget {
 
   /// Column geometry shared with the sortable header above the list, so the
   /// headings sit directly over the values they sort.
-  static const double priceColumnWidth = 58;
-  static const double changeColumnWidth = 80;
+  // Sized to the values they hold ("139.22", "+117.9%") rather than to round
+  // numbers: the row also carries a star and a link now, and the company name
+  // takes what these leave.
+  static const double priceColumnWidth = 52;
+  static const double changeColumnWidth = 72;
   static const double leadingColumnWidth = 38 + 12;
 
   @override
@@ -107,7 +111,7 @@ class StockTile extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           trailingBuilder?.call(context) ??
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -126,7 +130,7 @@ class StockTile extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   SizedBox(
                     width: StockTile.changeColumnWidth,
                     child: Align(
@@ -136,15 +140,14 @@ class StockTile extends StatelessWidget {
                   ),
                 ],
               ),
-          // Straight out to the published quote page, from the row itself.
-          if (row.googleFinanceUrl != null) ...[
-            const SizedBox(width: 2),
+          // Star and quote page, both from the row itself.
+          WatchlistStar(market: row.market, ticker: row.ticker, dense: true),
+          if (row.googleFinanceUrl != null)
             GoogleFinanceButton(
               url: row.googleFinanceUrl,
               ticker: row.ticker,
               dense: true,
             ),
-          ],
         ],
       ),
     );
@@ -202,10 +205,11 @@ class GainerTile extends StatelessWidget {
     ScreenerColors colors,
     BoxConstraints constraints,
   ) {
-    // "+75.33 (+117.9%)" needs 188px; on a handset that leaves the company
-    // name nothing. Below that, the percentage alone carries the row — it is
-    // what the list is ranked on, and the absolute change is one tap away.
-    final tight = constraints.maxWidth < 360;
+    // "+75.33 (+117.9%)" needs 188px, and the row also carries a star, a link
+    // and the ticker's market badge. Under about 400px that leaves the company
+    // name nothing, so the percentage alone carries the row — it is what the
+    // list is ranked on, and the absolute change is one tap away.
+    final tight = constraints.maxWidth < 400;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
@@ -251,7 +255,7 @@ class GainerTile extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
@@ -282,14 +286,13 @@ class GainerTile extends StatelessWidget {
               ),
             ],
           ),
-          if (row.googleFinanceUrl != null) ...[
-            const SizedBox(width: 2),
+          WatchlistStar(market: row.market, ticker: row.ticker, dense: true),
+          if (row.googleFinanceUrl != null)
             GoogleFinanceButton(
               url: row.googleFinanceUrl,
               ticker: row.ticker,
               dense: true,
             ),
-          ],
         ],
       ),
     );
