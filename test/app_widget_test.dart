@@ -92,12 +92,25 @@ void main() {
     // MRNA appears in both the 7D and 1Y fixture tables.
     await tester.tap(find.text('1Y'));
     await settle(tester);
-    expect(find.textContaining('472.50%'), findsWidgets);
+
+    // The headline follows the weekly closes the chart draws: the fixture's
+    // bars run 57.10 -> 139.225, which is +143.83%, not the screener's
+    // +472.50% measured from its own calendar start.
+    expect(find.textContaining('+143.83%'), findsWidgets);
+    expect(find.text('1 Year change, weekly closes'), findsOneWidget);
+    // The published figure stays on screen rather than being replaced.
+    expect(find.text('screener: +472.50%'), findsOneWidget);
 
     await tester.tap(find.text('Metrics'));
     await settle(tester);
     expect(find.text('Key Metrics'), findsOneWidget);
     expect(find.text('Detailed Metrics'), findsOneWidget);
+
+    // Both sources are listed, each attributed.
+    await tester.drag(find.byType(ListView).first, const Offset(0, -400));
+    await settle(tester);
+    expect(find.text('Screener change'), findsOneWidget);
+    expect(find.text('Weekly change'), findsOneWidget);
 
     await tester.tap(find.text('Windows'));
     await settle(tester);

@@ -85,6 +85,25 @@ explanatory empty states rather than errors.
   weekly closes at their own dates. A seven-day window therefore holds two of
   them; the desktop's security panel charts the full published year instead,
   which is the point of that panel.
+
+### Two prices for the same window
+
+The window tables and the weekly history disagree, and neither is wrong. A
+window opens on a calendar date (MRNA's year starts 2025-08-25 at 25.10) while
+the bars are Friday closes (the first is 2025-08-29 at 24.09), so the endpoints
+— and the percentages derived from them — differ:
+
+| Window | Screener | From weekly bars |
+| --- | --- | --- |
+| 7D | 63.89 → 139.23, +117.91% | 63.32 → 145.13, +129.20% |
+| 1Y | 25.10 → 145.13, +478.21% | 24.09 → 145.13, +502.45% |
+
+The detail screen shows the **weekly** figures, so its numbers match the line
+above them, and prints the screener's own change directly beneath
+("screener: +478.21%") with both sets listed and attributed under Detailed
+Metrics. The lists and rankings keep the **screener's** figures — they are what
+the pipeline screened and sorted on, and changing them there would make the app
+disagree with its own source.
 - **No index level.** There is no ASX or S&P value to show, so each market card
   leads with the *median percentage change* for the selected window over the
   instrument count. Its sparkline is a chain-linked index built from the weekly

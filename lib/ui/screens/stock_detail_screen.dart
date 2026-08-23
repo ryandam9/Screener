@@ -382,6 +382,26 @@ class _OverviewTab extends StatelessWidget {
         ? ChartPoint.fromBars(windowBars)
         : ChartPoint.fromSeries(PriceSeries.build(data.rows, window));
 
+    // With history, the headline figures come from the same bars the chart
+    // draws, so the numbers and the line agree. They differ from the screener's
+    // own endpoints — the window opens on a calendar date, the bars are weekly
+    // closes — so the published change stays on screen beside them rather than
+    // being quietly replaced.
+    final firstBar = usingHistory ? windowBars.first : null;
+    final lastBar = usingHistory ? windowBars.last : null;
+    final shownFirstPrice = firstBar?.plotPrice ?? row.firstPrice;
+    final shownLastPrice = lastBar?.plotPrice ?? row.latestPrice;
+    final shownChange = shownLastPrice - shownFirstPrice;
+    final shownPct = shownFirstPrice > 0
+        ? (shownLastPrice / shownFirstPrice - 1) * 100
+        : row.pctChange;
+    final shownFirstDate = firstBar == null
+        ? Fmt.dateCompact(row.firstDate)
+        : Fmt.shortDate(firstBar.date);
+    final shownLastDate = lastBar == null
+        ? Fmt.dateCompact(row.lastDate)
+        : Fmt.shortDate(lastBar.date);
+
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
@@ -419,7 +439,7 @@ class _OverviewTab extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          Fmt.price(row.latestPrice),
+                          Fmt.price(shownLastPrice),
                           style: TextStyle(
                             fontSize: 34,
                             fontWeight: FontWeight.w700,
@@ -431,23 +451,35 @@ class _OverviewTab extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${Fmt.signedPrice(row.priceChange)} '
-                          '(${Fmt.signedPercent(row.pctChange)})',
+                          '${Fmt.signedPrice(shownChange)} '
+                          '(${Fmt.signedPercent(shownPct)})',
                           style: TextStyle(
                             fontSize: 14.5,
                             fontWeight: FontWeight.w600,
-                            color: colors.forChange(row.pctChange),
+                            color: colors.forChange(shownPct),
                             fontFeatures: const [FontFeature.tabularFigures()],
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${row.window.longLabel} change',
+                          usingHistory
+                              ? '${row.window.longLabel} change, weekly closes'
+                              : '${row.window.longLabel} change',
                           style: TextStyle(
                             fontSize: 12,
                             color: colors.textSecondary,
                           ),
                         ),
+                        if (usingHistory) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            'screener: ${Fmt.signedPercent(row.pctChange)}',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: colors.textTertiary,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -457,12 +489,12 @@ class _OverviewTab extends StatelessWidget {
                     children: [
                       _MiniStat(
                         label: 'First Price',
-                        value: Fmt.price(row.firstPrice),
+                        value: Fmt.price(shownFirstPrice),
                       ),
                       const SizedBox(height: 10),
                       _MiniStat(
                         label: 'Last Price',
-                        value: Fmt.price(row.latestPrice),
+                        value: Fmt.price(shownLastPrice),
                       ),
                     ],
                   ),
@@ -492,7 +524,10 @@ class _OverviewTab extends StatelessWidget {
                 child: Text(
                   usingHistory
                       ? '${windowBars.length} weekly closes published for this '
-                            'window, plotted at their own dates.'
+                            'window, plotted at their own dates. The prices and '
+                            'dates above come from these bars; the screener '
+                            'measures the window from ${Fmt.dateCompact(row.firstDate)} '
+                            'at ${Fmt.price(row.firstPrice)}.'
                       : points.length >= 2
                       ? 'No weekly history covers this window, so the chart '
                             'falls back to the prices the window itself '
@@ -521,22 +556,22 @@ class _OverviewTab extends StatelessWidget {
                         MetricRow(
                           dense: true,
                           label: 'First Date',
-                          value: Fmt.dateCompact(row.firstDate),
+                          value: shownFirstDate,
                         ),
                         MetricRow(
                           dense: true,
                           label: 'Last Date',
-                          value: Fmt.dateCompact(row.lastDate),
+                          value: shownLastDate,
                         ),
                         MetricRow(
                           dense: true,
                           label: 'First Price',
-                          value: Fmt.price(row.firstPrice),
+                          value: Fmt.price(shownFirstPrice),
                         ),
                         MetricRow(
                           dense: true,
                           label: 'Last Price',
-                          value: Fmt.price(row.latestPrice),
+                          value: Fmt.price(shownLastPrice),
                         ),
                         MetricRow(
                           dense: true,
@@ -602,11 +637,27 @@ class _MetricsTab extends StatelessWidget {
   final _TickerData data;
   final StockRow row;
 
+  /// The weekly bars inside this row's window, if any are published.
+  List<PriceBar> get _windowBars {
+    final from = DateTime.tryParse(row.firstDate ?? '');
+    final to = DateTime.tryParse(row.lastDate ?? '');
+    return [
+      for (final bar in data.bars)
+        if ((from == null || !bar.date.isBefore(from)) &&
+            (to == null || !bar.date.isAfter(to)))
+          bar,
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final trend = assessTrend(data.rows);
     final percentile = data.volumePercentile;
+    final bars = _windowBars;
+    final weeklyPct = bars.length >= 2 && bars.first.plotPrice > 0
+        ? (bars.last.plotPrice / bars.first.plotPrice - 1) * 100
+        : row.pctChange;
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
@@ -721,15 +772,47 @@ class _MetricsTab extends StatelessWidget {
                 value: _prettyAssetType(row.assetType),
               ),
               _divider(colors),
-              MetricRow(label: 'First Price', value: Fmt.price(row.firstPrice)),
-              _divider(colors),
-              MetricRow(label: 'Last Price', value: Fmt.price(row.latestPrice)),
+              MetricRow(
+                label: 'Screener first price',
+                value:
+                    '${Fmt.price(row.firstPrice)}'
+                    ' · ${Fmt.date(row.firstDate)}',
+              ),
               _divider(colors),
               MetricRow(
-                label: 'Pct Change',
+                label: 'Screener last price',
+                value:
+                    '${Fmt.price(row.latestPrice)}'
+                    ' · ${Fmt.date(row.lastDate)}',
+              ),
+              _divider(colors),
+              MetricRow(
+                label: 'Screener change',
                 value: Fmt.signedPercent(row.pctChange),
                 valueColor: colors.forChange(row.pctChange),
               ),
+              if (bars.length >= 2) ...[
+                _divider(colors),
+                MetricRow(
+                  label: 'Weekly first close',
+                  value:
+                      '${Fmt.price(bars.first.plotPrice)}'
+                      ' · ${Fmt.date(bars.first.date.toIso8601String())}',
+                ),
+                _divider(colors),
+                MetricRow(
+                  label: 'Weekly last close',
+                  value:
+                      '${Fmt.price(bars.last.plotPrice)}'
+                      ' · ${Fmt.date(bars.last.date.toIso8601String())}',
+                ),
+                _divider(colors),
+                MetricRow(
+                  label: 'Weekly change',
+                  value: Fmt.signedPercent(weeklyPct),
+                  valueColor: colors.forChange(weeklyPct),
+                ),
+              ],
               _divider(colors),
               MetricRow(
                 label: 'Observations',
