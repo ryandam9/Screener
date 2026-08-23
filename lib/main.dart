@@ -49,6 +49,20 @@ class ScreenerApp extends StatelessWidget {
             theme: AppTheme.light(),
             darkTheme: AppTheme.dark(),
             themeMode: settings.themeMode,
+            // One selection area over the whole navigator: every screen's
+            // text can be selected and copied, dialogs included. Widgets that
+            // read drags themselves — the charts — opt out individually.
+            //
+            // The Overlay is not decoration: SelectionArea needs one above it
+            // for its selection toolbar, and MaterialApp's builder runs above
+            // the navigator that would otherwise provide it.
+            builder: (context, child) => Overlay(
+              initialEntries: [
+                OverlayEntry(
+                  builder: (context) => SelectionArea(child: child!),
+                ),
+              ],
+            ),
             home: const AppShell(),
           );
         },

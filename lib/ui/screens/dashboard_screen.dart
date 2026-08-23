@@ -14,6 +14,8 @@ import '../widgets/stock_tile.dart';
 import 'market_list_screen.dart';
 import 'search_screen.dart';
 import 'stock_detail_screen.dart';
+import '../info/page_info.dart';
+import '../widgets/info_dialog.dart';
 
 /// Everything the dashboard renders, gathered in one pass over both markets.
 class _DashboardData {
@@ -109,6 +111,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: const Icon(Icons.tune),
             onPressed: () => _showWindowPicker(context, appState),
           ),
+          const InfoButton(info: PageInfos.dashboard),
           const SizedBox(width: 4),
         ],
       ),
@@ -256,14 +259,10 @@ class _DashboardBody extends StatelessWidget {
                     for (final row in data.topGainers) ...[
                       GainerTile(
                         row: row,
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => StockDetailScreen(
-                              market: row.market,
-                              ticker: row.ticker,
-                              initialWindow: window,
-                            ),
-                          ),
+                        opensTo: (_) => StockDetailScreen(
+                          market: row.market,
+                          ticker: row.ticker,
+                          initialWindow: window,
                         ),
                       ),
                       if (row != data.topGainers.last)
@@ -341,7 +340,7 @@ class _MarketCard extends StatelessWidget {
                 market.label,
                 style: TextStyle(
                   fontSize: 19,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                   letterSpacing: -0.3,
                   color: colors.textPrimary,
                 ),
@@ -370,7 +369,7 @@ class _MarketCard extends StatelessWidget {
                   Fmt.signedPercent(stat.medianPctChange, decimals: 2),
                   style: TextStyle(
                     fontSize: 21,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     letterSpacing: -0.6,
                     color: colors.forChange(stat.medianPctChange),
                     fontFeatures: const [FontFeature.tabularFigures()],

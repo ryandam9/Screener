@@ -140,7 +140,7 @@ class MetricRow extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: dense ? 12.5 : 13.5,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w500,
                 color: valueColor ?? colors.textPrimary,
                 fontFeatures: monospaceValue
                     ? const [FontFeature.tabularFigures()]
@@ -206,7 +206,7 @@ class MetricCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 20,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     letterSpacing: -0.4,
                     color: valueColor ?? colors.textPrimary,
                     fontFeatures: const [FontFeature.tabularFigures()],

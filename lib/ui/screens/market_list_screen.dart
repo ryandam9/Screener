@@ -15,6 +15,8 @@ import '../widgets/panels.dart';
 import '../widgets/stock_tile.dart';
 import '../widgets/ticker_avatar.dart';
 import 'stock_detail_screen.dart';
+import '../info/page_info.dart';
+import '../widgets/info_dialog.dart';
 
 /// The market / stock list.
 ///
@@ -190,6 +192,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                 ? null
                 : () => _showFilterSheet(context, database, window),
           ),
+          const InfoButton(info: PageInfos.markets),
           const SizedBox(width: 4),
         ],
         bottom: PreferredSize(
@@ -615,14 +618,10 @@ class _StockList extends StatelessWidget {
             return StockTile(
               row: row,
               dense: dense,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => StockDetailScreen(
-                    market: row.market,
-                    ticker: row.ticker,
-                    initialWindow: window,
-                  ),
-                ),
+              opensTo: (_) => StockDetailScreen(
+                market: row.market,
+                ticker: row.ticker,
+                initialWindow: window,
               ),
             );
           },

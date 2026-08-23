@@ -1,3 +1,4 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -18,6 +19,8 @@ import '../widgets/change_chip.dart';
 import '../widgets/panels.dart';
 import '../widgets/price_chart.dart';
 import '../widgets/readable_width.dart';
+import '../info/page_info.dart';
+import '../widgets/info_dialog.dart';
 
 enum _DetailTab {
   overview('Overview', Icons.description_outlined),
@@ -225,18 +228,35 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                 children: [
                   _header(context, row),
                   Expanded(
-                    child: switch (_tab) {
-                      _DetailTab.overview => _OverviewTab(
-                        data: data,
-                        row: row,
-                        window: window,
-                        onWindowChanged: (value) =>
-                            setState(() => _window = value),
+                    child: PageTransitionSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      transitionBuilder:
+                          (child, animation, secondaryAnimation) =>
+                              FadeThroughTransition(
+                                animation: animation,
+                                secondaryAnimation: secondaryAnimation,
+                                fillColor: Colors.transparent,
+                                child: child,
+                              ),
+                      child: KeyedSubtree(
+                        key: ValueKey(_tab),
+                        child: switch (_tab) {
+                          _DetailTab.overview => _OverviewTab(
+                            data: data,
+                            row: row,
+                            window: window,
+                            onWindowChanged: (value) =>
+                                setState(() => _window = value),
+                          ),
+                          _DetailTab.metrics => _MetricsTab(
+                            data: data,
+                            row: row,
+                          ),
+                          _DetailTab.windows => _WindowsTab(data: data),
+                          _DetailTab.links => _LinksTab(data: data, row: row),
+                        },
                       ),
-                      _DetailTab.metrics => _MetricsTab(data: data, row: row),
-                      _DetailTab.windows => _WindowsTab(data: data),
-                      _DetailTab.links => _LinksTab(data: data, row: row),
-                    },
+                    ),
                   ),
                 ],
               );
@@ -306,6 +326,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
               );
             },
           ),
+          const InfoButton(info: PageInfos.stockDetail),
           PopupMenuButton<String>(
             onSelected: (value) => _onMenu(context, value, row),
             itemBuilder: (context) => [
@@ -442,7 +463,7 @@ class _OverviewTab extends StatelessWidget {
                           Fmt.price(shownLastPrice),
                           style: TextStyle(
                             fontSize: 34,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
                             letterSpacing: -1,
                             height: 1.05,
                             color: colors.textPrimary,

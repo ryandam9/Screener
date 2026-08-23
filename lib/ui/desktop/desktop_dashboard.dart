@@ -15,6 +15,8 @@ import '../widgets/panels.dart';
 import '../widgets/price_chart.dart';
 import 'widgets/desktop_cards.dart';
 import 'widgets/gainers_table.dart';
+import '../info/page_info.dart';
+import '../widgets/info_dialog.dart';
 
 /// Everything the desktop dashboard shows, gathered in one pass.
 class DesktopDashboardData {
@@ -316,6 +318,10 @@ class _TopBar extends StatelessWidget {
           _WindowDropdown(appState: appState),
           const SizedBox(width: 14),
           _SyncButton(appState: appState),
+          const SizedBox(width: 6),
+          // The desktop dashboard draws its own top bar, so it needs its own
+          // info button; every other section keeps the one in its app bar.
+          const InfoButton(info: PageInfos.dashboard, dense: true),
           const Spacer(),
         ],
       ),

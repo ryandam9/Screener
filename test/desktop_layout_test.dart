@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:screener/models/growth_window.dart';
 import 'package:screener/ui/desktop/desktop_shell.dart';
+import 'package:screener/ui/widgets/info_dialog.dart';
 import 'package:screener/ui/widgets/panels.dart';
 import 'package:screener/ui/screens/home_shell.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -127,6 +128,19 @@ void main() {
     await tester.tap(find.text('Dashboard'));
     await settle(tester);
     expect(find.text('ASX Market'), findsOneWidget);
+  });
+
+  testWidgets('the desktop dashboard carries its own info button', (
+    tester,
+  ) async {
+    await launchDesktop(tester);
+
+    // The desktop dashboard draws its own top bar rather than an app bar, so
+    // it would otherwise be the one section with no way to open its help.
+    await tester.tap(find.byType(InfoButton));
+    await settle(tester);
+    expect(find.byType(InfoDialog), findsOneWidget);
+    expect(find.text('Market cards'), findsOneWidget);
   });
 
   testWidgets('Reports shows the run metadata and the screen funnel', (

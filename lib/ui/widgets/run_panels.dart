@@ -67,7 +67,7 @@ class RunMetadataPanel extends StatelessWidget {
                     'Run metadata',
                     style: TextStyle(
                       fontSize: 14,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                       color: colors.textPrimary,
                     ),
                   ),
@@ -152,7 +152,7 @@ class _ScreenFunnelPanelState extends State<ScreenFunnelPanel> {
             'Screen funnel',
             style: TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
               color: colors.textPrimary,
             ),
           ),
@@ -233,7 +233,7 @@ class _FunnelRow extends StatelessWidget {
                 Fmt.integer(stage.count),
                 style: TextStyle(
                   fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                   color: empty ? colors.textTertiary : colors.textPrimary,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
@@ -282,7 +282,7 @@ class _StatusChip extends StatelessWidget {
         label,
         style: TextStyle(
           fontSize: 11.5,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
           color: ok ? colors.positive : colors.warning,
         ),
       ),

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -77,9 +78,24 @@ class _DesktopShellState extends State<DesktopShell> {
           ),
           Container(width: 1, color: colors.cardBorder),
           Expanded(
-            child: _section == AppSection.dashboard
-                ? content
-                : ReadableWidth(child: content),
+            // Sections fade through one another rather than cutting, so the
+            // sidebar selection and the content stay visibly connected.
+            child: PageTransitionSwitcher(
+              duration: const Duration(milliseconds: 320),
+              transitionBuilder: (child, animation, secondaryAnimation) =>
+                  FadeThroughTransition(
+                    animation: animation,
+                    secondaryAnimation: secondaryAnimation,
+                    fillColor: Colors.transparent,
+                    child: child,
+                  ),
+              child: KeyedSubtree(
+                key: ValueKey('${_section.name}-${_pendingSearch ?? ''}'),
+                child: _section == AppSection.dashboard
+                    ? content
+                    : ReadableWidth(child: content),
+              ),
+            ),
           ),
         ],
       ),
@@ -316,7 +332,7 @@ class _DataStatusCardState extends State<_DataStatusCard> {
             Fmt.clock(_now),
             style: TextStyle(
               fontSize: 15,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
               color: colors.textPrimary,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
