@@ -68,11 +68,17 @@ class StockDetailScreen extends StatefulWidget {
     required this.market,
     required this.ticker,
     this.initialWindow,
+    this.onClose,
   });
 
   final Market market;
   final String ticker;
   final GrowthWindow? initialWindow;
+
+  /// Set when the screen is a pane beside a list rather than a pushed route:
+  /// there is nothing to go back to, so the leading control clears the
+  /// selection instead.
+  final VoidCallback? onClose;
 
   @override
   State<StockDetailScreen> createState() => _StockDetailScreenState();
@@ -145,7 +151,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       body: SafeArea(
         bottom: false,
         child: ReadableWidth(
-          maxWidth: 900,
+          maxWidth: widget.onClose == null ? 900 : double.infinity,
           child: FutureBuilder<_TickerData>(
             future: _future,
             builder: (context, snapshot) {
@@ -272,8 +278,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.of(context).maybePop(),
+            tooltip: widget.onClose == null ? 'Back' : 'Close',
+            icon: Icon(widget.onClose == null ? Icons.arrow_back : Icons.close),
+            onPressed: widget.onClose ?? () => Navigator.of(context).maybePop(),
           ),
           // On a desktop window the four sections live in this toolbar rather
           // than in a bottom navigation bar spanning the whole window.
@@ -1139,47 +1146,78 @@ class _DetailTabBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
 
+    return LayoutBuilder(
+      builder: (context, constraints) => _row(
+        context,
+        colors,
+        // In a detail pane beside a list there is room for the icons but not
+        // always for their labels, and four labels colliding with the actions
+        // beside them is worse than four icons.
+        labelled: constraints.maxWidth >= 420,
+      ),
+    );
+  }
+
+  Widget _row(
+    BuildContext context,
+    ScreenerColors colors, {
+    required bool labelled,
+  }) {
     return Row(
       children: [
         const SizedBox(width: 4),
+        // Flexible so the row fits whatever font and width it is given: the
+        // labels shorten before anything is pushed off the edge.
         for (final tab in _DetailTab.values)
-          Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: Material(
-              color: tab == selected
-                  ? colors.positiveSurface
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(9),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () => onSelected(tab),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 13,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        tab.icon,
-                        size: 17,
-                        color: tab == selected
-                            ? colors.positive
-                            : colors.textSecondary,
+          Flexible(
+            child: Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Material(
+                color: tab == selected
+                    ? colors.positiveSurface
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(9),
+                clipBehavior: Clip.antiAlias,
+                child: Tooltip(
+                  message: labelled ? '' : tab.label,
+                  child: InkWell(
+                    onTap: () => onSelected(tab),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: labelled ? 13 : 10,
+                        vertical: 8,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        tab.label,
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
-                          color: tab == selected
-                              ? colors.positive
-                              : colors.textSecondary,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            tab.icon,
+                            size: 17,
+                            color: tab == selected
+                                ? colors.positive
+                                : colors.textSecondary,
+                          ),
+                          if (labelled) ...[
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                tab.label,
+                                maxLines: 1,
+                                softWrap: false,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: tab == selected
+                                      ? colors.positive
+                                      : colors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),

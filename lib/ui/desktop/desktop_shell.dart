@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/market.dart';
+import '../../models/stock_row.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
@@ -13,7 +14,9 @@ import '../screens/app_shell.dart';
 import '../screens/market_list_screen.dart';
 import '../screens/more_screen.dart';
 import '../screens/reports_screen.dart';
+import '../screens/stock_detail_screen.dart';
 import '../screens/watchlist_screen.dart';
+import '../widgets/panels.dart';
 import '../widgets/readable_width.dart';
 import 'desktop_dashboard.dart';
 
@@ -36,6 +39,10 @@ class _DesktopShellState extends State<DesktopShell> {
   /// already filtered.
   String? _pendingSearch;
 
+  /// The instrument shown in the detail pane beside the list. A desktop window
+  /// has room for both, so a row selects rather than navigates.
+  StockRow? _selected;
+
   void _openMarkets(String? search) {
     setState(() {
       _pendingSearch = search;
@@ -55,12 +62,25 @@ class _DesktopShellState extends State<DesktopShell> {
         onSearchSubmitted: _openMarkets,
         onViewAllGainers: () => _openMarkets(null),
       ),
-      AppSection.markets => MarketListScreen(
-        key: ValueKey('markets-${_pendingSearch ?? ''}'),
-        market: appState.selectedMarket,
-        initialSearch: _pendingSearch,
+      AppSection.markets => _MasterDetail(
+        selected: _selected,
+        onClear: () => setState(() => _selected = null),
+        list: MarketListScreen(
+          key: ValueKey('markets-${_pendingSearch ?? ''}'),
+          market: appState.selectedMarket,
+          initialSearch: _pendingSearch,
+          selected: _selected,
+          onSelect: (row) => setState(() => _selected = row),
+        ),
       ),
-      AppSection.watchlist => const WatchlistScreen(),
+      AppSection.watchlist => _MasterDetail(
+        selected: _selected,
+        onClear: () => setState(() => _selected = null),
+        list: WatchlistScreen(
+          selected: _selected,
+          onSelect: (row) => setState(() => _selected = row),
+        ),
+      ),
       AppSection.analysis => const AnalysisScreen(),
       AppSection.reports => const ReportsScreen(),
       AppSection.settings => const MoreScreen(),
@@ -74,6 +94,11 @@ class _DesktopShellState extends State<DesktopShell> {
             onSelect: (section) => setState(() {
               _section = section;
               if (section != AppSection.markets) _pendingSearch = null;
+              // A selection belongs to the list it came from.
+              if (section != AppSection.markets &&
+                  section != AppSection.watchlist) {
+                _selected = null;
+              }
             }),
           ),
           Container(width: 1, color: colors.cardBorder),
@@ -91,9 +116,14 @@ class _DesktopShellState extends State<DesktopShell> {
                   ),
               child: KeyedSubtree(
                 key: ValueKey('${_section.name}-${_pendingSearch ?? ''}'),
-                child: _section == AppSection.dashboard
-                    ? content
-                    : ReadableWidth(child: content),
+                child: switch (_section) {
+                  // Built for the width already.
+                  AppSection.dashboard => content,
+                  // Two panes, which fill the window rather than being capped.
+                  AppSection.markets || AppSection.watchlist => content,
+                  // One-column screens, capped so their columns stay together.
+                  _ => ReadableWidth(child: content),
+                },
               ),
             ),
           ),
@@ -338,6 +368,109 @@ class _DataStatusCardState extends State<_DataStatusCard> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A list beside the instrument it is showing.
+///
+/// The handset pushes a screen for a row because it has nowhere else to put
+/// it. A desktop window does: the list keeps its scroll position and its
+/// selection, and the pane changes.
+class _MasterDetail extends StatelessWidget {
+  const _MasterDetail({
+    required this.list,
+    required this.selected,
+    required this.onClear,
+  });
+
+  final Widget list;
+  final StockRow? selected;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final row = selected;
+
+    return Row(
+      children: [
+        // The list keeps a readable width; the pane takes the rest.
+        Flexible(
+          flex: 4,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 380, maxWidth: 620),
+            child: list,
+          ),
+        ),
+        Container(width: 1, color: colors.cardBorder),
+        Expanded(
+          flex: 6,
+          child: PageTransitionSwitcher(
+            duration: const Duration(milliseconds: 260),
+            transitionBuilder: (child, animation, secondaryAnimation) =>
+                FadeThroughTransition(
+                  animation: animation,
+                  secondaryAnimation: secondaryAnimation,
+                  fillColor: Colors.transparent,
+                  child: child,
+                ),
+            child: row == null
+                ? const _NothingSelected()
+                : _Pane(
+                    key: ValueKey(row.key),
+                    child: StockDetailScreen(
+                      market: row.market,
+                      ticker: row.ticker,
+                      initialWindow: row.window,
+                      onClose: onClear,
+                    ),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The detail, framed and inset like the table beside it, so neither is
+/// pressed against the window edge.
+class _Pane extends StatelessWidget {
+  const _Pane({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Container(
+      color: colors.pageBackground,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+      child: Material(
+        color: colors.card,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: colors.cardBorder),
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _NothingSelected extends StatelessWidget {
+  const _NothingSelected();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: context.colors.pageBackground,
+      child: const StatusView(
+        icon: Icons.touch_app_outlined,
+        title: 'Select an instrument',
+        message: 'Its prices, metrics and windows open here, beside the list.',
       ),
     );
   }

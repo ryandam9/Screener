@@ -6,7 +6,9 @@ import 'package:screener/models/growth_window.dart';
 import 'package:screener/ui/desktop/desktop_shell.dart';
 import 'package:screener/ui/widgets/info_dialog.dart';
 import 'package:screener/ui/widgets/panels.dart';
+import 'package:screener/ui/widgets/table_frame.dart';
 import 'package:screener/ui/screens/home_shell.dart';
+import 'package:screener/ui/screens/market_list_screen.dart';
 import 'package:screener/ui/screens/stock_detail_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -129,6 +131,51 @@ void main() {
     await tester.tap(find.text('Dashboard'));
     await settle(tester);
     expect(find.text('ASX Market'), findsOneWidget);
+  });
+
+  testWidgets('a row opens beside the list, not over it', (tester) async {
+    await launchDesktop(tester);
+    await tester.tap(find.text('Markets'));
+    await settle(tester);
+
+    // Nothing selected yet.
+    expect(find.text('Select an instrument'), findsOneWidget);
+    expect(find.byType(TableFrame), findsOneWidget, reason: 'framed list');
+
+    await tester.tap(find.text('MRNA').first);
+    await settle(tester);
+
+    // The list is still there — the detail did not replace it.
+    expect(find.byType(StockDetailScreen), findsOneWidget);
+    expect(find.byType(MarketListScreen), findsOneWidget);
+    expect(find.text('Select an instrument'), findsNothing);
+    final list = tester.getTopLeft(find.byType(MarketListScreen));
+    final detail = tester.getTopLeft(find.byType(StockDetailScreen));
+    expect(
+      detail.dx,
+      greaterThan(list.dx),
+      reason: 'the detail belongs beside the list, not over it',
+    );
+
+    // Closing the pane returns to the placeholder, list untouched.
+    await tester.tap(find.byIcon(Icons.close));
+    await settle(tester);
+    expect(find.byType(StockDetailScreen), findsNothing);
+    expect(find.text('Select an instrument'), findsOneWidget);
+  });
+
+  testWidgets('the handset list is not framed', (tester) async {
+    await launchApp(
+      tester,
+      cacheDir: cacheDir,
+      payloads: payloads,
+      size: const Size(1080, 2340),
+    );
+    await tester.tap(find.text('Markets').last);
+    await settle(tester);
+
+    // A border on every edge of a full-width list is noise, not structure.
+    expect(find.byType(TableFrame), findsNothing);
   });
 
   testWidgets('the stock detail has no bottom navigation on desktop', (
