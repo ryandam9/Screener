@@ -45,11 +45,31 @@ class _DesktopShellState extends State<DesktopShell> {
   /// has room for both, so a row selects rather than navigates.
   StockRow? _selected;
 
+  /// The dashboard's search box, held here so Ctrl+F reaches it from any
+  /// section rather than only from the page it lives on.
+  final FocusNode _searchFocus = FocusNode();
+
   void _openMarkets(String? search) {
     setState(() {
       _pendingSearch = search;
       _section = AppSection.markets;
     });
+  }
+
+  void _focusSearch() {
+    if (_section != AppSection.dashboard) {
+      setState(() => _section = AppSection.dashboard);
+    }
+    // The field may not be built yet when the section has just changed.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _searchFocus.requestFocus(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchFocus.dispose();
+    super.dispose();
   }
 
   @override
@@ -63,6 +83,7 @@ class _DesktopShellState extends State<DesktopShell> {
       AppSection.dashboard => DesktopDashboard(
         onSearchSubmitted: _openMarkets,
         onViewAllGainers: () => _openMarkets(null),
+        searchFocus: _searchFocus,
       ),
       AppSection.markets => _MasterDetail(
         selected: _selected,
@@ -99,6 +120,10 @@ class _DesktopShellState extends State<DesktopShell> {
               settings.toggleSidebar,
           const SingleActivator(LogicalKeyboardKey.keyB, meta: true):
               settings.toggleSidebar,
+          const SingleActivator(LogicalKeyboardKey.keyF, control: true):
+              _focusSearch,
+          const SingleActivator(LogicalKeyboardKey.keyF, meta: true):
+              _focusSearch,
         },
         child: Focus(
           autofocus: true,
@@ -183,60 +208,78 @@ class _Sidebar extends StatelessWidget {
       color: colors.card,
       child: SafeArea(
         right: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: EdgeInsets.fromLTRB(collapsed ? 12 : 20, 18, 12, 18),
-              child: Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: colors.positiveSurface,
-                      borderRadius: BorderRadius.circular(9),
-                    ),
-                    child: Icon(
-                      Icons.trending_up,
-                      size: 19,
-                      color: colors.positive,
-                    ),
+        // The labels follow the animated width rather than the target state.
+        // Expanding sets `collapsed` to false on the first frame, when the
+        // sidebar is still 68px wide and a label has nowhere to go; asking the
+        // constraints keeps every frame of the animation laid out honestly.
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final showLabels = constraints.maxWidth >= 180;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    showLabels ? 20 : 12,
+                    18,
+                    12,
+                    18,
                   ),
-                  if (!collapsed) ...[
-                    const SizedBox(width: 11),
-                    Expanded(
-                      child: Text(
-                        'Stocks Analysis',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 16.5,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.3,
-                          color: colors.textPrimary,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: colors.positiveSurface,
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                        child: Icon(
+                          Icons.trending_up,
+                          size: 19,
+                          color: colors.positive,
                         ),
                       ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            for (final value in AppSection.values)
-              _NavItem(
-                section: value,
-                selected: value == section,
-                collapsed: collapsed,
-                onTap: () => onSelect(value),
-              ),
-            const Spacer(),
-            if (!collapsed)
-              const Padding(
-                padding: EdgeInsets.fromLTRB(14, 14, 14, 4),
-                child: _DataStatusCard(),
-              ),
-            _CollapseButton(collapsed: collapsed, onToggle: onToggle),
-          ],
+                      if (showLabels) ...[
+                        const SizedBox(width: 11),
+                        Expanded(
+                          child: Text(
+                            'Stocks Analysis',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 16.5,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.3,
+                              color: colors.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                for (final value in AppSection.values)
+                  _NavItem(
+                    section: value,
+                    selected: value == section,
+                    collapsed: !showLabels,
+                    onTap: () => onSelect(value),
+                  ),
+                const Spacer(),
+                if (showLabels)
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(14, 14, 14, 4),
+                    child: _DataStatusCard(),
+                  ),
+                _CollapseButton(
+                  collapsed: collapsed,
+                  showLabel: showLabels,
+                  onToggle: onToggle,
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -246,9 +289,19 @@ class _Sidebar extends StatelessWidget {
 /// Widens or narrows the sidebar. Sits at its foot, where the eye is not
 /// looking for navigation.
 class _CollapseButton extends StatelessWidget {
-  const _CollapseButton({required this.collapsed, required this.onToggle});
+  const _CollapseButton({
+    required this.collapsed,
+    required this.showLabel,
+    required this.onToggle,
+  });
 
+  /// What the sidebar will be once the animation finishes: the arrow points
+  /// the way the next tap will move it.
   final bool collapsed;
+
+  /// Whether this frame is wide enough for the word beside the arrow.
+  final bool showLabel;
+
   final VoidCallback onToggle;
 
   @override
@@ -269,9 +322,9 @@ class _CollapseButton extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
               child: Row(
-                mainAxisAlignment: collapsed
-                    ? MainAxisAlignment.center
-                    : MainAxisAlignment.start,
+                mainAxisAlignment: showLabel
+                    ? MainAxisAlignment.start
+                    : MainAxisAlignment.center,
                 children: [
                   AnimatedRotation(
                     duration: const Duration(milliseconds: 200),
@@ -282,7 +335,7 @@ class _CollapseButton extends StatelessWidget {
                       color: colors.textTertiary,
                     ),
                   ),
-                  if (!collapsed) ...[
+                  if (showLabel) ...[
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -518,42 +571,43 @@ class _MasterDetail extends StatelessWidget {
     final colors = context.colors;
     final row = selected;
 
-    return Row(
-      children: [
-        // The list keeps a readable width; the pane takes the rest.
-        Flexible(
-          flex: 4,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 380, maxWidth: 620),
-            child: list,
-          ),
-        ),
-        Container(width: 1, color: colors.cardBorder),
-        Expanded(
-          flex: 6,
-          child: PageTransitionSwitcher(
-            duration: const Duration(milliseconds: 260),
-            transitionBuilder: (child, animation, secondaryAnimation) =>
-                FadeThroughTransition(
-                  animation: animation,
-                  secondaryAnimation: secondaryAnimation,
-                  fillColor: Colors.transparent,
-                  child: child,
-                ),
-            child: row == null
-                ? const _NothingSelected()
-                : _Pane(
-                    key: ValueKey(row.key),
-                    child: StockDetailScreen(
-                      market: row.market,
-                      ticker: row.ticker,
-                      initialWindow: row.window,
-                      onClose: onClear,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // A fixed share for the list rather than a flex one: a Flexible child
+        // clamped to a maximum keeps its whole flex allocation, so the excess
+        // was stranded as a strip of background down the right of the window.
+        final listWidth = (constraints.maxWidth * 0.36).clamp(380.0, 560.0);
+
+        return Row(
+          children: [
+            SizedBox(width: listWidth, child: list),
+            Container(width: 1, color: colors.cardBorder),
+            Expanded(
+              child: PageTransitionSwitcher(
+                duration: const Duration(milliseconds: 260),
+                transitionBuilder: (child, animation, secondaryAnimation) =>
+                    FadeThroughTransition(
+                      animation: animation,
+                      secondaryAnimation: secondaryAnimation,
+                      fillColor: Colors.transparent,
+                      child: child,
                     ),
-                  ),
-          ),
-        ),
-      ],
+                child: row == null
+                    ? const _NothingSelected()
+                    : _Pane(
+                        key: ValueKey(row.key),
+                        child: StockDetailScreen(
+                          market: row.market,
+                          ticker: row.ticker,
+                          initialWindow: row.window,
+                          onClose: onClear,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -334,6 +334,7 @@ class PeriodSelector<T> extends StatelessWidget {
     required this.selected,
     required this.labelOf,
     required this.onChanged,
+    this.compact = false,
   });
 
   final List<T> values;
@@ -341,45 +342,99 @@ class PeriodSelector<T> extends StatelessWidget {
   final String Function(T value) labelOf;
   final ValueChanged<T> onChanged;
 
+  /// Sized to its labels rather than spread across the row, for a selector
+  /// that sits in a panel header beside a title.
+  final bool compact;
+
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    // Every option is drawn as a button, not only the selected one: an
+    // unselected period used to be bare text on the card, which gave no clue
+    // that it could be clicked at all.
+    if (compact) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final value in values) ...[
+            if (value != values.first) const SizedBox(width: 6),
+            _PeriodPill(
+              label: labelOf(value),
+              selected: value == selected,
+              onTap: () => onChanged(value),
+              dense: true,
+            ),
+          ],
+        ],
+      );
+    }
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         for (final value in values)
           Expanded(
             child: Center(
-              child: GestureDetector(
+              child: _PeriodPill(
+                label: labelOf(value),
+                selected: value == selected,
                 onTap: () => onChanged(value),
-                behavior: HitTestBehavior.opaque,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 160),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: value == selected
-                        ? colors.positive
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    labelOf(value),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: value == selected
-                          ? Colors.white
-                          : colors.textSecondary,
-                    ),
-                  ),
-                ),
               ),
             ),
           ),
       ],
+    );
+  }
+}
+
+class _PeriodPill extends StatelessWidget {
+  const _PeriodPill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.dense = false,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final bool dense;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      decoration: BoxDecoration(
+        color: selected ? colors.positive : colors.pageBackground,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: selected ? colors.positive : colors.cardBorder,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          // A pointer cursor, because on a desktop that is half the signal.
+          mouseCursor: SystemMouseCursors.click,
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: dense ? 11 : 16,
+              vertical: dense ? 5 : 7,
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: dense ? 12 : 13,
+                fontWeight: FontWeight.w600,
+                color: selected ? Colors.white : colors.textSecondary,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

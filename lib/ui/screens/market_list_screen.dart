@@ -600,6 +600,13 @@ class _SortHeader extends StatelessWidget {
     }
 
     // Mirrors StockTile's geometry so each heading sits over its own column.
+    //
+    // Fixed columns rather than flex ones: giving each heading a Flexible split
+    // the row's spare width four ways, and the slack the loose children left
+    // behind was stranded rather than pushing the numbers to the right edge —
+    // so "Price" and "Change" sat well to the left of the values under them.
+    final dense = context.watch<SettingsController>().compactRows;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: framed
@@ -613,11 +620,24 @@ class _SortHeader extends StatelessWidget {
           // The rows drop their price column when the name would be squeezed;
           // the heading has to go with it or it sits over the wrong values.
           final showPrice =
-              StockTile.nameSpace(context, constraints.maxWidth + 32) >= 96;
+              StockTile.nameSpace(
+                context,
+                constraints.maxWidth + 32,
+                dense: dense,
+              ) >=
+              96;
+          Widget column(double width, Widget child) => SizedBox(
+            width: width,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: child,
+            ),
+          );
+
           return Row(
             children: [
-              const SizedBox(width: StockTile.leadingColumnWidth),
-              Flexible(
+              SizedBox(width: StockTile.leadingColumn(dense: dense)),
+              Expanded(
                 child: InkWell(
                   onTap: () => onSort(StockSort.ticker),
                   child: Padding(
@@ -626,35 +646,24 @@ class _SortHeader extends StatelessWidget {
                   ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: StockTile.columnGap),
               if (showPrice) ...[
-                const SizedBox(width: 8),
-                Flexible(
-                  child: InkWell(
-                    onTap: () => onSort(StockSort.latestPrice),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: SizedBox(
-                        width: StockTile.priceColumn(context),
-                        child: label('Price', StockSort.latestPrice, end: true),
-                      ),
-                    ),
+                InkWell(
+                  onTap: () => onSort(StockSort.latestPrice),
+                  child: column(
+                    StockTile.priceColumn(context),
+                    label('Price', StockSort.latestPrice, end: true),
                   ),
                 ),
+                const SizedBox(width: StockTile.columnGap),
               ],
-              const SizedBox(width: 8),
-              Flexible(
-                child: InkWell(
-                  onTap: () => onSort(StockSort.pctChange),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: SizedBox(
-                      width: StockTile.changeColumn(context),
-                      // Just "Change": the window is already named in the title bar,
-                      // and "7D Change" plus a sort arrow does not fit this column.
-                      child: label('Change', StockSort.pctChange, end: true),
-                    ),
-                  ),
+              InkWell(
+                onTap: () => onSort(StockSort.pctChange),
+                child: column(
+                  StockTile.changeColumn(context),
+                  // Just "Change": the window is already named in the title
+                  // bar, and "7D Change" plus a sort arrow does not fit here.
+                  label('Change', StockSort.pctChange, end: true),
                 ),
               ),
               // The star and link at the end of every row, so the headings stay

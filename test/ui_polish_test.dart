@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:screener/models/growth_window.dart';
 import 'package:screener/ui/screens/stock_detail_screen.dart';
+import 'package:screener/ui/widgets/panels.dart';
 import 'package:screener/ui/widgets/info_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -154,6 +156,28 @@ void main() {
     await settle(tester);
 
     expect(find.byType(NavigationBar), findsOneWidget);
+  });
+
+  testWidgets('every period reads as a button, not only the selected one', (
+    tester,
+  ) async {
+    await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
+    await tester.tap(find.text('MRNA').first);
+    await settle(tester);
+
+    final pills = find.descendant(
+      of: find.byType(PeriodSelector<GrowthWindow>),
+      matching: find.byType(AnimatedContainer),
+    );
+    expect(pills, findsWidgets);
+
+    for (final pill in tester.widgetList<AnimatedContainer>(pills)) {
+      final decoration = pill.decoration! as BoxDecoration;
+      // An unselected period used to be bare text on the card, which gave no
+      // clue that it could be clicked.
+      expect(decoration.color, isNot(Colors.transparent));
+      expect(decoration.border, isNotNull);
+    }
   });
 
   testWidgets('settings sit in two columns on a wide window', (tester) async {
