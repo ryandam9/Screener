@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:screener/ui/widgets/info_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -163,6 +164,63 @@ void main() {
     await sweep(tester);
     await openAndCloseInfo(tester);
     await goBack(tester);
+  }
+
+  /// True when a Text finder's rendered paragraph had to cut its content.
+  bool truncated(WidgetTester tester, Finder finder) {
+    // Down to the paragraph itself: the app-wide SelectionArea puts a mouse
+    // region between the Text and its render object.
+    final paragraph = tester.renderObject<RenderParagraph>(
+      find.descendant(of: finder, matching: find.byType(RichText)).first,
+    );
+    return paragraph.didExceedMaxLines;
+  }
+
+  for (final (width, height, scale) in [
+    (320.0, 640.0, 1.0),
+    (360.0, 740.0, 1.0),
+    (360.0, 740.0, 1.3),
+  ]) {
+    testWidgets(
+      'company names are readable in full at ${width.toInt()}dp @${scale}x',
+      (tester) async {
+        tester.view.physicalSize = Size(width, height);
+        tester.view.devicePixelRatio = 1.0;
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        addTearDown(tester.view.reset);
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+        await launchApp(
+          tester,
+          cacheDir: cacheDir,
+          payloads: payloads,
+          size: tester.view.physicalSize,
+          devicePixelRatio: 1.0,
+        );
+
+        await tester.tap(find.text('Markets').last);
+        await settle(tester);
+
+        // The longest name the fixture publishes. It used to render as
+        // "Amylyx Pharmac…", which identifies nothing.
+        const name = 'Amylyx Pharmaceuticals, Inc.';
+        expect(find.text(name), findsWidgets);
+        expect(
+          truncated(tester, find.text(name).first),
+          isFalse,
+          reason: 'the name is still being cut short',
+        );
+
+        // And on the dashboard's gainers, which use the other tile.
+        await tester.tap(find.text('Dashboard').last);
+        await settle(tester);
+        expect(
+          truncated(tester, find.text(name).first),
+          isFalse,
+          reason: 'the dashboard tile cuts the name',
+        );
+      },
+    );
   }
 
   for (final (width, height, scale) in [

@@ -168,9 +168,13 @@ class _GainerRow extends StatelessWidget {
             Expanded(
               child: Text(
                 row.shortName,
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 13, color: colors.textSecondary),
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.25,
+                  color: colors.textSecondary,
+                ),
               ),
             ),
             const SizedBox(width: 12),

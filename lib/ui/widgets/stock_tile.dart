@@ -66,6 +66,15 @@ class StockTile extends StatelessWidget {
   /// price column. A 320dp phone at 1.3x text hits both.
   static const double _minNameWidth = 96;
 
+  /// Below this, the name gets a line of its own under the ticker instead of
+  /// sharing one with the numbers.
+  ///
+  /// A phone leaves the name column around 112px beside the price and the
+  /// change chip, which is narrower than the word "Pharmaceuticals," — so the
+  /// name was cut however many lines it was allowed. Across the full width it
+  /// simply fits.
+  static const double comfortableNameWidth = 168;
+
   /// How much room the ticker and name have once everything else is placed.
   static double nameSpace(
     BuildContext context,
@@ -128,102 +137,132 @@ class StockTile extends StatelessWidget {
     );
     final showBadge = showMarketBadge && space >= StockTile._minNameWidth + 28;
 
+    // Names matter more than compactness: below a comfortable width the name
+    // moves to its own full-width line rather than being trimmed to fit.
+    final nameBelow = space < StockTile.comfortableNameWidth;
+
+    final name = Text(
+      row.shortName,
+      // Three lines is generous for one line's worth of name in Inter, and
+      // it is what keeps long names whole at large text sizes.
+      maxLines: dense ? 2 : 3,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: dense ? 11.5 : 12.5,
+        height: 1.25,
+        color: colors.textSecondary,
+      ),
+    );
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: dense ? 8 : 11),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          TickerAvatar(ticker: row.ticker, size: dense ? 32 : 38),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
+          Row(
+            children: [
+              TickerAvatar(ticker: row.ticker, size: dense ? 32 : 38),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Flexible(
-                      child: Text(
-                        row.ticker,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: dense ? 13.5 : 14.5,
-                          fontWeight: FontWeight.w700,
-                          color: colors.textPrimary,
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            row.ticker,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: dense ? 13.5 : 14.5,
+                              fontWeight: FontWeight.w700,
+                              color: colors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        if (showBadge) ...[
+                          const SizedBox(width: 6),
+                          TagBadge(
+                            label: row.market.label,
+                            foreground: colors.neutral,
+                            background: colors.neutralSurface,
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (!nameBelow) ...[const SizedBox(height: 1), name],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              // A caller-supplied trailing widget is sized by its own content, so
+              // it flexes: at 320dp with large text it would otherwise push the
+              // row past its edge.
+              if (trailingBuilder != null)
+                Flexible(child: trailingBuilder!(context))
+              else
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (showPrice) ...[
+                      SizedBox(
+                        width: StockTile.priceColumn(context),
+                        child: Text(
+                          Fmt.price(row.latestPrice),
+                          textAlign: TextAlign.right,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: dense ? 13.5 : 14.5,
+                            fontWeight: FontWeight.w600,
+                            color: colors.textPrimary,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    SizedBox(
+                      width: StockTile.changeColumn(context),
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: ChangeChip(
+                          pctChange: row.pctChange,
+                          dense: dense,
                         ),
                       ),
                     ),
-                    if (showBadge) ...[
-                      const SizedBox(width: 6),
-                      TagBadge(
-                        label: row.market.label,
-                        foreground: colors.neutral,
-                        background: colors.neutralSurface,
-                      ),
-                    ],
                   ],
                 ),
-                const SizedBox(height: 1),
-                Text(
-                  row.shortName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: dense ? 11.5 : 12.5,
-                    color: colors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
+              // Star and quote page, both from the row itself.
+              WatchlistStar(
+                market: row.market,
+                ticker: row.ticker,
+                dense: true,
+              ),
+              // The link's slot is held even when a row has no URL: a row that
+              // dropped it would pull its price and change 26px to the right of
+              // every other row, and out from under the headings.
+              if (row.googleFinanceUrl != null)
+                GoogleFinanceButton(
+                  url: row.googleFinanceUrl,
+                  ticker: row.ticker,
+                  dense: true,
+                )
+              else
+                const SizedBox(width: StockTile.actionWidth),
+            ],
           ),
-          const SizedBox(width: 6),
-          // A caller-supplied trailing widget is sized by its own content, so
-          // it flexes: at 320dp with large text it would otherwise push the
-          // row past its edge.
-          if (trailingBuilder != null)
-            Flexible(child: trailingBuilder!(context))
-          else
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (showPrice) ...[
-                  SizedBox(
-                    width: StockTile.priceColumn(context),
-                    child: Text(
-                      Fmt.price(row.latestPrice),
-                      textAlign: TextAlign.right,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: dense ? 13.5 : 14.5,
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                ],
-                SizedBox(
-                  width: StockTile.changeColumn(context),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: ChangeChip(pctChange: row.pctChange, dense: dense),
-                  ),
-                ),
-              ],
+          // The name on its own line, indented to sit under the ticker.
+          if (nameBelow)
+            Padding(
+              padding: EdgeInsets.only(
+                left: StockTile.leadingColumn(dense: dense),
+                top: 2,
+              ),
+              child: name,
             ),
-          // Star and quote page, both from the row itself.
-          WatchlistStar(market: row.market, ticker: row.ticker, dense: true),
-          // The link's slot is held even when a row has no URL: a row that
-          // dropped it would pull its price and change 26px to the right of
-          // every other row, and out from under the headings.
-          if (row.googleFinanceUrl != null)
-            GoogleFinanceButton(
-              url: row.googleFinanceUrl,
-              ticker: row.ticker,
-              dense: true,
-            )
-          else
-            const SizedBox(width: StockTile.actionWidth),
         ],
       ),
     );
@@ -300,93 +339,117 @@ class GainerTile extends StatelessWidget {
         (16 + 38 + 12 + 8 + scaler.scale(tight ? 72 : 188) + 52 + 16);
     final showBadge = showMarketBadge && space >= 124;
 
+    // See StockTile: a name squeezed beside the numbers is cut mid-word, so
+    // below a comfortable width it takes a line of its own.
+    final nameBelow = space < StockTile.comfortableNameWidth;
+    final name = Text(
+      row.shortName,
+      maxLines: 3,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: 12.5,
+        height: 1.25,
+        color: colors.textSecondary,
+      ),
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          TickerAvatar(ticker: row.ticker, size: 38),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
+          Row(
+            children: [
+              TickerAvatar(ticker: row.ticker, size: 38),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Flexible(
-                      child: Text(
-                        row.ticker,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w700,
-                          color: colors.textPrimary,
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            row.ticker,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
+                              color: colors.textPrimary,
+                            ),
+                          ),
                         ),
-                      ),
+                        if (showBadge) ...[
+                          const SizedBox(width: 6),
+                          TagBadge(
+                            label: row.market.label,
+                            foreground: colors.neutral,
+                            background: colors.neutralSurface,
+                          ),
+                        ],
+                      ],
                     ),
-                    if (showBadge) ...[
-                      const SizedBox(width: 6),
-                      TagBadge(
-                        label: row.market.label,
-                        foreground: colors.neutral,
-                        background: colors.neutralSurface,
-                      ),
-                    ],
+                    if (!nameBelow) ...[const SizedBox(height: 1), name],
                   ],
                 ),
-                const SizedBox(height: 1),
-                Text(
-                  row.shortName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12.5, color: colors.textSecondary),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                Fmt.price(row.latestPrice),
-                style: TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w600,
-                  color: colors.textPrimary,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                tight
-                    ? Fmt.signedPercent(row.pctChange, decimals: 1)
-                    : '${Fmt.signedPrice(row.priceChange)} '
-                          '(${Fmt.signedPercent(row.pctChange, decimals: 1)})',
-                maxLines: 1,
-                softWrap: false,
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                  color: colors.forChange(row.pctChange),
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    Fmt.price(row.latestPrice),
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textPrimary,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    tight
+                        ? Fmt.signedPercent(row.pctChange, decimals: 1)
+                        : '${Fmt.signedPrice(row.priceChange)} '
+                              '(${Fmt.signedPercent(row.pctChange, decimals: 1)})',
+                    maxLines: 1,
+                    softWrap: false,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: colors.forChange(row.pctChange),
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
               ),
+              WatchlistStar(
+                market: row.market,
+                ticker: row.ticker,
+                dense: true,
+              ),
+              // The link's slot is held even when a row has no URL: a row that
+              // dropped it would pull its price and change 26px to the right of
+              // every other row, and out from under the headings.
+              if (row.googleFinanceUrl != null)
+                GoogleFinanceButton(
+                  url: row.googleFinanceUrl,
+                  ticker: row.ticker,
+                  dense: true,
+                )
+              else
+                const SizedBox(width: StockTile.actionWidth),
             ],
           ),
-          WatchlistStar(market: row.market, ticker: row.ticker, dense: true),
-          // The link's slot is held even when a row has no URL: a row that
-          // dropped it would pull its price and change 26px to the right of
-          // every other row, and out from under the headings.
-          if (row.googleFinanceUrl != null)
-            GoogleFinanceButton(
-              url: row.googleFinanceUrl,
-              ticker: row.ticker,
-              dense: true,
-            )
-          else
-            const SizedBox(width: StockTile.actionWidth),
+          // The name on its own line, indented to sit under the ticker.
+          if (nameBelow)
+            Padding(
+              padding: const EdgeInsets.only(left: 38 + 12, top: 2),
+              child: name,
+            ),
         ],
       ),
     );
