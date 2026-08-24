@@ -146,6 +146,16 @@ void main() {
     );
   });
 
+  testWidgets('the stock detail keeps its bottom navigation on a handset', (
+    tester,
+  ) async {
+    await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
+    await tester.tap(find.text('MRNA').first);
+    await settle(tester);
+
+    expect(find.byType(NavigationBar), findsOneWidget);
+  });
+
   testWidgets('settings sit in two columns on a wide window', (tester) async {
     await launchApp(
       tester,

@@ -7,6 +7,7 @@ import 'package:screener/ui/desktop/desktop_shell.dart';
 import 'package:screener/ui/widgets/info_dialog.dart';
 import 'package:screener/ui/widgets/panels.dart';
 import 'package:screener/ui/screens/home_shell.dart';
+import 'package:screener/ui/screens/stock_detail_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -128,6 +129,32 @@ void main() {
     await tester.tap(find.text('Dashboard'));
     await settle(tester);
     expect(find.text('ASX Market'), findsOneWidget);
+  });
+
+  testWidgets('the stock detail has no bottom navigation on desktop', (
+    tester,
+  ) async {
+    await launchDesktop(tester);
+
+    // A dashboard row selects the security for the chart panel; the panel's
+    // action is what opens the detail screen.
+    await tester.tap(find.text('MRNA').first);
+    await settle(tester);
+    await tester.tap(find.text('Open details'));
+    await settle(tester);
+    expect(find.byType(StockDetailScreen), findsOneWidget);
+
+    // A bottom bar spanning the whole window under a 900px column reads as a
+    // stretched phone screen; the sections sit under the header instead.
+    expect(find.byType(NavigationBar), findsNothing);
+    for (final tab in ['Overview', 'Metrics', 'Windows', 'Links']) {
+      expect(find.text(tab), findsOneWidget, reason: '$tab missing');
+    }
+
+    // They still switch the content.
+    await tester.tap(find.text('Windows'));
+    await settle(tester);
+    expect(find.text('Coverage by window'), findsOneWidget);
   });
 
   testWidgets('the desktop dashboard carries its own info button', (

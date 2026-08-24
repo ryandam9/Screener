@@ -14,6 +14,7 @@ import '../../state/watchlist_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../../utils/trend.dart';
+import '../responsive.dart';
 import '../widgets/change_chip.dart';
 import '../widgets/google_finance_button.dart';
 import '../widgets/panels.dart';
@@ -135,6 +136,11 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       _future = _load(database, _window);
     }
 
+    // A bottom navigation bar spanning a 1400px window, under a column of
+    // content capped at 900, reads as a phone screen someone stretched. On a
+    // desktop window the four sections sit under the header instead.
+    final desktop = context.layoutSize.isDesktop;
+
     return Scaffold(
       body: SafeArea(
         bottom: false,
@@ -227,20 +233,25 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: colors.cardBorder)),
-        ),
-        child: NavigationBar(
-          selectedIndex: _DetailTab.values.indexOf(_tab),
-          onDestinationSelected: (index) =>
-              setState(() => _tab = _DetailTab.values[index]),
-          destinations: [
-            for (final tab in _DetailTab.values)
-              NavigationDestination(icon: Icon(tab.icon), label: tab.label),
-          ],
-        ),
-      ),
+      bottomNavigationBar: desktop
+          ? null
+          : DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: colors.cardBorder)),
+              ),
+              child: NavigationBar(
+                selectedIndex: _DetailTab.values.indexOf(_tab),
+                onDestinationSelected: (index) =>
+                    setState(() => _tab = _DetailTab.values[index]),
+                destinations: [
+                  for (final tab in _DetailTab.values)
+                    NavigationDestination(
+                      icon: Icon(tab.icon),
+                      label: tab.label,
+                    ),
+                ],
+              ),
+            ),
     );
   }
 
@@ -264,7 +275,17 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             icon: const Icon(Icons.arrow_back),
             onPressed: () => Navigator.of(context).maybePop(),
           ),
-          const Spacer(),
+          // On a desktop window the four sections live in this toolbar rather
+          // than in a bottom navigation bar spanning the whole window.
+          if (context.layoutSize.isDesktop)
+            Expanded(
+              child: _DetailTabBar(
+                selected: _tab,
+                onSelected: (tab) => setState(() => _tab = tab),
+              ),
+            )
+          else
+            const Spacer(),
           IconButton(
             tooltip: starred ? 'Remove from watchlist' : 'Add to watchlist',
             icon: Icon(
@@ -1102,4 +1123,70 @@ String _prettyAssetType(String raw) {
       .where((word) => word.isNotEmpty)
       .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
       .join(' ');
+}
+
+/// The detail screen's four sections, as pills in the header toolbar.
+///
+/// The handset shows these in a bottom navigation bar; a desktop window has
+/// the width to carry them beside the back button instead.
+class _DetailTabBar extends StatelessWidget {
+  const _DetailTabBar({required this.selected, required this.onSelected});
+
+  final _DetailTab selected;
+  final ValueChanged<_DetailTab> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return Row(
+      children: [
+        const SizedBox(width: 4),
+        for (final tab in _DetailTab.values)
+          Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: Material(
+              color: tab == selected
+                  ? colors.positiveSurface
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(9),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => onSelected(tab),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 13,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        tab.icon,
+                        size: 17,
+                        color: tab == selected
+                            ? colors.positive
+                            : colors.textSecondary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        tab.label,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: tab == selected
+                              ? colors.positive
+                              : colors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        const Spacer(),
+      ],
+    );
+  }
 }
