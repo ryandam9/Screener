@@ -872,9 +872,13 @@ class _MoverRow extends StatelessWidget {
             Expanded(
               child: Text(
                 row.shortName,
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 12.5, color: colors.textSecondary),
+                style: TextStyle(
+                  fontSize: 12.5,
+                  height: 1.25,
+                  color: colors.textSecondary,
+                ),
               ),
             ),
             const SizedBox(width: 8),

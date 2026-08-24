@@ -818,12 +818,15 @@ class _ConsistentList extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 1),
+                          // Wrapped, as in the other lists: the name is the
+                          // point of the row.
                           Text(
                             row.shortName,
-                            maxLines: 1,
+                            maxLines: 3,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 12.5,
+                              height: 1.25,
                               color: colors.textSecondary,
                             ),
                           ),
