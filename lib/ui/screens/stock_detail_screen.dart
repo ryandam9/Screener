@@ -1153,7 +1153,7 @@ class _DetailTabBar extends StatelessWidget {
         // In a detail pane beside a list there is room for the icons but not
         // always for their labels, and four labels colliding with the actions
         // beside them is worse than four icons.
-        labelled: constraints.maxWidth >= 420,
+        labelled: constraints.maxWidth >= 460,
       ),
     );
   }
@@ -1163,14 +1163,19 @@ class _DetailTabBar extends StatelessWidget {
     ScreenerColors colors, {
     required bool labelled,
   }) {
-    return Row(
-      children: [
-        const SizedBox(width: 4),
-        // Flexible so the row fits whatever font and width it is given: the
-        // labels shorten before anything is pushed off the edge.
-        for (final tab in _DetailTab.values)
-          Flexible(
-            child: Padding(
+    // Scaled to fit rather than flexed: flex children share the row evenly,
+    // which truncates "Overview" while "Links" still has room to spare. At
+    // their natural widths the four pills fit what this toolbar gives them,
+    // and the row shrinks as one if a wider font ever changes that.
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(width: 4),
+          for (final tab in _DetailTab.values)
+            Padding(
               padding: const EdgeInsets.only(right: 6),
               child: Material(
                 color: tab == selected
@@ -1199,19 +1204,16 @@ class _DetailTabBar extends StatelessWidget {
                           ),
                           if (labelled) ...[
                             const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                tab.label,
-                                maxLines: 1,
-                                softWrap: false,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: tab == selected
-                                      ? colors.positive
-                                      : colors.textSecondary,
-                                ),
+                            Text(
+                              tab.label,
+                              maxLines: 1,
+                              softWrap: false,
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: tab == selected
+                                    ? colors.positive
+                                    : colors.textSecondary,
                               ),
                             ),
                           ],
@@ -1222,9 +1224,8 @@ class _DetailTabBar extends StatelessWidget {
                 ),
               ),
             ),
-          ),
-        const Spacer(),
-      ],
+        ],
+      ),
     );
   }
 }

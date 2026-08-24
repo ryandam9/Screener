@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/market.dart';
 import '../../models/stock_row.dart';
 import '../../state/app_state.dart';
+import '../../state/settings_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../screens/analysis_screen.dart';
@@ -86,65 +88,98 @@ class _DesktopShellState extends State<DesktopShell> {
       AppSection.settings => const MoreScreen(),
     };
 
+    final settings = context.watch<SettingsController>();
+
     return Scaffold(
-      body: Row(
-        children: [
-          _Sidebar(
-            section: _section,
-            onSelect: (section) => setState(() {
-              _section = section;
-              if (section != AppSection.markets) _pendingSearch = null;
-              // A selection belongs to the list it came from.
-              if (section != AppSection.markets &&
-                  section != AppSection.watchlist) {
-                _selected = null;
-              }
-            }),
-          ),
-          Container(width: 1, color: colors.cardBorder),
-          Expanded(
-            // Sections fade through one another rather than cutting, so the
-            // sidebar selection and the content stay visibly connected.
-            child: PageTransitionSwitcher(
-              duration: const Duration(milliseconds: 320),
-              transitionBuilder: (child, animation, secondaryAnimation) =>
-                  FadeThroughTransition(
-                    animation: animation,
-                    secondaryAnimation: secondaryAnimation,
-                    fillColor: Colors.transparent,
-                    child: child,
-                  ),
-              child: KeyedSubtree(
-                key: ValueKey('${_section.name}-${_pendingSearch ?? ''}'),
-                child: switch (_section) {
-                  // Built for the width already.
-                  AppSection.dashboard => content,
-                  // Two panes, which fill the window rather than being capped.
-                  AppSection.markets || AppSection.watchlist => content,
-                  // One-column screens, capped so their columns stay together.
-                  _ => ReadableWidth(child: content),
-                },
+      // Ctrl/Cmd+B is what editors use for the same job, and a desktop app
+      // that ignores the keyboard is half an app.
+      body: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.keyB, control: true):
+              settings.toggleSidebar,
+          const SingleActivator(LogicalKeyboardKey.keyB, meta: true):
+              settings.toggleSidebar,
+        },
+        child: Focus(
+          autofocus: true,
+          child: Row(
+            children: [
+              _Sidebar(
+                collapsed: settings.sidebarCollapsed,
+                onToggle: settings.toggleSidebar,
+                section: _section,
+                onSelect: (section) => setState(() {
+                  _section = section;
+                  if (section != AppSection.markets) _pendingSearch = null;
+                  // A selection belongs to the list it came from.
+                  if (section != AppSection.markets &&
+                      section != AppSection.watchlist) {
+                    _selected = null;
+                  }
+                }),
               ),
-            ),
+              Container(width: 1, color: colors.cardBorder),
+              Expanded(
+                // Sections fade through one another rather than cutting, so the
+                // sidebar selection and the content stay visibly connected.
+                child: PageTransitionSwitcher(
+                  duration: const Duration(milliseconds: 320),
+                  transitionBuilder: (child, animation, secondaryAnimation) =>
+                      FadeThroughTransition(
+                        animation: animation,
+                        secondaryAnimation: secondaryAnimation,
+                        fillColor: Colors.transparent,
+                        child: child,
+                      ),
+                  child: KeyedSubtree(
+                    key: ValueKey('${_section.name}-${_pendingSearch ?? ''}'),
+                    child: switch (_section) {
+                      // Built for the width already.
+                      AppSection.dashboard => content,
+                      // Two panes, which fill the window rather than being capped.
+                      AppSection.markets || AppSection.watchlist => content,
+                      // One-column screens, capped so their columns stay together.
+                      _ => ReadableWidth(child: content),
+                    },
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
+/// The navigation rail down the left of a desktop window.
+///
+/// Collapses to icons so the content can have the width back — the sections
+/// are six, and their icons carry them once you know the app.
 class _Sidebar extends StatelessWidget {
-  const _Sidebar({required this.section, required this.onSelect});
+  const _Sidebar({
+    required this.section,
+    required this.onSelect,
+    required this.collapsed,
+    required this.onToggle,
+  });
 
   final AppSection section;
   final ValueChanged<AppSection> onSelect;
+  final bool collapsed;
+  final VoidCallback onToggle;
+
+  static const double expandedWidth = 236;
+  static const double collapsedWidth = 68;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    return Container(
-      width: 236,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOutCubic,
+      width: collapsed ? collapsedWidth : expandedWidth,
       color: colors.card,
       child: SafeArea(
         right: false,
@@ -152,7 +187,7 @@ class _Sidebar extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
+              padding: EdgeInsets.fromLTRB(collapsed ? 12 : 20, 18, 12, 18),
               child: Row(
                 children: [
                   Container(
@@ -168,19 +203,22 @@ class _Sidebar extends StatelessWidget {
                       color: colors.positive,
                     ),
                   ),
-                  const SizedBox(width: 11),
-                  Expanded(
-                    child: Text(
-                      'Stocks Analysis',
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 16.5,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.3,
-                        color: colors.textPrimary,
+                  if (!collapsed) ...[
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Text(
+                        'Stocks Analysis',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 16.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.3,
+                          color: colors.textPrimary,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -188,14 +226,80 @@ class _Sidebar extends StatelessWidget {
               _NavItem(
                 section: value,
                 selected: value == section,
+                collapsed: collapsed,
                 onTap: () => onSelect(value),
               ),
             const Spacer(),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(14, 14, 14, 18),
-              child: _DataStatusCard(),
-            ),
+            if (!collapsed)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(14, 14, 14, 4),
+                child: _DataStatusCard(),
+              ),
+            _CollapseButton(collapsed: collapsed, onToggle: onToggle),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Widens or narrows the sidebar. Sits at its foot, where the eye is not
+/// looking for navigation.
+class _CollapseButton extends StatelessWidget {
+  const _CollapseButton({required this.collapsed, required this.onToggle});
+
+  final bool collapsed;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final label = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+      child: Tooltip(
+        message: '$label  (Ctrl+B)',
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onToggle,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              child: Row(
+                mainAxisAlignment: collapsed
+                    ? MainAxisAlignment.center
+                    : MainAxisAlignment.start,
+                children: [
+                  AnimatedRotation(
+                    duration: const Duration(milliseconds: 200),
+                    turns: collapsed ? 0.5 : 0,
+                    child: Icon(
+                      Icons.keyboard_double_arrow_left,
+                      size: 19,
+                      color: colors.textTertiary,
+                    ),
+                  ),
+                  if (!collapsed) ...[
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Collapse',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: colors.textTertiary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -207,45 +311,65 @@ class _NavItem extends StatelessWidget {
     required this.section,
     required this.selected,
     required this.onTap,
+    this.collapsed = false,
   });
 
   final AppSection section;
   final bool selected;
   final VoidCallback onTap;
+  final bool collapsed;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      child: Material(
-        color: selected ? colors.positiveSurface : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-            child: Row(
-              children: [
-                Icon(
-                  selected ? section.selectedIcon : section.icon,
-                  size: 20,
-                  color: selected ? colors.positive : colors.textSecondary,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    section.label,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                      color: selected ? colors.positive : colors.textSecondary,
-                    ),
+      child: Tooltip(
+        // Collapsed, the icon is all there is; the name has to come from
+        // somewhere.
+        message: collapsed ? section.label : '',
+        child: Material(
+          color: selected ? colors.positiveSurface : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: collapsed ? 10 : 12,
+                vertical: 11,
+              ),
+              child: Row(
+                mainAxisAlignment: collapsed
+                    ? MainAxisAlignment.center
+                    : MainAxisAlignment.start,
+                children: [
+                  Icon(
+                    selected ? section.selectedIcon : section.icon,
+                    size: 20,
+                    color: selected ? colors.positive : colors.textSecondary,
                   ),
-                ),
-              ],
+                  if (!collapsed) ...[
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        section.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: selected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          color: selected
+                              ? colors.positive
+                              : colors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         ),

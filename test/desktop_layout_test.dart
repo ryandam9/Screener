@@ -1,12 +1,15 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:screener/models/growth_window.dart';
 import 'package:screener/ui/desktop/desktop_shell.dart';
 import 'package:screener/ui/widgets/info_dialog.dart';
 import 'package:screener/ui/widgets/panels.dart';
 import 'package:screener/ui/widgets/table_frame.dart';
+import 'package:screener/ui/desktop/desktop_dashboard.dart';
+import 'package:screener/ui/screens/app_shell.dart';
 import 'package:screener/ui/screens/home_shell.dart';
 import 'package:screener/ui/screens/market_list_screen.dart';
 import 'package:screener/ui/screens/stock_detail_screen.dart';
@@ -43,13 +46,13 @@ void main() {
     }
   });
 
-  Future<void> launchDesktop(WidgetTester tester) => launchApp(
+  Future<SharedPreferences> launchDesktop(WidgetTester tester) => launchApp(
     tester,
     cacheDir: cacheDir,
     payloads: payloads,
     size: desktopSize,
     devicePixelRatio: 1.0,
-  ).then((_) {});
+  );
 
   testWidgets('a wide window gets the sidebar layout', (tester) async {
     await launchDesktop(tester);
@@ -131,6 +134,45 @@ void main() {
     await tester.tap(find.text('Dashboard'));
     await settle(tester);
     expect(find.text('ASX Market'), findsOneWidget);
+  });
+
+  testWidgets('the sidebar collapses to a rail and stays that way', (
+    tester,
+  ) async {
+    final prefs = await launchDesktop(tester);
+
+    final expandedContent = tester.getTopLeft(find.byType(DesktopDashboard));
+
+    await tester.tap(find.text('Collapse'));
+    await settle(tester);
+
+    // The labels go; the sections stay, reachable by icon.
+    expect(find.text('Collapse'), findsNothing);
+    expect(find.text('Markets'), findsNothing);
+    expect(find.byIcon(AppSection.markets.icon), findsOneWidget);
+
+    // The content starts further left than it did — that is the point.
+    final content = tester.getTopLeft(find.byType(DesktopDashboard));
+    expect(content.dx, lessThan(expandedContent.dx));
+    expect(prefs.getBool('sidebar_collapsed'), isTrue);
+
+    // And it is still navigable.
+    await tester.tap(find.byIcon(AppSection.markets.icon));
+    await settle(tester);
+    expect(find.byType(MarketListScreen), findsOneWidget);
+  });
+
+  testWidgets('ctrl+B toggles the sidebar', (tester) async {
+    final prefs = await launchDesktop(tester);
+    expect(find.text('Collapse'), findsOneWidget);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyB);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await settle(tester);
+
+    expect(find.text('Collapse'), findsNothing);
+    expect(prefs.getBool('sidebar_collapsed'), isTrue);
   });
 
   testWidgets('a row opens beside the list, not over it', (tester) async {
