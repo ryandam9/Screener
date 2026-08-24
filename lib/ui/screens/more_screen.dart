@@ -8,6 +8,9 @@ import '../../state/settings_controller.dart';
 import '../../state/watchlist_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
+import '../../services/digest_scheduler.dart';
+import '../../services/notifier.dart';
+import '../../services/digest_service.dart';
 import '../widgets/panels.dart';
 import 'reports_screen.dart';
 import '../info/page_info.dart';
@@ -121,6 +124,7 @@ class MoreScreen extends StatelessWidget {
           ),
         ],
       ),
+      const _Section(title: 'Daily digest', children: [_DigestPanel()]),
       _Section(
         title: 'Reports',
         children: [
@@ -363,6 +367,179 @@ class _Section extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
         ),
         ...children,
+      ],
+    );
+  }
+}
+
+/// Turns the morning digest on, sets its time, and says what last went out.
+class _DigestPanel extends StatefulWidget {
+  const _DigestPanel();
+
+  @override
+  State<_DigestPanel> createState() => _DigestPanelState();
+}
+
+class _DigestPanelState extends State<_DigestPanel> {
+  bool _busy = false;
+
+  Future<void> _setEnabled(bool value) async {
+    final settings = context.read<SettingsController>();
+    final notifier = context.read<Notifier>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    if (value) {
+      // Asked for at the moment it is turned on, rather than at first launch:
+      // a permission prompt makes sense when it follows a decision.
+      final granted = await notifier.ensurePermission();
+      if (!granted) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Notifications are blocked for this app in system settings.',
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
+    await settings.setDigestEnabled(value);
+    await DigestScheduler.configure(
+      enabled: value,
+      at: settings.digestTime,
+    );
+  }
+
+  Future<void> _pickTime() async {
+    final settings = context.read<SettingsController>();
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: settings.digestTime,
+      helpText: 'Send the digest at',
+    );
+    if (picked == null) return;
+
+    await settings.setDigestTime(picked);
+    await DigestScheduler.configure(
+      enabled: settings.digestEnabled,
+      at: picked,
+    );
+  }
+
+  Future<void> _sendNow() async {
+    final digest = context.read<DigestService>();
+    final notifier = context.read<Notifier>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    setState(() => _busy = true);
+    try {
+      final granted = await notifier.ensurePermission();
+      if (!granted) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Notifications are blocked.')),
+        );
+        return;
+      }
+      final result = await digest.run(force: true, refresh: false);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            result == null || result.isEmpty
+                ? 'Nothing published in the 7-day window yet.'
+                : result.title,
+          ),
+        ),
+      );
+    } on Object catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text('Digest failed: $error')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final settings = context.watch<SettingsController>();
+    final digest = context.read<DigestService>();
+    final enabled = settings.digestEnabled;
+    final last = digest.lastSentText;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Panel(
+          child: Column(
+            children: [
+              SwitchListTile(
+                value: enabled,
+                title: const Text('Morning digest'),
+                subtitle: const Text(
+                  'What the 7-day screen published, and what is new in it',
+                ),
+                onChanged: (value) => _setEnabled(value),
+              ),
+              Divider(height: 1, color: colors.divider, indent: 16),
+              ListTile(
+                enabled: enabled,
+                title: const Text('Send at'),
+                subtitle: Text(
+                  DigestScheduler.isSupported
+                      ? 'Files are republished at 8:00, so the digest waits'
+                            ' until after that'
+                      : 'This desktop cannot be woken on a schedule; the'
+                            ' digest goes out when the app is next opened',
+                ),
+                trailing: Text(
+                  settings.digestTime.format(context),
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
+                    color: enabled ? colors.textPrimary : colors.textTertiary,
+                  ),
+                ),
+                onTap: enabled ? _pickTime : null,
+              ),
+              Divider(height: 1, color: colors.divider, indent: 16),
+              ListTile(
+                enabled: !_busy,
+                leading: _busy
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.notifications_active_outlined),
+                title: const Text('Send one now'),
+                subtitle: const Text('Builds today’s digest from the cache'),
+                onTap: _busy ? null : _sendNow,
+              ),
+            ],
+          ),
+        ),
+        if (last != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Last sent ${digest.lastSentDay ?? '—'}',
+                  style: TextStyle(fontSize: 11.5, color: colors.textTertiary),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${last.$1} — ${last.$2}',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    height: 1.35,
+                    color: colors.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }

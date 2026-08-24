@@ -373,6 +373,35 @@ class PageInfos {
         'serving the cached files rather than emptying the screens.',
       ),
       InfoDivider(),
+      InfoHeading('Daily digest', icon: Icons.notifications_none),
+      InfoParagraph(
+        'One notification a morning, naming what the 7-day screen published '
+        'and which of those names were not in the previous one. The files are '
+        'republished around eight, so the digest is set to a quarter past by '
+        'default.',
+      ),
+      InfoBullets([
+        InfoBullet(
+          lead: 'On Android',
+          text:
+              'the app is woken to build it, so the notification arrives '
+              'whether or not the app is open. The system may hold it back a '
+              'few minutes to batch work.',
+        ),
+        InfoBullet(
+          lead: 'On desktop',
+          text:
+              'nothing wakes the app on a schedule, so the digest goes out '
+              'the next time it is opened.',
+        ),
+        InfoBullet(
+          lead: 'Send one now',
+          text:
+              'builds today’s digest from the cached files without waiting '
+              'for the schedule.',
+        ),
+      ]),
+      InfoDivider(),
       InfoHeading('Appearance', icon: Icons.palette_outlined),
       InfoBullets([
         InfoBullet(

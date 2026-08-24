@@ -7,7 +7,9 @@ import 'package:provider/provider.dart';
 
 import '../../models/market.dart';
 import '../../models/stock_row.dart';
+import '../../models/growth_window.dart';
 import '../../state/app_state.dart';
+import '../../state/digest_router.dart';
 import '../../state/settings_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
@@ -73,6 +75,17 @@ class _DesktopShellState extends State<DesktopShell> {
     super.dispose();
   }
 
+  /// Lands on the 7-day list when the morning digest was tapped.
+  void _consumeDigestRequest(BuildContext context) {
+    final router = context.read<DigestRouter>();
+    if (!router.showSevenDayList) return;
+    router.consume();
+    context.read<AppState>().selectWindow(GrowthWindow.sevenDays);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _section = AppSection.markets);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -111,6 +124,8 @@ class _DesktopShellState extends State<DesktopShell> {
     };
 
     final settings = context.watch<SettingsController>();
+    context.watch<DigestRouter>();
+    _consumeDigestRequest(context);
 
     return Scaffold(
       // Ctrl/Cmd+B is what editors use for the same job, and a desktop app

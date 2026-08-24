@@ -4,6 +4,13 @@
          need it declared here. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!-- The morning digest. POST_NOTIFICATIONS is asked for at runtime on
+         Android 13+; RECEIVE_BOOT_COMPLETED lets WorkManager re-register the
+         daily task after a restart, so a phone rebooted overnight still gets
+         its eight o'clock digest. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+
     <application
         android:label="Stocks Analysis"
         android:name="${applicationName}"
