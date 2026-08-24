@@ -25,6 +25,7 @@ class DesktopDashboardData {
   const DesktopDashboardData({
     required this.summaries,
     required this.topGainers,
+    required this.gainersByMarket,
     required this.movers,
     required this.runs,
     required this.watchlistRows,
@@ -35,7 +36,15 @@ class DesktopDashboardData {
   });
 
   final Map<Market, MarketSummary> summaries;
+
+  /// The strongest rows of the window, both markets ranked together.
   final List<StockRow> topGainers;
+
+  /// The same ranking, per market. One market's screen regularly outruns the
+  /// other's — a 40% week is ordinary in US small caps and exceptional on the
+  /// ASX — so a merged top eight can be all one market. This is what the
+  /// table's filter shows instead of an empty result.
+  final Map<Market, List<StockRow>> gainersByMarket;
   final List<StockRow> movers;
   final List<RunInfo> runs;
 
@@ -73,10 +82,15 @@ class DesktopDashboard extends StatefulWidget {
     super.key,
     this.onSearchSubmitted,
     this.onViewAllGainers,
+    this.searchFocus,
   });
 
   final ValueChanged<String>? onSearchSubmitted;
   final VoidCallback? onViewAllGainers;
+
+  /// Held by the shell, so Ctrl+F can put the caret in the search box from
+  /// anywhere in the app.
+  final FocusNode? searchFocus;
 
   @override
   State<DesktopDashboard> createState() => _DesktopDashboardState();
@@ -84,18 +98,32 @@ class DesktopDashboard extends StatefulWidget {
 
 class _DesktopDashboardState extends State<DesktopDashboard> {
   final TextEditingController _search = TextEditingController();
+  FocusNode? _ownFocus;
   Future<DesktopDashboardData>? _future;
   String _signature = '';
+
+  /// Which market the gainers table is showing, or null for both ranked
+  /// together.
+  Market? _gainerMarket;
 
   /// The security charted below the table. Defaults to the strongest mover
   /// and follows whichever row is clicked.
   StockRow? _selected;
 
+  FocusNode get _searchFocus =>
+      widget.searchFocus ?? (_ownFocus ??= FocusNode());
+
   @override
   void dispose() {
     _search.dispose();
+    _ownFocus?.dispose();
     super.dispose();
   }
+
+  /// The rows the gainers table is showing under the current filter.
+  List<StockRow> _gainers(DesktopDashboardData data) => _gainerMarket == null
+      ? data.topGainers
+      : data.gainersByMarket[_gainerMarket] ?? const [];
 
   Future<DesktopDashboardData> _load(
     AppState appState,
@@ -176,6 +204,13 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
     return DesktopDashboardData(
       summaries: summaries,
       topGainers: gainers.take(8).toList(),
+      gainersByMarket: {
+        for (final market in Market.values)
+          market: [
+            for (final row in gainers)
+              if (row.market == market) row,
+          ].take(8).toList(),
+      },
       movers: movers.take(5).toList(),
       runs: runs,
       watchlistRows: watched,
@@ -188,17 +223,17 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
 
   /// The selection survives a reload when the ticker is still listed;
   /// otherwise it falls back to the strongest mover.
-  StockRow? _resolveSelection(DesktopDashboardData data) {
-    if (data.topGainers.isEmpty) return null;
+  StockRow? _resolveSelection(List<StockRow> rows) {
+    if (rows.isEmpty) return null;
     final current = _selected;
     if (current != null) {
-      for (final row in data.topGainers) {
+      for (final row in rows) {
         if (row.ticker == current.ticker && row.market == current.market) {
           return row;
         }
       }
     }
-    return data.topGainers.first;
+    return rows.first;
   }
 
   void _openStock(StockRow row) {
@@ -234,7 +269,11 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _TopBar(controller: _search, onSubmitted: widget.onSearchSubmitted),
+        _TopBar(
+          controller: _search,
+          focusNode: _searchFocus,
+          onSubmitted: widget.onSearchSubmitted,
+        ),
         Container(height: 1, color: colors.cardBorder),
         Expanded(
           child: FutureBuilder<DesktopDashboardData>(
@@ -263,13 +302,19 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
                         ),
                 );
               }
-              // Keep the selection valid across reloads and window changes.
-              final selected = _resolveSelection(data);
+              // Keep the selection valid across reloads, window changes and
+              // the market filter.
+              final gainers = _gainers(data);
+              final selected = _resolveSelection(gainers);
               if (selected == null) {
                 return const Center(child: Text('No rows in this window'));
               }
               return _DashboardBody(
                 data: data,
+                gainers: gainers,
+                gainerMarket: _gainerMarket,
+                onGainerMarket: (market) =>
+                    setState(() => _gainerMarket = market),
                 window: appState.selectedWindow,
                 selected: selected,
                 onSelect: (row) => setState(() => _selected = row),
@@ -284,10 +329,22 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
   }
 }
 
+/// The bar across the top of the dashboard: what you are looking at, a search
+/// box, and the controls that act on the whole page.
+///
+/// It used to be a single cluster of controls centred in an otherwise empty
+/// strip. Naming the section on the left and pinning the controls to the right
+/// gives the bar two ends to hold onto, and hands the width in between to the
+/// search box.
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.controller, this.onSubmitted});
+  const _TopBar({
+    required this.controller,
+    required this.focusNode,
+    this.onSubmitted,
+  });
 
   final TextEditingController controller;
+  final FocusNode focusNode;
   final ValueChanged<String>? onSubmitted;
 
   @override
@@ -297,35 +354,132 @@ class _TopBar extends StatelessWidget {
 
     return Container(
       color: colors.card,
-      padding: const EdgeInsets.fromLTRB(28, 16, 28, 16),
+      padding: const EdgeInsets.fromLTRB(24, 13, 18, 13),
       child: Row(
         children: [
-          const Spacer(),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: TextField(
-              controller: controller,
-              textInputAction: TextInputAction.search,
-              onSubmitted: (value) {
-                if (value.trim().isNotEmpty) onSubmitted?.call(value.trim());
-              },
-              decoration: const InputDecoration(
-                hintText: 'Search stocks, ETFs, or analyses…',
-                isDense: true,
-                prefixIcon: Icon(Icons.search, size: 19),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Dashboard',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.3,
+                  color: colors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                'US and ASX growth screens',
+                style: TextStyle(fontSize: 12, color: colors.textSecondary),
+              ),
+            ],
+          ),
+          const SizedBox(width: 28),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: ConstrainedBox(
+                // Wide, but not the full width of a 2560px monitor: past this
+                // the field is longer than anything typed into it.
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: _SearchField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  onSubmitted: onSubmitted,
+                ),
               ),
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 20),
           _WindowDropdown(appState: appState),
-          const SizedBox(width: 14),
+          const SizedBox(width: 10),
           _SyncButton(appState: appState),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           // The desktop dashboard draws its own top bar, so it needs its own
           // info button; every other section keeps the one in its app bar.
           const InfoButton(info: PageInfos.dashboard, dense: true),
-          const Spacer(),
         ],
+      ),
+    );
+  }
+}
+
+/// The app's search box: submits into Markets, filtered.
+class _SearchField extends StatelessWidget {
+  const _SearchField({
+    required this.controller,
+    required this.focusNode,
+    this.onSubmitted,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final ValueChanged<String>? onSubmitted;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: controller,
+      builder: (context, value, _) => TextField(
+        controller: controller,
+        focusNode: focusNode,
+        textInputAction: TextInputAction.search,
+        style: const TextStyle(fontSize: 14.5),
+        onSubmitted: (text) {
+          if (text.trim().isNotEmpty) onSubmitted?.call(text.trim());
+        },
+        decoration: InputDecoration(
+          hintText: 'Search stocks, ETFs, or analyses…',
+          contentPadding: const EdgeInsets.symmetric(vertical: 15),
+          prefixIcon: const Icon(Icons.search, size: 20),
+          suffixIcon: value.text.isEmpty
+              // The shortcut is only worth showing while it is the thing to
+              // do; once there is text, the same slot clears it.
+              ? const _ShortcutHint(label: 'Ctrl F')
+              : IconButton(
+                  tooltip: 'Clear the search',
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  color: colors.textSecondary,
+                  onPressed: controller.clear,
+                ),
+          suffixIconConstraints: const BoxConstraints(minWidth: 56),
+        ),
+      ),
+    );
+  }
+}
+
+/// A keycap-style hint, the way desktop applications label their search box.
+class _ShortcutHint extends StatelessWidget {
+  const _ShortcutHint({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.only(right: 10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: colors.cardBorder),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: colors.textTertiary,
+          ),
+        ),
       ),
     );
   }
@@ -385,7 +539,7 @@ class _SyncButton extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         foregroundColor: colors.textSecondary,
         side: BorderSide(color: colors.cardBorder),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
       icon: busy
@@ -403,6 +557,9 @@ class _SyncButton extends StatelessWidget {
 class _DashboardBody extends StatelessWidget {
   const _DashboardBody({
     required this.data,
+    required this.gainers,
+    required this.gainerMarket,
+    required this.onGainerMarket,
     required this.window,
     required this.selected,
     required this.onSelect,
@@ -411,6 +568,12 @@ class _DashboardBody extends StatelessWidget {
   });
 
   final DesktopDashboardData data;
+
+  /// The gainers to table, already filtered by [gainerMarket].
+  final List<StockRow> gainers;
+  final Market? gainerMarket;
+  final ValueChanged<Market?> onGainerMarket;
+
   final GrowthWindow window;
   final StockRow selected;
   final ValueChanged<StockRow> onSelect;
@@ -473,10 +636,20 @@ class _DashboardBody extends StatelessWidget {
                   children: [
                     DesktopPanel(
                       title: 'Top Gainers (${window.longLabel})',
+                      // Ranked across both markets by default, which is why
+                      // one market can fill the table on its own; the filter
+                      // is how you see the other one's best rows.
+                      leadingAction: PeriodSelector<Market?>(
+                        compact: true,
+                        values: [null, ...Market.values],
+                        selected: gainerMarket,
+                        labelOf: (market) => market?.label ?? 'Both',
+                        onChanged: onGainerMarket,
+                      ),
                       actionLabel: 'View all',
                       onAction: onViewAllGainers,
                       child: GainersTable(
-                        rows: data.topGainers,
+                        rows: gainers,
                         selected: selected,
                         onTap: onSelect,
                       ),

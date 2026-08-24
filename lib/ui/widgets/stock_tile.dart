@@ -49,10 +49,17 @@ class StockTile extends StatelessWidget {
   static double changeColumn(BuildContext context) =>
       MediaQuery.textScalerOf(context).scale(72);
 
-  static const double leadingColumnWidth = 38 + 12;
+  /// The monogram and the gap after it, before the ticker starts.
+  static double leadingColumn({bool dense = false}) => (dense ? 32 : 38) + 12;
+
+  /// The gap between the name and the first number, and between the numbers.
+  static const double columnGap = 6;
+
+  /// One icon button: the star, or the link beside it.
+  static const double actionWidth = 26;
 
   /// The star and the external link at the end of every row.
-  static const double actionsWidth = 26 * 2;
+  static const double actionsWidth = actionWidth * 2;
 
   /// Below this much space for the ticker and company name, the row drops
   /// what it can rather than overflowing: first the market badge, then the
@@ -66,10 +73,10 @@ class StockTile extends StatelessWidget {
     bool dense = false,
     bool withPrice = true,
   }) {
-    final leading = 16 + (dense ? 32 : 38) + 12;
+    final leading = 16 + leadingColumn(dense: dense);
     final trailing =
-        6 +
-        (withPrice ? priceColumn(context) + 6 : 0) +
+        columnGap +
+        (withPrice ? priceColumn(context) + columnGap : 0) +
         changeColumn(context) +
         actionsWidth +
         16;
@@ -206,12 +213,17 @@ class StockTile extends StatelessWidget {
             ),
           // Star and quote page, both from the row itself.
           WatchlistStar(market: row.market, ticker: row.ticker, dense: true),
+          // The link's slot is held even when a row has no URL: a row that
+          // dropped it would pull its price and change 26px to the right of
+          // every other row, and out from under the headings.
           if (row.googleFinanceUrl != null)
             GoogleFinanceButton(
               url: row.googleFinanceUrl,
               ticker: row.ticker,
               dense: true,
-            ),
+            )
+          else
+            const SizedBox(width: StockTile.actionWidth),
         ],
       ),
     );
@@ -364,12 +376,17 @@ class GainerTile extends StatelessWidget {
             ],
           ),
           WatchlistStar(market: row.market, ticker: row.ticker, dense: true),
+          // The link's slot is held even when a row has no URL: a row that
+          // dropped it would pull its price and change 26px to the right of
+          // every other row, and out from under the headings.
           if (row.googleFinanceUrl != null)
             GoogleFinanceButton(
               url: row.googleFinanceUrl,
               ticker: row.ticker,
               dense: true,
-            ),
+            )
+          else
+            const SizedBox(width: StockTile.actionWidth),
         ],
       ),
     );
