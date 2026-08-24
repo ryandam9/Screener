@@ -5,9 +5,11 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:screener/data/market_database.dart';
+import 'package:screener/models/daily_digest.dart';
 import 'package:screener/models/growth_window.dart';
 import 'package:screener/models/market.dart';
 import 'package:screener/models/price_series.dart';
+import 'package:screener/models/stock_row.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 /// Exercises the data layer against the databases actually published to S3.
@@ -166,6 +168,35 @@ void main() {
         for (var i = 1; i < series.length; i++) {
           expect(series[i].date.isAfter(series[i - 1].date), isTrue);
         }
+      });
+
+      test('the morning digest reads as a sentence about real rows', () async {
+        final rows = <StockRow>[];
+        for (final market in Market.values) {
+          final db = await MarketDatabase.open(
+            market,
+            '$directory/${market.objectKey}',
+          );
+          addTearDown(db.close);
+          rows.addAll(await db.stocks(GrowthWindow.sevenDays));
+        }
+
+        final digest = DailyDigest.build(
+          rows: rows,
+          previousKeys: const {},
+          date: DateTime.now(),
+        );
+
+        // Printed as well as asserted: the wording is the product here, and
+        // this is the one test that sees the real names.
+        // ignore: avoid_print
+        print('${digest.title}\n${digest.body}');
+
+        expect(digest.isEmpty, isFalse);
+        expect(digest.title, contains('7-day screen'));
+        // The strongest row, not the first one read: the digest sorts.
+        expect(digest.body, contains(digest.rows.first.ticker));
+        expect(digest.body, matches(RegExp(r'\+\d+\.\d%')));
       });
 
       test('run metadata parses into a real timestamp', () async {

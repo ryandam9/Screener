@@ -6,6 +6,8 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:screener/data/db_sync_service.dart';
 import 'package:screener/main.dart';
+import 'package:screener/services/notifier.dart';
+import 'package:screener/state/digest_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fixture_database.dart';
@@ -282,6 +284,12 @@ Future<SharedPreferences> launchApp(
   Size size = const Size(1080, 2340),
   double devicePixelRatio = 3.0,
   bool Function()? shouldFail,
+
+  /// Replaces the notification plugin, which has no channel in a test.
+  Notifier? notifier,
+
+  /// Seeds the request a notification tap would raise.
+  DigestRouter? router,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = devicePixelRatio;
@@ -295,6 +303,8 @@ Future<SharedPreferences> launchApp(
   await tester.pumpWidget(
     ScreenerApp(
       preferences: prefs,
+      notifier: notifier ?? FakeNotifier(),
+      router: router,
       syncService: fixtureSyncService(
         preferences: prefs,
         cacheDir: cacheDir,
@@ -305,4 +315,30 @@ Future<SharedPreferences> launchApp(
   );
   await settle(tester);
   return prefs;
+}
+
+/// Records what would have been posted, in place of the system's notifier.
+class FakeNotifier implements Notifier {
+  FakeNotifier({this.permitted = true});
+
+  /// What [ensurePermission] answers, so a refusal can be exercised.
+  bool permitted;
+
+  final List<AppNotification> posted = [];
+  int permissionRequests = 0;
+
+  AppNotification? get last => posted.isEmpty ? null : posted.last;
+
+  @override
+  Future<bool> ensurePermission() async {
+    permissionRequests++;
+    return permitted;
+  }
+
+  @override
+  Future<void> show(AppNotification notification) async =>
+      posted.add(notification);
+
+  @override
+  Future<void> cancelAll() async => posted.clear();
 }

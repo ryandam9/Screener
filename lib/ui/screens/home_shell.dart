@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/growth_window.dart';
 import '../../state/app_state.dart';
+import '../../state/digest_router.dart';
 import '../../theme/app_theme.dart';
 import 'analysis_screen.dart';
 import 'dashboard_screen.dart';
@@ -22,10 +24,23 @@ class _HomeShellState extends State<HomeShell> {
 
   void _goToMarkets() => setState(() => _index = 1);
 
+  /// Lands on the 7-day list when the morning digest was tapped.
+  void _consumeDigestRequest(BuildContext context) {
+    final router = context.read<DigestRouter>();
+    if (!router.showSevenDayList) return;
+    router.consume();
+    context.read<AppState>().selectWindow(GrowthWindow.sevenDays);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _index = 1);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final appState = context.watch<AppState>();
+    context.watch<DigestRouter>();
+    _consumeDigestRequest(context);
 
     final pages = [
       DashboardScreen(onSeeAllMarkets: _goToMarkets),

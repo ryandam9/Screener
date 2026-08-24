@@ -190,6 +190,9 @@ void main() {
 
     await tester.tap(find.text('More'));
     await settle(tester);
+    // Below the fold on a handset, under the data-source and digest sections.
+    await tester.scrollUntilVisible(find.text('Runs and CSV export'), 200);
+    await settle(tester, frames: 4);
     await tester.tap(find.text('Runs and CSV export'));
     await settle(tester);
 

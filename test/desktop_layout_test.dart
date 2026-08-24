@@ -440,15 +440,15 @@ void main() {
     // and the fourth starts the next one under the first.
     final dataSources = tester.getTopLeft(find.text('Data sources'));
     final appearance = tester.getTopLeft(find.text('Appearance'));
+    final digest = tester.getTopLeft(find.text('Daily digest'));
     final reports = tester.getTopLeft(find.text('Reports').last);
-    final watchlist = tester.getTopLeft(find.text('Watchlist').last);
 
     expect(appearance.dx, greaterThan(dataSources.dx));
-    expect(reports.dx, greaterThan(appearance.dx));
+    expect(digest.dx, greaterThan(appearance.dx));
     expect((appearance.dy - dataSources.dy).abs(), lessThan(1));
-    expect((reports.dy - dataSources.dy).abs(), lessThan(1));
-    expect(watchlist.dx, dataSources.dx, reason: 'the fourth wraps around');
-    expect(watchlist.dy, greaterThan(dataSources.dy));
+    expect((digest.dy - dataSources.dy).abs(), lessThan(1));
+    expect(reports.dx, dataSources.dx, reason: 'the fourth wraps around');
+    expect(reports.dy, greaterThan(dataSources.dy));
   });
 
   testWidgets('the desktop dashboard carries its own info button', (
