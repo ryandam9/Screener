@@ -13,7 +13,9 @@ class ReadableWidth extends StatelessWidget {
     this.maxWidth = kReadableWidth,
   });
 
-  static const double kReadableWidth = 980;
+  /// Wide enough for three columns of settings, and still short of the line
+  /// length where prose becomes hard to track.
+  static const double kReadableWidth = 1280;
 
   final Widget child;
   final double maxWidth;

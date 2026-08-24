@@ -87,3 +87,41 @@ class TableFrame extends StatelessWidget {
     );
   }
 }
+
+/// A bordered page: the desktop frame around a one-column screen.
+///
+/// Settings, Analysis and Reports were laid out for a handset — cards floating
+/// on a page background. Dropped into a desktop window they read as content
+/// with no edges, since the window itself supplies none. Framing them gives
+/// the pane a boundary, the same one the tables use, and keeps the section's
+/// own app bar as its header band.
+class PageFrame extends StatelessWidget {
+  const PageFrame({
+    super.key,
+    required this.child,
+    this.margin = const EdgeInsets.all(20),
+  });
+
+  final Widget child;
+  final EdgeInsets margin;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return Padding(
+      padding: margin,
+      child: Material(
+        // The page background, not the card colour: the panels inside are
+        // cards, and they need something to sit on.
+        color: colors.pageBackground,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: colors.cardBorder),
+        ),
+        child: child,
+      ),
+    );
+  }
+}
