@@ -233,4 +233,99 @@ void main() {
       );
     });
   });
+
+  group('the short name', () {
+    String short(String name) => StockRow.fromMap({
+      'ticker': 'X',
+      'name': name,
+      'pct_change': 1.0,
+    }, market: Market.us, window: GrowthWindow.sevenDays).shortName;
+
+    test('cuts at the dash the exchange usually publishes', () {
+      expect(short('Moderna, Inc. - Common Stock'), 'Moderna, Inc.');
+      expect(
+        short('Wetour Robotics Limited - Ordinary Shares'),
+        'Wetour Robotics Limited',
+      );
+    });
+
+    test('cuts the instrument type when there is no dash', () {
+      // A third of the published US names run the type straight on.
+      expect(
+        short('Sunshine Silver Mining & Refining Company Common Stock'),
+        'Sunshine Silver Mining & Refining Company',
+      );
+      expect(
+        short('Eaton Vance Tax Advantaged Dividend Income Fund '
+            'Common Shares of Beneficial Interest'),
+        'Eaton Vance Tax Advantaged Dividend Income Fund',
+      );
+      expect(
+        short('Delek Logistics Partners, L.P. Common Units representing '
+            'Limited Partner Interests'),
+        'Delek Logistics Partners, L.P.',
+      );
+    });
+
+    test('cuts share classes, with or without a voting qualifier', () {
+      expect(
+        short('LandBridge Company LLC Class A Shares Representing Limited '
+            'Liability Company Interests'),
+        'LandBridge Company LLC',
+      );
+      expect(
+        short('Brookfield Asset Management Inc Class A Limited Voting Shares'),
+        'Brookfield Asset Management Inc',
+      );
+      expect(
+        short('Bank of N.T. Butterfield & Son Limited (The) '
+            'Voting Ordinary Shares'),
+        'Bank of N.T. Butterfield & Son Limited (The)',
+      );
+    });
+
+    test('cuts depositary structures, however they are spelled', () {
+      expect(
+        short('Woori Financial Group Inc. American Depositary Shares '
+            '(each representing three (3) shares of Common Stock)'),
+        'Woori Financial Group Inc.',
+      );
+      expect(
+        short('Sumitomo Mitsui Financial Group Inc Unsponsored American '
+            'Depositary Shares (Japan)'),
+        'Sumitomo Mitsui Financial Group Inc',
+      );
+      // Published with the typo, and still worth cutting.
+      expect(
+        short('Mizuho Financial Group, Inc. Sponosred ADR (Japan)'),
+        'Mizuho Financial Group, Inc.',
+      );
+      expect(
+        short('New Oriental Education & Technology Group, Inc. Sponsored ADR '
+            'representing 10 Ordinary Share (Cayman Islands)'),
+        'New Oriental Education & Technology Group, Inc.',
+      );
+    });
+
+    test('copes with a missing space after a bracket', () {
+      expect(
+        short('Iron Mountain Incorporated (Delaware)Common Stock REIT'),
+        'Iron Mountain Incorporated (Delaware)',
+      );
+    });
+
+    test('leaves names that only look like share types alone', () {
+      // "iShares" and "Betashares" contain the word but are not it.
+      expect(short('iShares Bitcoin ETF'), 'iShares Bitcoin ETF');
+      expect(short('Betashares Ethereum ETF'), 'Betashares Ethereum ETF');
+      expect(
+        short('Preferred Apartment Communities'),
+        'Preferred Apartment Communities',
+      );
+    });
+
+    test('a name that is nothing but boilerplate keeps what it had', () {
+      expect(short('Common Stock'), 'Common Stock');
+    });
+  });
 }

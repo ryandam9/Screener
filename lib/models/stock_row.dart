@@ -83,13 +83,53 @@ class StockRow {
   /// markets, so the market is part of the key).
   String get key => '${market.id}:$ticker';
 
-  /// Short company name with the exchange's boilerplate suffix removed, so
-  /// list rows stay readable: "Moderna, Inc. - Common Stock" -> "Moderna, Inc."
+  /// Short company name with the exchange's boilerplate removed, so list rows
+  /// stay readable: "Moderna, Inc. - Common Stock" -> "Moderna, Inc."
+  ///
+  /// Two thirds of the published names separate the instrument type with a
+  /// dash. The rest run it straight on — "Sunshine Silver Mining & Refining
+  /// Company Common Stock", "LandBridge Company LLC Class A Shares
+  /// Representing Limited Liability Company Interests" — which is why the
+  /// phrase itself is matched as well.
   String get shortName {
-    final dash = name.indexOf(' - ');
-    if (dash > 0) return name.substring(0, dash);
-    return name;
+    var value = name;
+    final dash = value.indexOf(' - ');
+    if (dash > 0) value = value.substring(0, dash);
+    value = value.replaceFirst(_instrumentSuffix, '');
+    value = value.replaceFirst(_trailingSeparators, '');
+    // A name that is nothing but its instrument type keeps what it had.
+    return value.trim().isEmpty ? name : value.trim();
   }
+
+  /// Where the instrument description starts, matched from the first marker to
+  /// the end of the string.
+  ///
+  /// Every alternative names a share class or a depositary structure, never a
+  /// word a company would use for itself, and each is anchored to a word
+  /// boundary so "iShares" and "Betashares" are left alone.
+  static final RegExp _instrumentSuffix = RegExp(
+    // Either whitespace before the marker, or a closing bracket the published
+    // name forgot to put a space after: "…(Delaware)Common Stock REIT".
+    r'(?:(?<=\))\s*|\s+)(?:'
+    // Depositary receipts, with or without the sponsor word in front (and
+    // "Sponosred", which one row really does spell that way).
+    r'(?:(?:Un)?[Ss]pon\w*\s+)?(?:American|Global)\s+Depositary\b'
+    r'|(?:(?:Un)?[Ss]pon\w*\s+)?ADR\b'
+    r'|Shares\s+of\s+Beneficial\s+Interest\b'
+    r'|(?:Limited\s+)?Partner(?:ship)?\s+Interests\b'
+    // Share classes, which may carry a voting qualifier: "Class A Limited
+    // Voting Shares", "Class B Ordinary Shares".
+    r'|Class\s+[A-Z]\s+(?:Limited\s+|Non-?\s*|Subordinate\s+)?(?:Voting\s+)?'
+    r'(?:Ordinary\s+|Common\s+|Depositary\s+)?(?:Stock|Shares?|Units?)\b'
+    r'|(?:Limited\s+|Non-?\s*|Subordinate\s+)?Voting\s+'
+    r'(?:Ordinary\s+|Common\s+)?(?:Stock|Shares?|Units?)\b'
+    r'|(?:Common|Ordinary|Preferred|Depositary)\s+(?:Stock|Shares?|Units?)\b'
+    r'|(?:Common\s+)?Units\s+[Rr]epresenting\b'
+    r').*$',
+    caseSensitive: false,
+  );
+
+  static final RegExp _trailingSeparators = RegExp(r'[\s,;:\-–—]+$');
 
   static StockRow fromMap(
     Map<String, Object?> map, {
