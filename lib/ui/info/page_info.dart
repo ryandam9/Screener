@@ -112,6 +112,15 @@ class PageInfos {
         ),
       ]),
       InfoDivider(),
+      InfoHeading('Why a ticker is here', icon: Icons.rule),
+      InfoParagraph(
+        'Each window screens on a minimum change — the cut-off the run '
+        'applied, named beside the row count at the foot of the list. Every '
+        'row in the list reached it; nothing that fell short was published. '
+        'The longer windows screen harder: 10% over a week or a month, 25% '
+        'over a quarter or more.',
+      ),
+      InfoDivider(),
       InfoHeading('Sorting and filtering', icon: Icons.filter_alt_outlined),
       InfoParagraph(
         'Tap a column heading to sort by it; tap again to reverse. The filter '
@@ -145,6 +154,13 @@ class PageInfos {
         'Weekly closing prices, plotted at their real dates — a gap in the '
         'series shows as a longer segment rather than being spaced evenly. '
         'Tap or drag across it to read any point.',
+      ),
+      InfoHeading('Why it is listed', icon: Icons.rule),
+      InfoParagraph(
+        'Under the price is the rule this instrument satisfied: the window’s '
+        'cut-off, and how far past it the published change landed. Switch '
+        'window with the pills and the rule changes with it — the screen is '
+        'stricter over longer periods.',
       ),
       InfoHeading('Two changes, both correct', icon: Icons.compare_arrows),
       InfoParagraph(

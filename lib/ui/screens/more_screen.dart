@@ -218,25 +218,30 @@ class MoreScreen extends StatelessWidget {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          // Two columns once there is room for both to stay readable; one
-          // column of settings on a wide window is mostly empty space.
-          if (constraints.maxWidth < 820) {
+          // As many columns as the width can hold without any of them getting
+          // narrow: one column of settings on a wide window is mostly empty
+          // space, and so is two on a very wide one.
+          final columns = constraints.maxWidth >= 1120
+              ? 3
+              : constraints.maxWidth >= 820
+              ? 2
+              : 1;
+          if (columns == 1) {
             return ListView(
               padding: const EdgeInsets.only(bottom: 28),
               children: sections,
             );
           }
 
-          // Split by index rather than by height: the sections are close
-          // enough in size that alternating keeps the columns even, and it
+          // Dealt round-robin rather than split by height: the sections are
+          // close enough in size that this keeps the columns even, and it
           // keeps Data sources and Appearance at the top of the eye's path.
-          final left = <Widget>[
-            for (var i = 0; i < sections.length; i++)
-              if (i.isEven) sections[i],
-          ];
-          final right = <Widget>[
-            for (var i = 0; i < sections.length; i++)
-              if (i.isOdd) sections[i],
+          final dealt = [
+            for (var column = 0; column < columns; column++)
+              <Widget>[
+                for (var i = column; i < sections.length; i += columns)
+                  sections[i],
+              ],
           ];
 
           return SingleChildScrollView(
@@ -244,8 +249,8 @@ class MoreScreen extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: Column(children: left)),
-                Expanded(child: Column(children: right)),
+                for (final column in dealt)
+                  Expanded(child: Column(children: column)),
               ],
             ),
           );

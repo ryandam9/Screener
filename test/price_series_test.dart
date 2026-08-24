@@ -25,6 +25,7 @@ StockRow row({
     lastDate: lastDate,
     latestPrice: latestPrice,
     pctChange: pctChange,
+    threshold: 10,
     observations: 6,
     daysCovered: daysCovered,
     coverage: 1,

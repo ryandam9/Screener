@@ -18,6 +18,7 @@ import '../responsive.dart';
 import '../widgets/change_chip.dart';
 import '../widgets/google_finance_button.dart';
 import '../widgets/panels.dart';
+import '../widgets/screen_reason.dart';
 import '../widgets/price_chart.dart';
 import '../widgets/readable_width.dart';
 import '../info/page_info.dart';
@@ -526,6 +527,10 @@ class _OverviewTab extends StatelessWidget {
             ],
           ),
         ),
+        if (row.threshold != null) ...[
+          const SizedBox(height: 12),
+          ScreenReason(row: row),
+        ],
         const SizedBox(height: 12),
         Panel(
           padding: const EdgeInsets.fromLTRB(6, 12, 6, 10),
@@ -814,6 +819,22 @@ class _MetricsTab extends StatelessWidget {
                 value: Fmt.signedPercent(row.pctChange),
                 valueColor: colors.forChange(row.pctChange),
               ),
+              if (row.threshold case final cutOff?) ...[
+                _divider(colors),
+                MetricRow(
+                  label: 'Screen cut-off',
+                  value: Fmt.percent(cutOff, decimals: 1),
+                ),
+                _divider(colors),
+                MetricRow(
+                  label: 'Margin over cut-off',
+                  value: Fmt.signedPercent(
+                    row.marginOverThreshold ?? 0,
+                    decimals: 1,
+                  ),
+                  valueColor: colors.forChange(row.marginOverThreshold ?? 0),
+                ),
+              ],
               if (bars.length >= 2) ...[
                 _divider(colors),
                 MetricRow(
@@ -890,6 +911,10 @@ class _WindowsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    // Older files publish no cut-off at all; the column is dropped rather than
+    // filled with dashes.
+    final anyThreshold = data.rows.any((row) => row.threshold != null);
+
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
@@ -907,6 +932,10 @@ class _WindowsTab extends StatelessWidget {
                     _cell('Window', colors.textSecondary, flex: 3),
                     _cell('Open', colors.textSecondary, flex: 4, end: true),
                     _cell('Close', colors.textSecondary, flex: 4, end: true),
+                    // The cut-off sits beside the change it was applied to, so
+                    // the two can be read against each other.
+                    if (anyThreshold)
+                      _cell('Cut-off', colors.textSecondary, flex: 3, end: true),
                     _cell('Change', colors.textSecondary, flex: 4, end: true),
                   ],
                 ),
@@ -935,6 +964,15 @@ class _WindowsTab extends StatelessWidget {
                         flex: 4,
                         end: true,
                       ),
+                      if (anyThreshold)
+                        _cell(
+                          row.threshold == null
+                              ? '—'
+                              : Fmt.percent(row.threshold!, decimals: 1),
+                          colors.textSecondary,
+                          flex: 3,
+                          end: true,
+                        ),
                       Expanded(
                         flex: 4,
                         child: Align(

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:screener/models/growth_window.dart';
 import 'package:screener/ui/screens/stock_detail_screen.dart';
 import 'package:screener/ui/widgets/panels.dart';
+import 'package:screener/ui/widgets/screen_reason.dart';
 import 'package:screener/ui/widgets/info_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -97,17 +98,20 @@ void main() {
 
     await tester.tap(find.byType(InfoButton));
     await settle(tester);
-    expect(find.text('Two changes, both correct'), findsOneWidget);
+
+    final sheet = find.descendant(
+      of: find.byType(InfoDialog),
+      matching: find.byType(Scrollable),
+    );
+    // Both sections are below the fold now that the sheet also explains the
+    // screen cut-off, so each is scrolled to rather than assumed.
+    final heading = find.text('Two changes, both correct');
+    await tester.scrollUntilVisible(heading, 120, scrollable: sheet);
+    await settle(tester, frames: 4);
+    expect(heading, findsOneWidget);
 
     final example = find.textContaining('sampling, not an error');
-    await tester.scrollUntilVisible(
-      example,
-      120,
-      scrollable: find.descendant(
-        of: find.byType(InfoDialog),
-        matching: find.byType(Scrollable),
-      ),
-    );
+    await tester.scrollUntilVisible(example, 120, scrollable: sheet);
     await settle(tester, frames: 4);
     expect(example, findsOneWidget);
   });
@@ -178,6 +182,82 @@ void main() {
       expect(decoration.color, isNot(Colors.transparent));
       expect(decoration.border, isNotNull);
     }
+  });
+
+  group('the screen cut-off on screen', () {
+    testWidgets('the detail screen says why the ticker is listed', (
+      tester,
+    ) async {
+      await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
+      await tester.tap(find.text('MRNA').first);
+      await settle(tester);
+
+      expect(find.byType(ScreenReason), findsOneWidget);
+      expect(find.text('Why it is listed'), findsOneWidget);
+      expect(
+        find.textContaining('past the 10.0% cut-off'),
+        findsOneWidget,
+        reason: 'the rule the row satisfied should be named',
+      );
+
+      // The margin is the part that says how comfortably it cleared, in
+      // percentage points rather than percent.
+      expect(find.textContaining('by 107.9 points'), findsOneWidget);
+    });
+
+    testWidgets('a longer window states its own, higher cut-off', (
+      tester,
+    ) async {
+      await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
+      await tester.tap(find.text('MRNA').first);
+      await settle(tester);
+
+      await tester.tap(find.text('1Y'));
+      await settle(tester);
+
+      // A single app-wide number would be wrong: the published files screen
+      // the year at 25%, not 10%.
+      expect(find.textContaining('past the 25.0% cut-off'), findsOneWidget);
+    });
+
+    testWidgets('the metrics tab carries the cut-off and the margin', (
+      tester,
+    ) async {
+      await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
+      await tester.tap(find.text('MRNA').first);
+      await settle(tester);
+      await tester.tap(find.text('Metrics'));
+      await settle(tester);
+
+      await tester.scrollUntilVisible(find.text('Screen cut-off'), 200);
+      await settle(tester, frames: 4);
+      expect(find.text('10.0%'), findsWidgets);
+      expect(find.text('Margin over cut-off'), findsOneWidget);
+      expect(find.text('+107.9%'), findsWidgets);
+    });
+
+    testWidgets('the windows tab lists the cut-off per window', (tester) async {
+      await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
+      await tester.tap(find.text('MRNA').first);
+      await settle(tester);
+      await tester.tap(find.text('Windows'));
+      await settle(tester);
+
+      expect(find.text('Cut-off'), findsOneWidget);
+      // 7D and 1M screen at 10%, the year at 25%.
+      expect(find.text('10.0%'), findsWidgets);
+      expect(find.text('25.0%'), findsOneWidget);
+    });
+
+    testWidgets('the list footer names the cut-off beside the count', (
+      tester,
+    ) async {
+      await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
+      await tester.tap(find.text('Markets').last);
+      await settle(tester);
+
+      expect(find.textContaining('cut-off 10.0%'), findsOneWidget);
+    });
   });
 
   testWidgets('settings sit in two columns on a wide window', (tester) async {

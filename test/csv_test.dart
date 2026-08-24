@@ -21,6 +21,7 @@ StockRow _row({
     lastDate: '2026-08-21',
     latestPrice: 139.225,
     pctChange: 117.91,
+    threshold: 10,
     observations: 6,
     daysCovered: 7,
     coverage: 1,

@@ -20,6 +20,7 @@ import '../screens/stock_detail_screen.dart';
 import '../screens/watchlist_screen.dart';
 import '../widgets/panels.dart';
 import '../widgets/readable_width.dart';
+import '../widgets/table_frame.dart';
 import 'desktop_dashboard.dart';
 
 /// The wide layout: a persistent sidebar beside the active section.
@@ -163,8 +164,9 @@ class _DesktopShellState extends State<DesktopShell> {
                       AppSection.dashboard => content,
                       // Two panes, which fill the window rather than being capped.
                       AppSection.markets || AppSection.watchlist => content,
-                      // One-column screens, capped so their columns stay together.
-                      _ => ReadableWidth(child: content),
+                      // One-column screens: framed, so the pane has an edge,
+                      // and capped so their columns stay together.
+                      _ => ReadableWidth(child: PageFrame(child: content)),
                     },
                   ),
                 ),

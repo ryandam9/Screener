@@ -402,6 +402,55 @@ void main() {
     expect(find.text('Coverage by window'), findsOneWidget);
   });
 
+  testWidgets('the one-column sections are framed and fill the window', (
+    tester,
+  ) async {
+    await launchDesktop(tester);
+
+    for (final section in ['Settings', 'Analysis', 'Reports']) {
+      await tester.tap(find.text(section).first);
+      await settle(tester);
+
+      final frame = find.byType(PageFrame);
+      expect(
+        frame,
+        findsOneWidget,
+        reason: '$section floats on the window with no edge',
+      );
+
+      // Framed content, not a column of cards stranded in the middle: the
+      // pane takes the width the window can give it.
+      final width = tester.getSize(frame).width;
+      expect(
+        width,
+        greaterThan(1000),
+        reason: '$section is using ${width.toStringAsFixed(0)}px of 1440',
+      );
+    }
+  });
+
+  testWidgets('settings deal into three columns on a wide window', (
+    tester,
+  ) async {
+    await launchDesktop(tester);
+    await tester.tap(find.text('Settings').first);
+    await settle(tester);
+
+    // Sections are dealt round-robin, so the first three headings share a row
+    // and the fourth starts the next one under the first.
+    final dataSources = tester.getTopLeft(find.text('Data sources'));
+    final appearance = tester.getTopLeft(find.text('Appearance'));
+    final reports = tester.getTopLeft(find.text('Reports').last);
+    final watchlist = tester.getTopLeft(find.text('Watchlist').last);
+
+    expect(appearance.dx, greaterThan(dataSources.dx));
+    expect(reports.dx, greaterThan(appearance.dx));
+    expect((appearance.dy - dataSources.dy).abs(), lessThan(1));
+    expect((reports.dy - dataSources.dy).abs(), lessThan(1));
+    expect(watchlist.dx, dataSources.dx, reason: 'the fourth wraps around');
+    expect(watchlist.dy, greaterThan(dataSources.dy));
+  });
+
   testWidgets('the desktop dashboard carries its own info button', (
     tester,
   ) async {

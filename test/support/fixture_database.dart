@@ -6,7 +6,8 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 const _growthColumns =
     '"ticker" TEXT, "name" TEXT, "exchange" TEXT, "asset_type" TEXT, '
     '"first_date" TEXT, "first_price" FLOAT, "last_date" TEXT, '
-    '"latest_price" FLOAT, "pct_change" FLOAT, "observations" INTEGER, '
+    '"latest_price" FLOAT, "pct_change" FLOAT, "threshold" FLOAT, '
+    '"observations" INTEGER, '
     '"days_covered" INTEGER, "coverage" FLOAT, "observation_ratio" FLOAT, '
     '"median_volume" FLOAT, "price_basis" TEXT, "data_as_of" TEXT, '
     '"run_id" TEXT, "google_finance" TEXT';
@@ -22,6 +23,7 @@ class FixtureRow {
     required this.lastDate,
     required this.latestPrice,
     required this.pctChange,
+    this.threshold = 10.0,
     this.assetType = 'common_stock',
     this.observations = 6,
     this.daysCovered = 7,
@@ -42,6 +44,10 @@ class FixtureRow {
   final String lastDate;
   final double latestPrice;
   final double pctChange;
+
+  /// The cut-off the window's screen applied; every row of a table shares it.
+  final double? threshold;
+
   final int observations;
   final int daysCovered;
   final double coverage;
@@ -61,6 +67,7 @@ class FixtureRow {
     lastDate,
     latestPrice,
     pctChange,
+    threshold,
     observations,
     daysCovered,
     coverage,
@@ -188,6 +195,7 @@ Future<String> createFixtureDatabase({
         'last_date': row.lastDate,
         'latest_price': row.latestPrice,
         'pct_change': row.pctChange,
+        'threshold': row.threshold,
         'observations': row.observations,
         'days_covered': row.daysCovered,
         'coverage': row.coverage,
@@ -270,7 +278,8 @@ Future<String> createFixtureDatabase({
     await db.execute(
       'CREATE TABLE consistent_growth_stocks('
       '  ticker TEXT, name TEXT, exchange TEXT,'
-      '  pct_change_shortest_window REAL, data_as_of TEXT, run_id TEXT)',
+      '  pct_change_shortest_window REAL, threshold_shortest_window REAL,'
+      '  data_as_of TEXT, run_id TEXT)',
     );
     for (final entry in consistent) {
       await db.insert('consistent_growth_stocks', {
@@ -278,6 +287,7 @@ Future<String> createFixtureDatabase({
         'name': entry.$2,
         'exchange': entry.$3,
         'pct_change_shortest_window': entry.$4,
+        'threshold_shortest_window': 10.0,
         'data_as_of': '2026-08-21',
         'run_id': '20260822T224430Z-a4761276',
       });

@@ -79,6 +79,7 @@ void main() {
             lastDate: '2026-08-21',
             latestPrice: 145.13,
             pctChange: 472.5,
+            threshold: 25,
             observations: 251,
             daysCovered: 364,
             coverage: 0.997,
@@ -328,6 +329,112 @@ void main() {
       expect(await us.consistent(search: 'abc'), hasLength(1));
     },
   );
+
+  group('the screen cut-off', () {
+    test('is read per window and cached', () async {
+      final us = await openUsFixture();
+      addTearDown(us.close);
+
+      // The published files raise the cut-off for the longer windows, which is
+      // why a single app-wide constant would be wrong.
+      expect(await us.threshold(GrowthWindow.sevenDays), 10);
+      expect(await us.threshold(GrowthWindow.oneYear), 25);
+
+      // Cached: the second read answers from memory, so a closed database
+      // still returns the value.
+      final again = us.threshold(GrowthWindow.sevenDays);
+      expect(await again, 10);
+    });
+
+    test('rides along on every row', () async {
+      final us = await openUsFixture();
+      addTearDown(us.close);
+
+      final rows = await us.stocks(GrowthWindow.sevenDays);
+      expect(rows.first.threshold, 10);
+      expect(rows.first.marginOverThreshold, closeTo(107.91, 0.001));
+
+      final year = await us.stocks(GrowthWindow.oneYear);
+      expect(year.first.threshold, 25);
+    });
+
+    test('is null for a window the file lacks', () async {
+      final us = await openUsFixture();
+      addTearDown(us.close);
+
+      expect(await us.threshold(GrowthWindow.threeMonths), isNull);
+    });
+
+    test('is null when the file predates the column', () async {
+      // Written by hand rather than through the fixture builder, which always
+      // includes the column now.
+      final path = '${tempDir.path}/legacy.db';
+      final db = await databaseFactoryFfi.openDatabase(path);
+      await db.execute(
+        'CREATE TABLE "us_stocks_growth_7_days" ('
+        '  ticker TEXT, name TEXT, exchange TEXT, pct_change FLOAT)',
+      );
+      await db.insert('us_stocks_growth_7_days', {
+        'ticker': 'MRNA',
+        'name': 'Moderna, Inc.',
+        'exchange': 'NASDAQ',
+        'pct_change': 117.91,
+      });
+      await db.close();
+
+      final legacy = await MarketDatabase.open(Market.us, path);
+      addTearDown(legacy.close);
+
+      expect(await legacy.threshold(GrowthWindow.sevenDays), isNull);
+      final rows = await legacy.stocks(GrowthWindow.sevenDays);
+      expect(rows.single.threshold, isNull);
+      expect(rows.single.marginOverThreshold, isNull);
+    });
+
+    test('a table with more than one cut-off reports none', () async {
+      final path = await createFixtureDatabase(
+        directory: tempDir,
+        fileName: 'mixed.db',
+        tablePrefix: 'us_stocks_growth',
+        includeConsistentTable: false,
+        rowsBySuffix: const {
+          '_7_days': [
+            FixtureRow(
+              ticker: 'AAA',
+              name: 'Alpha',
+              exchange: 'NASDAQ',
+              firstDate: '2026-08-14',
+              firstPrice: 10,
+              lastDate: '2026-08-21',
+              latestPrice: 12,
+              pctChange: 20,
+              threshold: 10,
+            ),
+            FixtureRow(
+              ticker: 'BBB',
+              name: 'Beta',
+              exchange: 'NASDAQ',
+              firstDate: '2026-08-14',
+              firstPrice: 10,
+              lastDate: '2026-08-21',
+              latestPrice: 13,
+              pctChange: 30,
+              threshold: 25,
+            ),
+          ],
+        },
+      );
+      final mixed = await MarketDatabase.open(Market.us, path);
+      addTearDown(mixed.close);
+
+      // One number would misdescribe half the rows, so the list caption says
+      // nothing instead. The rows still carry their own — strongest first,
+      // which is the default sort.
+      expect(await mixed.threshold(GrowthWindow.sevenDays), isNull);
+      final rows = await mixed.stocks(GrowthWindow.sevenDays);
+      expect([for (final row in rows) row.threshold], [25, 10]);
+    });
+  });
 
   test(
     'queries on a window the file lacks return empty, not an error',
