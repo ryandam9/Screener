@@ -173,6 +173,14 @@ would otherwise provide one. The price chart opts out with
 `SelectionContainer.disabled`: it reads horizontal drags to move its cursor,
 which is the same gesture text selection uses.
 
+### The detail screen on desktop
+
+The stock detail is a one-column handset design reused on the desktop inside a
+readable-width cap. Its bottom navigation bar, though, spanned the whole window
+under a 900px column — a phone screen someone had stretched. On a desktop
+window the four sections sit in the header toolbar beside the back button
+instead; the handset keeps its bottom bar.
+
 ### Small screens
 
 `test/small_screen_test.dart` walks the whole app — every tab, every sheet,
@@ -342,7 +350,7 @@ flutter analyze
 flutter test
 ```
 
-127 tests cover the table discovery and every query (against fixture databases
+129 tests cover the table discovery and every query (against fixture databases
 built to the published schema, including the differing prefixes and the weekly
 history), the run metadata and screen funnel (including the degraded path for
 files without them), the price-series assembly and the chain-linked growth
