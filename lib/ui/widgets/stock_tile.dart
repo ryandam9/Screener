@@ -34,12 +34,42 @@ class StockTile extends StatelessWidget {
 
   /// Column geometry shared with the sortable header above the list, so the
   /// headings sit directly over the values they sort.
-  // Sized to the values they hold ("139.22", "+117.9%") rather than to round
-  // numbers: the row also carries a star and a link now, and the company name
-  // takes what these leave.
-  static const double priceColumnWidth = 52;
-  static const double changeColumnWidth = 72;
+  ///
+  /// Sized to the values they hold ("139.22", "+117.9%") rather than to round
+  /// numbers, and scaled with the reader's text size — a column fixed in
+  /// pixels ellipsizes its own numbers at 1.3x.
+  static double priceColumn(BuildContext context) =>
+      MediaQuery.textScalerOf(context).scale(52);
+
+  static double changeColumn(BuildContext context) =>
+      MediaQuery.textScalerOf(context).scale(72);
+
   static const double leadingColumnWidth = 38 + 12;
+
+  /// The star and the external link at the end of every row.
+  static const double actionsWidth = 26 * 2;
+
+  /// Below this much space for the ticker and company name, the row drops
+  /// what it can rather than overflowing: first the market badge, then the
+  /// price column. A 320dp phone at 1.3x text hits both.
+  static const double _minNameWidth = 96;
+
+  /// How much room the ticker and name have once everything else is placed.
+  static double nameSpace(
+    BuildContext context,
+    double width, {
+    bool dense = false,
+    bool withPrice = true,
+  }) {
+    final leading = 16 + (dense ? 32 : 38) + 12;
+    final trailing =
+        6 +
+        (withPrice ? priceColumn(context) + 6 : 0) +
+        changeColumn(context) +
+        actionsWidth +
+        16;
+    return width - leading - trailing;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,7 +93,26 @@ class StockTile extends StatelessWidget {
   }
 
   Widget _content(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => _row(context, constraints),
+    );
+  }
+
+  Widget _row(BuildContext context, BoxConstraints constraints) {
     final colors = context.colors;
+    final width = constraints.maxWidth;
+    final showPrice =
+        trailingBuilder != null ||
+        StockTile.nameSpace(context, width, dense: dense) >=
+            StockTile._minNameWidth;
+    final space = StockTile.nameSpace(
+      context,
+      width,
+      dense: dense,
+      withPrice: showPrice,
+    );
+    final showBadge = showMarketBadge && space >= StockTile._minNameWidth + 28;
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: dense ? 8 : 11),
       child: Row(
@@ -88,7 +137,7 @@ class StockTile extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (showMarketBadge) ...[
+                    if (showBadge) ...[
                       const SizedBox(width: 6),
                       TagBadge(
                         label: row.market.label,
@@ -112,12 +161,18 @@ class StockTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          trailingBuilder?.call(context) ??
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+          // A caller-supplied trailing widget is sized by its own content, so
+          // it flexes: at 320dp with large text it would otherwise push the
+          // row past its edge.
+          if (trailingBuilder != null)
+            Flexible(child: trailingBuilder!(context))
+          else
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (showPrice) ...[
                   SizedBox(
-                    width: StockTile.priceColumnWidth,
+                    width: StockTile.priceColumn(context),
                     child: Text(
                       Fmt.price(row.latestPrice),
                       textAlign: TextAlign.right,
@@ -131,15 +186,16 @@ class StockTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  SizedBox(
-                    width: StockTile.changeColumnWidth,
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: ChangeChip(pctChange: row.pctChange, dense: dense),
-                    ),
-                  ),
                 ],
-              ),
+                SizedBox(
+                  width: StockTile.changeColumn(context),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: ChangeChip(pctChange: row.pctChange, dense: dense),
+                  ),
+                ),
+              ],
+            ),
           // Star and quote page, both from the row itself.
           WatchlistStar(market: row.market, ticker: row.ticker, dense: true),
           if (row.googleFinanceUrl != null)
@@ -209,7 +265,13 @@ class GainerTile extends StatelessWidget {
     // and the ticker's market badge. Under about 400px that leaves the company
     // name nothing, so the percentage alone carries the row — it is what the
     // list is ranked on, and the absolute change is one tap away.
-    final tight = constraints.maxWidth < 400;
+    final scaler = MediaQuery.textScalerOf(context);
+    final tight = constraints.maxWidth < scaler.scale(400);
+    // At 320dp with large text even the badge has to go.
+    final space =
+        constraints.maxWidth -
+        (16 + 38 + 12 + 8 + scaler.scale(tight ? 72 : 188) + 52 + 16);
+    final showBadge = showMarketBadge && space >= 124;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
@@ -235,7 +297,7 @@ class GainerTile extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (showMarketBadge) ...[
+                    if (showBadge) ...[
                       const SizedBox(width: 6),
                       TagBadge(
                         label: row.market.label,

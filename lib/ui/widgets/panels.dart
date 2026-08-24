@@ -116,39 +116,46 @@ class MetricRow extends StatelessWidget {
         horizontal: dense ? 11 : 14,
         vertical: dense ? 10 : 11,
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Flexible(
-            child: Text(
-              label,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: dense ? 12 : 13.5,
-                color: colors.textSecondary,
+      child: LayoutBuilder(
+        builder: (context, constraints) => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // The label takes its natural width, capped at half the row: two
+            // flex children would split the row evenly and leave the value's
+            // right alignment stranded in the middle. It gives way first — it is
+            // short and known, and shortening it never hides data.
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.5),
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: dense ? 12 : 13.5,
+                  color: colors.textSecondary,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          // Values vary from "1.00" to a full run id, and these rows are used
-          // in a narrow two-column grid, so the value has to be able to shrink
-          // rather than overflow its column.
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: dense ? 12.5 : 13.5,
-                fontWeight: FontWeight.w500,
-                color: valueColor ?? colors.textPrimary,
-                fontFeatures: monospaceValue
-                    ? const [FontFeature.tabularFigures()]
-                    : null,
+            const SizedBox(width: 12),
+            // Expanded rather than Flexible, so the value's right alignment
+            // reaches the edge of the row instead of sitting against the label.
+            // Values are never truncated — a run id wraps onto a second line
+            // rather than ending in an ellipsis that cannot be read or copied.
+            Expanded(
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  fontSize: dense ? 12.5 : 13.5,
+                  fontWeight: FontWeight.w500,
+                  color: valueColor ?? colors.textPrimary,
+                  fontFeatures: monospaceValue
+                      ? const [FontFeature.tabularFigures()]
+                      : null,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -258,46 +265,61 @@ class StatusView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: 32,
-          vertical: compact ? 24 : 48,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: compact ? 30 : 38, color: colors.textTertiary),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
+    // Centred while it fits, scrollable when it does not: with large text, or
+    // inside a short panel, the icon and message are taller than the space.
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: constraints.hasBoundedHeight ? constraints.maxHeight : 0,
+          ),
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: 32,
+                vertical: compact ? 24 : 48,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    icon,
+                    size: compact ? 30 : 38,
+                    color: colors.textTertiary,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                  if (message != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      message!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.4,
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
+                  if (actionLabel != null) ...[
+                    const SizedBox(height: 16),
+                    FilledButton.tonal(
+                      onPressed: onAction,
+                      child: Text(actionLabel!),
+                    ),
+                  ],
+                ],
               ),
             ),
-            if (message != null) ...[
-              const SizedBox(height: 6),
-              Text(
-                message!,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  height: 1.4,
-                  color: colors.textSecondary,
-                ),
-              ),
-            ],
-            if (actionLabel != null) ...[
-              const SizedBox(height: 16),
-              FilledButton.tonal(
-                onPressed: onAction,
-                child: Text(actionLabel!),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );

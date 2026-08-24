@@ -32,7 +32,13 @@ Future<void> settle(WidgetTester tester, {int frames = 30}) async {
 ///
 /// Call from `setUp`, which runs outside the fake-async zone, so ordinary
 /// async I/O completes.
-Future<Map<String, List<int>>> buildFixturePayloads(Directory serveDir) async {
+Future<Map<String, List<int>>> buildFixturePayloads(
+  Directory serveDir, {
+
+  /// Publishes run metadata and a funnel in `us.db` too. In production only
+  /// `asx.db` carries them, which is what the default reproduces.
+  bool metadataForUs = false,
+}) async {
   // Six Fridays of history, enough for the charts to have a real shape.
   const usBars = [
     FixtureBar(date: '2026-07-17', ticker: 'MRNA', close: 57.10),
@@ -58,6 +64,29 @@ Future<Map<String, List<int>>> buildFixturePayloads(Directory serveDir) async {
     fileName: 'us.db',
     tablePrefix: 'us_stocks_growth',
     weeklyBars: usBars,
+    run: metadataForUs
+        ? const FixtureRun(
+            runId: '20260823T053645Z-704684ee',
+            exchange: 'NASDAQ',
+            instrumentType: 'common_stock',
+          )
+        : null,
+    funnel: metadataForUs
+        ? const [
+            FixtureStage(
+              window: '7_days',
+              position: 0,
+              stage: 'Universe in window',
+              count: 4100,
+            ),
+            FixtureStage(
+              window: '7_days',
+              position: 1,
+              stage: 'Return above 10.0%',
+              count: 107,
+            ),
+          ]
+        : const [],
     consistent: const [
       ('MRNA', 'Moderna, Inc. - Common Stock', 'NASDAQ', 117.91),
     ],

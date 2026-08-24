@@ -372,6 +372,8 @@ class _AnalysisBody extends StatelessWidget {
                     children: [
                       Text(
                         Fmt.compact(row.medianVolume),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -382,6 +384,8 @@ class _AnalysisBody extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         'median volume',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 10.5,
                           color: colors.textTertiary,
@@ -494,17 +498,33 @@ class _Histogram extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              Fmt.signedPercent(min, decimals: 1),
-              style: TextStyle(fontSize: 11, color: colors.textSecondary),
+            // All three shrink: at 320dp with large text the range and the
+            // count together are wider than the chart they label.
+            Flexible(
+              child: Text(
+                Fmt.signedPercent(min, decimals: 1),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11, color: colors.textSecondary),
+              ),
             ),
-            Text(
-              '${values.length} instruments',
-              style: TextStyle(fontSize: 11, color: colors.textTertiary),
+            Flexible(
+              child: Text(
+                '${values.length} instruments',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11, color: colors.textTertiary),
+              ),
             ),
-            Text(
-              Fmt.signedPercent(max, decimals: 1),
-              style: TextStyle(fontSize: 11, color: colors.textSecondary),
+            Flexible(
+              child: Text(
+                Fmt.signedPercent(max, decimals: 1),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: TextStyle(fontSize: 11, color: colors.textSecondary),
+              ),
             ),
           ],
         ),
