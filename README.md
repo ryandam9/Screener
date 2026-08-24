@@ -86,6 +86,13 @@ run_metadata   run_id, code_revision, exchange, instrument_type, data_as_of,
 screen_funnel  window, position, stage, count
 ```
 
+In Reports, every metadata value is set flush right and is never truncated: a
+run id wraps onto a second line rather than ending in an ellipsis that cannot
+be read or copied, and the app-wide selection area means any of it can be
+selected. Both markets are rendered the same way — `us.db` publishes neither
+table today, so its section says so, and it will show the same pair as ASX the
+moment it does.
+
 `run_metadata` holds a single row. `screen_funnel` holds one row per stage per
 window — "Universe in window", "Enough span", "Enough observations", "Still
 trading", "Adjusted prices", "Liquid enough", "Above price floor", "Valid
@@ -335,7 +342,7 @@ flutter analyze
 flutter test
 ```
 
-123 tests cover the table discovery and every query (against fixture databases
+127 tests cover the table discovery and every query (against fixture databases
 built to the published schema, including the differing prefixes and the weekly
 history), the run metadata and screen funnel (including the degraded path for
 files without them), the price-series assembly and the chain-linked growth
