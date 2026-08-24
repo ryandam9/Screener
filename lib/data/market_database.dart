@@ -193,6 +193,9 @@ class MarketDatabase {
   /// database. A filtered curve is cheap enough not to bother.
   List<GrowthPoint>? _growthCache;
 
+  /// Per-window screen cut-offs, read on demand. See [threshold].
+  final Map<GrowthWindow, double?> _thresholds = {};
+
   /// Windows this file actually contains, shortest first.
   List<GrowthWindow> get availableWindows {
     final windows = _tables.keys.toList()
@@ -504,6 +507,35 @@ class MarketDatabase {
     return [
       for (final row in rows) ConsistentStock.fromMap(row, market: market),
     ];
+  }
+
+  /// The cut-off the screen applied to a window, in percent.
+  ///
+  /// Every row of a window's table carries the same value, so it is read once
+  /// and cached: the list footer and the detail screen both ask for it on
+  /// every build. Null when the file predates the column, or when a table
+  /// somehow mixes cut-offs — a single number would then be a lie.
+  Future<double?> threshold(GrowthWindow window) async {
+    if (_thresholds.containsKey(window)) return _thresholds[window];
+
+    final table = _tableFor(window);
+    double? value;
+    if (table != null) {
+      try {
+        final rows = await _db.rawQuery(
+          'SELECT DISTINCT threshold FROM "$table" '
+          'WHERE threshold IS NOT NULL LIMIT 2',
+        );
+        if (rows.length == 1) {
+          value = (rows.first['threshold'] as num?)?.toDouble();
+        }
+      } on DatabaseException {
+        // An older file without the column.
+        value = null;
+      }
+    }
+    _thresholds[window] = value;
+    return value;
   }
 
   /// Mean percentage change for a window, or null when the window is empty.

@@ -13,6 +13,7 @@ import '../../utils/formatters.dart';
 import '../widgets/change_chip.dart';
 import '../responsive.dart';
 import '../widgets/panels.dart';
+import '../widgets/screen_reason.dart';
 import '../widgets/table_frame.dart';
 import '../widgets/stock_tile.dart';
 import '../widgets/ticker_avatar.dart';
@@ -838,7 +839,10 @@ class _ConsistentList extends StatelessWidget {
                           ChangeChip(pctChange: row.pctChangeShortestWindow),
                           const SizedBox(height: 3),
                           Text(
-                            'shortest window',
+                            row.thresholdShortestWindow == null
+                                ? 'shortest window'
+                                : 'shortest window · '
+                                      '${Fmt.percent(row.thresholdShortestWindow!, decimals: 1)}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -921,6 +925,16 @@ class _ListFooter extends StatelessWidget {
   final String sortLabel;
   final _ListTab tab;
 
+  Future<(int, double?)> _countAndCutOff() async {
+    final count = tab == _ListTab.consistent
+        ? await database.consistentCount()
+        : await database.count(window, query);
+    final cutOff = tab == _ListTab.consistent
+        ? null
+        : await database.threshold(window);
+    return (count, cutOff);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -940,16 +954,23 @@ class _ListFooter extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: FutureBuilder<int>(
-              future: tab == _ListTab.consistent
-                  ? database.consistentCount()
-                  : database.count(window, query),
+            // The count and the rule that produced it, together: every row in
+            // the list is here because it cleared this window's cut-off.
+            child: FutureBuilder<(int, double?)>(
+              future: _countAndCutOff(),
               builder: (context, snapshot) {
-                final count = snapshot.data;
+                final result = snapshot.data;
+                final noun = tab == _ListTab.consistent
+                    ? 'consistent'
+                    : database.market.instrumentNoun;
+                final cutOff = tab == _ListTab.consistent
+                    ? null
+                    : screenCutOffLabel(result?.$2);
                 return Text(
-                  count == null
+                  result == null
                       ? '—'
-                      : '${Fmt.integer(count)} ${tab == _ListTab.consistent ? 'consistent' : database.market.instrumentNoun}',
+                      : '${Fmt.integer(result.$1)} $noun'
+                            '${cutOff == null ? '' : ' · $cutOff'}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 12, color: colors.textSecondary),

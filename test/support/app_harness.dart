@@ -140,6 +140,7 @@ Future<Map<String, List<int>>> buildFixturePayloads(
           lastDate: '2026-08-21',
           latestPrice: 145.13,
           pctChange: 472.5,
+          threshold: 25,
           observations: 251,
           daysCovered: 364,
           medianVolume: 8359900,

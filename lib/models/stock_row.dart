@@ -19,6 +19,7 @@ class StockRow {
     required this.lastDate,
     required this.latestPrice,
     required this.pctChange,
+    required this.threshold,
     required this.observations,
     required this.daysCovered,
     required this.coverage,
@@ -44,6 +45,11 @@ class StockRow {
   /// Percentage change across the window, as published (already a percentage).
   final double pctChange;
 
+  /// The cut-off this window's screen applied, in percent: the row is in the
+  /// file because [pctChange] reached it. Null for files published before the
+  /// column existed.
+  final double? threshold;
+
   final int observations;
   final int daysCovered;
 
@@ -61,6 +67,15 @@ class StockRow {
 
   /// Absolute price move over the window.
   double get priceChange => latestPrice - firstPrice;
+
+  /// How far past the screen's cut-off this row landed, in percentage points.
+  ///
+  /// Null when the file publishes no threshold, so callers can tell "no margin"
+  /// from "no cut-off recorded".
+  double? get marginOverThreshold {
+    final cutOff = threshold;
+    return cutOff == null ? null : pctChange - cutOff;
+  }
 
   bool get isPositive => pctChange >= 0;
 
@@ -93,6 +108,7 @@ class StockRow {
       lastDate: _string(map['last_date']),
       latestPrice: _double(map['latest_price']),
       pctChange: _double(map['pct_change']),
+      threshold: _doubleOrNull(map['threshold']),
       observations: _int(map['observations']),
       daysCovered: _int(map['days_covered']),
       coverage: _double(map['coverage']),
@@ -109,6 +125,14 @@ class StockRow {
     if (value == null) return null;
     final text = value.toString().trim();
     return text.isEmpty ? null : text;
+  }
+
+  /// Distinguishes an absent or unreadable number from a published zero,
+  /// which [_double] cannot: a 0.0% cut-off would be a real screen setting.
+  static double? _doubleOrNull(Object? value) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
   }
 
   static double _double(Object? value) {
@@ -133,6 +157,7 @@ class ConsistentStock {
     required this.name,
     required this.exchange,
     required this.pctChangeShortestWindow,
+    required this.thresholdShortestWindow,
     required this.dataAsOf,
   });
 
@@ -141,6 +166,10 @@ class ConsistentStock {
   final String name;
   final String exchange;
   final double pctChangeShortestWindow;
+
+  /// The cut-off the shortest window's screen applied. See [StockRow.threshold].
+  final double? thresholdShortestWindow;
+
   final String? dataAsOf;
 
   String get shortName {
@@ -163,6 +192,9 @@ class ConsistentStock {
       exchange: StockRow._string(map['exchange']) ?? '',
       pctChangeShortestWindow: StockRow._double(
         map['pct_change_shortest_window'],
+      ),
+      thresholdShortestWindow: StockRow._doubleOrNull(
+        map['threshold_shortest_window'],
       ),
       dataAsOf: StockRow._string(map['data_as_of']),
     );
