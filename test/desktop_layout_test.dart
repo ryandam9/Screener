@@ -1,12 +1,17 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:screener/models/growth_window.dart';
 import 'package:screener/ui/desktop/desktop_shell.dart';
 import 'package:screener/ui/widgets/info_dialog.dart';
 import 'package:screener/ui/widgets/panels.dart';
+import 'package:screener/ui/widgets/table_frame.dart';
+import 'package:screener/ui/desktop/desktop_dashboard.dart';
+import 'package:screener/ui/screens/app_shell.dart';
 import 'package:screener/ui/screens/home_shell.dart';
+import 'package:screener/ui/screens/market_list_screen.dart';
 import 'package:screener/ui/screens/stock_detail_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -41,13 +46,13 @@ void main() {
     }
   });
 
-  Future<void> launchDesktop(WidgetTester tester) => launchApp(
+  Future<SharedPreferences> launchDesktop(WidgetTester tester) => launchApp(
     tester,
     cacheDir: cacheDir,
     payloads: payloads,
     size: desktopSize,
     devicePixelRatio: 1.0,
-  ).then((_) {});
+  );
 
   testWidgets('a wide window gets the sidebar layout', (tester) async {
     await launchDesktop(tester);
@@ -129,6 +134,90 @@ void main() {
     await tester.tap(find.text('Dashboard'));
     await settle(tester);
     expect(find.text('ASX Market'), findsOneWidget);
+  });
+
+  testWidgets('the sidebar collapses to a rail and stays that way', (
+    tester,
+  ) async {
+    final prefs = await launchDesktop(tester);
+
+    final expandedContent = tester.getTopLeft(find.byType(DesktopDashboard));
+
+    await tester.tap(find.text('Collapse'));
+    await settle(tester);
+
+    // The labels go; the sections stay, reachable by icon.
+    expect(find.text('Collapse'), findsNothing);
+    expect(find.text('Markets'), findsNothing);
+    expect(find.byIcon(AppSection.markets.icon), findsOneWidget);
+
+    // The content starts further left than it did — that is the point.
+    final content = tester.getTopLeft(find.byType(DesktopDashboard));
+    expect(content.dx, lessThan(expandedContent.dx));
+    expect(prefs.getBool('sidebar_collapsed'), isTrue);
+
+    // And it is still navigable.
+    await tester.tap(find.byIcon(AppSection.markets.icon));
+    await settle(tester);
+    expect(find.byType(MarketListScreen), findsOneWidget);
+  });
+
+  testWidgets('ctrl+B toggles the sidebar', (tester) async {
+    final prefs = await launchDesktop(tester);
+    expect(find.text('Collapse'), findsOneWidget);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyB);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await settle(tester);
+
+    expect(find.text('Collapse'), findsNothing);
+    expect(prefs.getBool('sidebar_collapsed'), isTrue);
+  });
+
+  testWidgets('a row opens beside the list, not over it', (tester) async {
+    await launchDesktop(tester);
+    await tester.tap(find.text('Markets'));
+    await settle(tester);
+
+    // Nothing selected yet.
+    expect(find.text('Select an instrument'), findsOneWidget);
+    expect(find.byType(TableFrame), findsOneWidget, reason: 'framed list');
+
+    await tester.tap(find.text('MRNA').first);
+    await settle(tester);
+
+    // The list is still there — the detail did not replace it.
+    expect(find.byType(StockDetailScreen), findsOneWidget);
+    expect(find.byType(MarketListScreen), findsOneWidget);
+    expect(find.text('Select an instrument'), findsNothing);
+    final list = tester.getTopLeft(find.byType(MarketListScreen));
+    final detail = tester.getTopLeft(find.byType(StockDetailScreen));
+    expect(
+      detail.dx,
+      greaterThan(list.dx),
+      reason: 'the detail belongs beside the list, not over it',
+    );
+
+    // Closing the pane returns to the placeholder, list untouched.
+    await tester.tap(find.byIcon(Icons.close));
+    await settle(tester);
+    expect(find.byType(StockDetailScreen), findsNothing);
+    expect(find.text('Select an instrument'), findsOneWidget);
+  });
+
+  testWidgets('the handset list is not framed', (tester) async {
+    await launchApp(
+      tester,
+      cacheDir: cacheDir,
+      payloads: payloads,
+      size: const Size(1080, 2340),
+    );
+    await tester.tap(find.text('Markets').last);
+    await settle(tester);
+
+    // A border on every edge of a full-width list is noise, not structure.
+    expect(find.byType(TableFrame), findsNothing);
   });
 
   testWidgets('the stock detail has no bottom navigation on desktop', (

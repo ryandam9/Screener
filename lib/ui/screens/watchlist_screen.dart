@@ -16,7 +16,12 @@ import '../widgets/info_dialog.dart';
 
 /// Starred tickers from both markets, with their current window figures.
 class WatchlistScreen extends StatelessWidget {
-  const WatchlistScreen({super.key});
+  const WatchlistScreen({super.key, this.onSelect, this.selected});
+
+  /// See [MarketListScreen.onSelect]: set by the desktop shell, which shows
+  /// the instrument beside the list rather than over it.
+  final ValueChanged<StockRow>? onSelect;
+  final StockRow? selected;
 
   Future<List<StockRow>> _load(
     AppState appState,
@@ -109,11 +114,17 @@ class WatchlistScreen extends StatelessWidget {
                               child: StockTile(
                                 row: row,
                                 showMarketBadge: true,
-                                opensTo: (_) => StockDetailScreen(
-                                  market: row.market,
-                                  ticker: row.ticker,
-                                  initialWindow: row.window,
-                                ),
+                                selected: row.key == selected?.key,
+                                onTap: onSelect == null
+                                    ? null
+                                    : () => onSelect!(row),
+                                opensTo: onSelect != null
+                                    ? null
+                                    : (_) => StockDetailScreen(
+                                        market: row.market,
+                                        ticker: row.ticker,
+                                        initialWindow: row.window,
+                                      ),
                               ),
                             ),
                             if (row != rows.last)

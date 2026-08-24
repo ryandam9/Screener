@@ -173,6 +173,26 @@ would otherwise provide one. The price chart opts out with
 `SelectionContainer.disabled`: it reads horizontal drags to move its cursor,
 which is the same gesture text selection uses.
 
+### A collapsible sidebar
+
+The sidebar narrows to a 68px rail of icons — `Ctrl`/`Cmd`+`B`, or the control
+at its foot — giving the content about 170px back. Collapsed, each destination
+keeps its name in a tooltip, and the choice is remembered across restarts.
+
+### Master and detail
+
+Markets and Watchlist are two panes on a desktop window: the list on the left,
+the instrument on the right. A row **selects** rather than navigates — the list
+keeps its scroll position, its filters and its place, and the pane changes.
+Pushing a screen for a row is what a handset does because it has nowhere else
+to put it; a 1400px window does.
+
+Both panes are framed and inset, so neither is pressed against the window edge,
+and the desktop list is drawn as the table it is: headings on a tinted band,
+a border, row separators, and the count in a footer strip (`TableFrame`). The
+handset keeps its unframed full-width lists, where a border on every edge is
+noise rather than structure.
+
 ### The detail screen on desktop
 
 The stock detail is a one-column handset design reused on the desktop inside a
@@ -350,7 +370,7 @@ flutter analyze
 flutter test
 ```
 
-129 tests cover the table discovery and every query (against fixture databases
+133 tests cover the table discovery and every query (against fixture databases
 built to the published schema, including the differing prefixes and the weekly
 history), the run metadata and screen funnel (including the degraded path for
 files without them), the price-series assembly and the chain-linked growth

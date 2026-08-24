@@ -7,6 +7,7 @@ class SettingsController extends ChangeNotifier {
 
   static const _themeKey = 'theme_mode';
   static const _compactKey = 'compact_rows';
+  static const _sidebarKey = 'sidebar_collapsed';
 
   final SharedPreferences _prefs;
 
@@ -33,4 +34,15 @@ class SettingsController extends ChangeNotifier {
     await _prefs.setBool(_compactKey, value);
     notifyListeners();
   }
+
+  /// The desktop sidebar, narrowed to a rail of icons. Remembered, because
+  /// someone who wants the width back wants it back every time.
+  bool get sidebarCollapsed => _prefs.getBool(_sidebarKey) ?? false;
+
+  Future<void> setSidebarCollapsed(bool value) async {
+    await _prefs.setBool(_sidebarKey, value);
+    notifyListeners();
+  }
+
+  Future<void> toggleSidebar() => setSidebarCollapsed(!sidebarCollapsed);
 }

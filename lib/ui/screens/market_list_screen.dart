@@ -11,7 +11,9 @@ import '../../state/watchlist_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../widgets/change_chip.dart';
+import '../responsive.dart';
 import '../widgets/panels.dart';
+import '../widgets/table_frame.dart';
 import '../widgets/stock_tile.dart';
 import '../widgets/ticker_avatar.dart';
 import 'stock_detail_screen.dart';
@@ -44,6 +46,8 @@ class MarketListScreen extends StatefulWidget {
     required this.market,
     this.initialWindow,
     this.initialSearch,
+    this.onSelect,
+    this.selected,
   });
 
   final Market market;
@@ -52,6 +56,14 @@ class MarketListScreen extends StatefulWidget {
   /// Seeds the search box, so the desktop top bar can hand a query straight to
   /// this screen.
   final String? initialSearch;
+
+  /// Set by the desktop shell, which shows the instrument in a pane beside
+  /// this list. Without it a row opens a screen of its own, which is what a
+  /// handset wants.
+  final ValueChanged<StockRow>? onSelect;
+
+  /// The row the pane is showing, marked in the list.
+  final StockRow? selected;
 
   @override
   State<MarketListScreen> createState() => _MarketListScreenState();
@@ -134,6 +146,7 @@ class _MarketListScreenState extends State<MarketListScreen>
     final window = _resolveWindow(appState);
     // 320dp phones clip the full tab labels and the long title.
     final narrow = MediaQuery.sizeOf(context).width < 360;
+    final desktop = context.layoutSize.isDesktop;
     final database = appState.databaseOf(_market);
     final state = appState.stateOf(_market);
 
@@ -227,6 +240,32 @@ class _MarketListScreenState extends State<MarketListScreen>
       ),
       body: database == null
           ? _NotReady(state: state, market: _market)
+          : desktop
+          // On a desktop window the list is framed like the table it is:
+          // headings on a band, a border, and the count in a footer strip.
+          ? TableFrame(
+              margin: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              header: _tabs.index == _ListTab.consistent.index
+                  ? const SizedBox(height: 12)
+                  : _SortHeader(
+                      sort: _sort,
+                      descending: _descending,
+                      onSort: _toggleSort,
+                      framed: true,
+                    ),
+              footer: _ListFooter(
+                database: database,
+                window: window,
+                query: _query(),
+                sortLabel: _sortLabel(window),
+                tab: _ListTab.values[_tabs.index],
+                framed: true,
+              ),
+              child: TabBarView(
+                controller: _tabs,
+                children: _tabViews(database, window),
+              ),
+            )
           : Column(
               children: [
                 if (_tabs.index != _ListTab.consistent.index)
@@ -238,32 +277,12 @@ class _MarketListScreenState extends State<MarketListScreen>
                 Expanded(
                   child: TabBarView(
                     controller: _tabs,
-                    children: [
-                      _StockList(
-                        database: database,
-                        window: window,
-                        query: _query(),
-                        emptyTitle: 'Nothing matches those filters',
-                      ),
-                      _StockList(
-                        database: database,
-                        window: window,
-                        query: _query(limit: 25),
-                        emptyTitle: 'No movers in this window',
-                      ),
-                      _ConsistentList(database: database, search: _search),
-                      _WatchlistTab(
-                        database: database,
-                        window: window,
-                        sort: _sort,
-                        descending: _descending,
-                      ),
-                    ],
+                    children: _tabViews(database, window),
                   ),
                 ),
               ],
             ),
-      bottomNavigationBar: database == null
+      bottomNavigationBar: database == null || desktop
           ? null
           : _ListFooter(
               database: database,
@@ -274,6 +293,34 @@ class _MarketListScreenState extends State<MarketListScreen>
             ),
     );
   }
+
+  List<Widget> _tabViews(MarketDatabase database, GrowthWindow window) => [
+    _StockList(
+      database: database,
+      window: window,
+      query: _query(),
+      emptyTitle: 'Nothing matches those filters',
+      onSelect: widget.onSelect,
+      selected: widget.selected,
+    ),
+    _StockList(
+      database: database,
+      window: window,
+      query: _query(limit: 25),
+      emptyTitle: 'No movers in this window',
+      onSelect: widget.onSelect,
+      selected: widget.selected,
+    ),
+    _ConsistentList(database: database, search: _search),
+    _WatchlistTab(
+      database: database,
+      window: window,
+      sort: _sort,
+      descending: _descending,
+      onSelect: widget.onSelect,
+      selected: widget.selected,
+    ),
+  ];
 
   String _sortLabel(GrowthWindow window) {
     final name = _sort == StockSort.pctChange
@@ -502,7 +549,11 @@ class _SortHeader extends StatelessWidget {
     required this.sort,
     required this.descending,
     required this.onSort,
+    this.framed = false,
   });
+
+  /// Inside a [TableFrame] the band and its border come from the frame.
+  final bool framed;
 
   final StockSort sort;
   final bool descending;
@@ -520,14 +571,21 @@ class _SortHeader extends StatelessWidget {
             ? MainAxisAlignment.end
             : MainAxisAlignment.start,
         children: [
+          // Scaled down rather than ellipsized: "Chan…" over a column of
+          // numbers says nothing, and these headings are one word each.
           Flexible(
-            child: Text(
-              text,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                color: active ? colors.textPrimary : colors.textSecondary,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: end ? Alignment.centerRight : Alignment.centerLeft,
+              child: Text(
+                text,
+                maxLines: 1,
+                softWrap: false,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                  color: active ? colors.textPrimary : colors.textSecondary,
+                ),
               ),
             ),
           ),
@@ -544,10 +602,12 @@ class _SortHeader extends StatelessWidget {
     // Mirrors StockTile's geometry so each heading sits over its own column.
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: colors.card,
-        border: Border(bottom: BorderSide(color: colors.divider)),
-      ),
+      decoration: framed
+          ? null
+          : BoxDecoration(
+              color: colors.card,
+              border: Border(bottom: BorderSide(color: colors.divider)),
+            ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           // The rows drop their price column when the name would be squeezed;
@@ -614,12 +674,16 @@ class _StockList extends StatelessWidget {
     required this.window,
     required this.query,
     required this.emptyTitle,
+    this.onSelect,
+    this.selected,
   });
 
   final MarketDatabase database;
   final GrowthWindow window;
   final StockQuery query;
   final String emptyTitle;
+  final ValueChanged<StockRow>? onSelect;
+  final StockRow? selected;
 
   @override
   Widget build(BuildContext context) {
@@ -652,14 +716,19 @@ class _StockList extends StatelessWidget {
               Divider(height: 1, color: context.colors.divider, indent: 66),
           itemBuilder: (context, index) {
             final row = rows[index];
+            final select = onSelect;
             return StockTile(
               row: row,
               dense: dense,
-              opensTo: (_) => StockDetailScreen(
-                market: row.market,
-                ticker: row.ticker,
-                initialWindow: window,
-              ),
+              selected: row.key == selected?.key,
+              onTap: select == null ? null : () => select(row),
+              opensTo: select != null
+                  ? null
+                  : (_) => StockDetailScreen(
+                      market: row.market,
+                      ticker: row.ticker,
+                      initialWindow: window,
+                    ),
             );
           },
         );
@@ -788,12 +857,16 @@ class _WatchlistTab extends StatelessWidget {
     required this.window,
     required this.sort,
     required this.descending,
+    this.onSelect,
+    this.selected,
   });
 
   final MarketDatabase database;
   final GrowthWindow window;
   final StockSort sort;
   final bool descending;
+  final ValueChanged<StockRow>? onSelect;
+  final StockRow? selected;
 
   @override
   Widget build(BuildContext context) {
@@ -814,6 +887,8 @@ class _WatchlistTab extends StatelessWidget {
       window: window,
       query: StockQuery(tickers: tickers, sort: sort, descending: descending),
       emptyTitle: 'Watchlisted tickers are not in this window',
+      onSelect: onSelect,
+      selected: selected,
     );
   }
 }
@@ -825,7 +900,11 @@ class _ListFooter extends StatelessWidget {
     required this.query,
     required this.sortLabel,
     required this.tab,
+    this.framed = false,
   });
+
+  /// Inside a [TableFrame] the strip and its border come from the frame.
+  final bool framed;
 
   final MarketDatabase database;
   final GrowthWindow window;
@@ -841,12 +920,14 @@ class _ListFooter extends StatelessWidget {
         left: 16,
         right: 16,
         top: 10,
-        bottom: 10 + MediaQuery.paddingOf(context).bottom,
+        bottom: framed ? 10 : 10 + MediaQuery.paddingOf(context).bottom,
       ),
-      decoration: BoxDecoration(
-        color: colors.card,
-        border: Border(top: BorderSide(color: colors.cardBorder)),
-      ),
+      decoration: framed
+          ? null
+          : BoxDecoration(
+              color: colors.card,
+              border: Border(top: BorderSide(color: colors.cardBorder)),
+            ),
       child: Row(
         children: [
           Expanded(

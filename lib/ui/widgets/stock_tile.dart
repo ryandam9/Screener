@@ -16,6 +16,7 @@ class StockTile extends StatelessWidget {
     required this.row,
     this.onTap,
     this.opensTo,
+    this.selected = false,
     this.dense = false,
     this.showMarketBadge = false,
     this.trailingBuilder,
@@ -23,6 +24,10 @@ class StockTile extends StatelessWidget {
 
   final StockRow row;
   final VoidCallback? onTap;
+
+  /// Marks the row the detail pane is showing, in the desktop master-detail
+  /// layout. A pushed screen has no need for it.
+  final bool selected;
 
   /// Screen this row opens. Given one, the row grows into it — a container
   /// transform — rather than having the destination slide over it. [onTap] is
@@ -39,7 +44,7 @@ class StockTile extends StatelessWidget {
   /// numbers, and scaled with the reader's text size — a column fixed in
   /// pixels ellipsizes its own numbers at 1.3x.
   static double priceColumn(BuildContext context) =>
-      MediaQuery.textScalerOf(context).scale(52);
+      MediaQuery.textScalerOf(context).scale(58);
 
   static double changeColumn(BuildContext context) =>
       MediaQuery.textScalerOf(context).scale(72);
@@ -73,9 +78,9 @@ class StockTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final open = opensTo;
     if (open != null) {
-      final colors = context.colors;
       return OpenContainer<void>(
         tappable: true,
         closedElevation: 0,
@@ -89,7 +94,10 @@ class StockTile extends StatelessWidget {
         openBuilder: (context, _) => open(context),
       );
     }
-    return InkWell(onTap: onTap, child: _content(context));
+    return Material(
+      color: selected ? colors.positiveSurface : Colors.transparent,
+      child: InkWell(onTap: onTap, child: _content(context)),
+    );
   }
 
   Widget _content(BuildContext context) {
@@ -217,6 +225,7 @@ class GainerTile extends StatelessWidget {
     required this.row,
     this.onTap,
     this.opensTo,
+    this.selected = false,
     this.showMarketBadge = true,
   });
 
@@ -226,13 +235,16 @@ class GainerTile extends StatelessWidget {
   /// Screen this row grows into. See [StockTile.opensTo].
   final WidgetBuilder? opensTo;
 
+  /// See [StockTile.selected].
+  final bool selected;
+
   final bool showMarketBadge;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final open = opensTo;
     if (open != null) {
-      final colors = context.colors;
       return OpenContainer<void>(
         tappable: true,
         closedElevation: 0,
@@ -246,7 +258,10 @@ class GainerTile extends StatelessWidget {
         openBuilder: (context, _) => open(context),
       );
     }
-    return InkWell(onTap: onTap, child: _content(context));
+    return Material(
+      color: selected ? colors.positiveSurface : Colors.transparent,
+      child: InkWell(onTap: onTap, child: _content(context)),
+    );
   }
 
   Widget _content(BuildContext context) {

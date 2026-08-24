@@ -2,10 +2,13 @@ import 'dart:async';
 
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/market.dart';
+import '../../models/stock_row.dart';
 import '../../state/app_state.dart';
+import '../../state/settings_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../screens/analysis_screen.dart';
@@ -13,7 +16,9 @@ import '../screens/app_shell.dart';
 import '../screens/market_list_screen.dart';
 import '../screens/more_screen.dart';
 import '../screens/reports_screen.dart';
+import '../screens/stock_detail_screen.dart';
 import '../screens/watchlist_screen.dart';
+import '../widgets/panels.dart';
 import '../widgets/readable_width.dart';
 import 'desktop_dashboard.dart';
 
@@ -36,6 +41,10 @@ class _DesktopShellState extends State<DesktopShell> {
   /// already filtered.
   String? _pendingSearch;
 
+  /// The instrument shown in the detail pane beside the list. A desktop window
+  /// has room for both, so a row selects rather than navigates.
+  StockRow? _selected;
+
   void _openMarkets(String? search) {
     setState(() {
       _pendingSearch = search;
@@ -55,66 +64,122 @@ class _DesktopShellState extends State<DesktopShell> {
         onSearchSubmitted: _openMarkets,
         onViewAllGainers: () => _openMarkets(null),
       ),
-      AppSection.markets => MarketListScreen(
-        key: ValueKey('markets-${_pendingSearch ?? ''}'),
-        market: appState.selectedMarket,
-        initialSearch: _pendingSearch,
+      AppSection.markets => _MasterDetail(
+        selected: _selected,
+        onClear: () => setState(() => _selected = null),
+        list: MarketListScreen(
+          key: ValueKey('markets-${_pendingSearch ?? ''}'),
+          market: appState.selectedMarket,
+          initialSearch: _pendingSearch,
+          selected: _selected,
+          onSelect: (row) => setState(() => _selected = row),
+        ),
       ),
-      AppSection.watchlist => const WatchlistScreen(),
+      AppSection.watchlist => _MasterDetail(
+        selected: _selected,
+        onClear: () => setState(() => _selected = null),
+        list: WatchlistScreen(
+          selected: _selected,
+          onSelect: (row) => setState(() => _selected = row),
+        ),
+      ),
       AppSection.analysis => const AnalysisScreen(),
       AppSection.reports => const ReportsScreen(),
       AppSection.settings => const MoreScreen(),
     };
 
+    final settings = context.watch<SettingsController>();
+
     return Scaffold(
-      body: Row(
-        children: [
-          _Sidebar(
-            section: _section,
-            onSelect: (section) => setState(() {
-              _section = section;
-              if (section != AppSection.markets) _pendingSearch = null;
-            }),
-          ),
-          Container(width: 1, color: colors.cardBorder),
-          Expanded(
-            // Sections fade through one another rather than cutting, so the
-            // sidebar selection and the content stay visibly connected.
-            child: PageTransitionSwitcher(
-              duration: const Duration(milliseconds: 320),
-              transitionBuilder: (child, animation, secondaryAnimation) =>
-                  FadeThroughTransition(
-                    animation: animation,
-                    secondaryAnimation: secondaryAnimation,
-                    fillColor: Colors.transparent,
-                    child: child,
-                  ),
-              child: KeyedSubtree(
-                key: ValueKey('${_section.name}-${_pendingSearch ?? ''}'),
-                child: _section == AppSection.dashboard
-                    ? content
-                    : ReadableWidth(child: content),
+      // Ctrl/Cmd+B is what editors use for the same job, and a desktop app
+      // that ignores the keyboard is half an app.
+      body: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.keyB, control: true):
+              settings.toggleSidebar,
+          const SingleActivator(LogicalKeyboardKey.keyB, meta: true):
+              settings.toggleSidebar,
+        },
+        child: Focus(
+          autofocus: true,
+          child: Row(
+            children: [
+              _Sidebar(
+                collapsed: settings.sidebarCollapsed,
+                onToggle: settings.toggleSidebar,
+                section: _section,
+                onSelect: (section) => setState(() {
+                  _section = section;
+                  if (section != AppSection.markets) _pendingSearch = null;
+                  // A selection belongs to the list it came from.
+                  if (section != AppSection.markets &&
+                      section != AppSection.watchlist) {
+                    _selected = null;
+                  }
+                }),
               ),
-            ),
+              Container(width: 1, color: colors.cardBorder),
+              Expanded(
+                // Sections fade through one another rather than cutting, so the
+                // sidebar selection and the content stay visibly connected.
+                child: PageTransitionSwitcher(
+                  duration: const Duration(milliseconds: 320),
+                  transitionBuilder: (child, animation, secondaryAnimation) =>
+                      FadeThroughTransition(
+                        animation: animation,
+                        secondaryAnimation: secondaryAnimation,
+                        fillColor: Colors.transparent,
+                        child: child,
+                      ),
+                  child: KeyedSubtree(
+                    key: ValueKey('${_section.name}-${_pendingSearch ?? ''}'),
+                    child: switch (_section) {
+                      // Built for the width already.
+                      AppSection.dashboard => content,
+                      // Two panes, which fill the window rather than being capped.
+                      AppSection.markets || AppSection.watchlist => content,
+                      // One-column screens, capped so their columns stay together.
+                      _ => ReadableWidth(child: content),
+                    },
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
+/// The navigation rail down the left of a desktop window.
+///
+/// Collapses to icons so the content can have the width back — the sections
+/// are six, and their icons carry them once you know the app.
 class _Sidebar extends StatelessWidget {
-  const _Sidebar({required this.section, required this.onSelect});
+  const _Sidebar({
+    required this.section,
+    required this.onSelect,
+    required this.collapsed,
+    required this.onToggle,
+  });
 
   final AppSection section;
   final ValueChanged<AppSection> onSelect;
+  final bool collapsed;
+  final VoidCallback onToggle;
+
+  static const double expandedWidth = 236;
+  static const double collapsedWidth = 68;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    return Container(
-      width: 236,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOutCubic,
+      width: collapsed ? collapsedWidth : expandedWidth,
       color: colors.card,
       child: SafeArea(
         right: false,
@@ -122,7 +187,7 @@ class _Sidebar extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
+              padding: EdgeInsets.fromLTRB(collapsed ? 12 : 20, 18, 12, 18),
               child: Row(
                 children: [
                   Container(
@@ -138,19 +203,22 @@ class _Sidebar extends StatelessWidget {
                       color: colors.positive,
                     ),
                   ),
-                  const SizedBox(width: 11),
-                  Expanded(
-                    child: Text(
-                      'Stocks Analysis',
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 16.5,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.3,
-                        color: colors.textPrimary,
+                  if (!collapsed) ...[
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Text(
+                        'Stocks Analysis',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 16.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.3,
+                          color: colors.textPrimary,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -158,14 +226,80 @@ class _Sidebar extends StatelessWidget {
               _NavItem(
                 section: value,
                 selected: value == section,
+                collapsed: collapsed,
                 onTap: () => onSelect(value),
               ),
             const Spacer(),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(14, 14, 14, 18),
-              child: _DataStatusCard(),
-            ),
+            if (!collapsed)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(14, 14, 14, 4),
+                child: _DataStatusCard(),
+              ),
+            _CollapseButton(collapsed: collapsed, onToggle: onToggle),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Widens or narrows the sidebar. Sits at its foot, where the eye is not
+/// looking for navigation.
+class _CollapseButton extends StatelessWidget {
+  const _CollapseButton({required this.collapsed, required this.onToggle});
+
+  final bool collapsed;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final label = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+      child: Tooltip(
+        message: '$label  (Ctrl+B)',
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onToggle,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              child: Row(
+                mainAxisAlignment: collapsed
+                    ? MainAxisAlignment.center
+                    : MainAxisAlignment.start,
+                children: [
+                  AnimatedRotation(
+                    duration: const Duration(milliseconds: 200),
+                    turns: collapsed ? 0.5 : 0,
+                    child: Icon(
+                      Icons.keyboard_double_arrow_left,
+                      size: 19,
+                      color: colors.textTertiary,
+                    ),
+                  ),
+                  if (!collapsed) ...[
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Collapse',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: colors.textTertiary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -177,45 +311,65 @@ class _NavItem extends StatelessWidget {
     required this.section,
     required this.selected,
     required this.onTap,
+    this.collapsed = false,
   });
 
   final AppSection section;
   final bool selected;
   final VoidCallback onTap;
+  final bool collapsed;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      child: Material(
-        color: selected ? colors.positiveSurface : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-            child: Row(
-              children: [
-                Icon(
-                  selected ? section.selectedIcon : section.icon,
-                  size: 20,
-                  color: selected ? colors.positive : colors.textSecondary,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    section.label,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                      color: selected ? colors.positive : colors.textSecondary,
-                    ),
+      child: Tooltip(
+        // Collapsed, the icon is all there is; the name has to come from
+        // somewhere.
+        message: collapsed ? section.label : '',
+        child: Material(
+          color: selected ? colors.positiveSurface : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: collapsed ? 10 : 12,
+                vertical: 11,
+              ),
+              child: Row(
+                mainAxisAlignment: collapsed
+                    ? MainAxisAlignment.center
+                    : MainAxisAlignment.start,
+                children: [
+                  Icon(
+                    selected ? section.selectedIcon : section.icon,
+                    size: 20,
+                    color: selected ? colors.positive : colors.textSecondary,
                   ),
-                ),
-              ],
+                  if (!collapsed) ...[
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        section.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: selected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          color: selected
+                              ? colors.positive
+                              : colors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         ),
@@ -338,6 +492,109 @@ class _DataStatusCardState extends State<_DataStatusCard> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A list beside the instrument it is showing.
+///
+/// The handset pushes a screen for a row because it has nowhere else to put
+/// it. A desktop window does: the list keeps its scroll position and its
+/// selection, and the pane changes.
+class _MasterDetail extends StatelessWidget {
+  const _MasterDetail({
+    required this.list,
+    required this.selected,
+    required this.onClear,
+  });
+
+  final Widget list;
+  final StockRow? selected;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final row = selected;
+
+    return Row(
+      children: [
+        // The list keeps a readable width; the pane takes the rest.
+        Flexible(
+          flex: 4,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 380, maxWidth: 620),
+            child: list,
+          ),
+        ),
+        Container(width: 1, color: colors.cardBorder),
+        Expanded(
+          flex: 6,
+          child: PageTransitionSwitcher(
+            duration: const Duration(milliseconds: 260),
+            transitionBuilder: (child, animation, secondaryAnimation) =>
+                FadeThroughTransition(
+                  animation: animation,
+                  secondaryAnimation: secondaryAnimation,
+                  fillColor: Colors.transparent,
+                  child: child,
+                ),
+            child: row == null
+                ? const _NothingSelected()
+                : _Pane(
+                    key: ValueKey(row.key),
+                    child: StockDetailScreen(
+                      market: row.market,
+                      ticker: row.ticker,
+                      initialWindow: row.window,
+                      onClose: onClear,
+                    ),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The detail, framed and inset like the table beside it, so neither is
+/// pressed against the window edge.
+class _Pane extends StatelessWidget {
+  const _Pane({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Container(
+      color: colors.pageBackground,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+      child: Material(
+        color: colors.card,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: colors.cardBorder),
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _NothingSelected extends StatelessWidget {
+  const _NothingSelected();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: context.colors.pageBackground,
+      child: const StatusView(
+        icon: Icons.touch_app_outlined,
+        title: 'Select an instrument',
+        message: 'Its prices, metrics and windows open here, beside the list.',
       ),
     );
   }
