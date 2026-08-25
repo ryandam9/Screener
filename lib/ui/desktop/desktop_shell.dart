@@ -15,6 +15,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../screens/analysis_screen.dart';
 import '../screens/app_shell.dart';
+import '../screens/history_screen.dart';
 import '../screens/market_list_screen.dart';
 import '../screens/more_screen.dart';
 import '../screens/reports_screen.dart';
@@ -119,6 +120,7 @@ class _DesktopShellState extends State<DesktopShell> {
         ),
       ),
       AppSection.analysis => const AnalysisScreen(),
+      AppSection.history => const HistoryScreen(embedded: false),
       AppSection.reports => const ReportsScreen(),
       AppSection.settings => const MoreScreen(),
     };
@@ -178,7 +180,9 @@ class _DesktopShellState extends State<DesktopShell> {
                       // Built for the width already.
                       AppSection.dashboard => content,
                       // Two panes, which fill the window rather than being capped.
-                      AppSection.markets || AppSection.watchlist => content,
+                      AppSection.markets ||
+                      AppSection.watchlist ||
+                      AppSection.history => content,
                       // One-column screens: framed, so the pane has an edge,
                       // and capped so their columns stay together.
                       _ => ReadableWidth(child: PageFrame(child: content)),

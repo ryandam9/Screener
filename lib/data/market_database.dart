@@ -2,9 +2,14 @@ import 'package:sqflite/sqflite.dart';
 
 import '../models/growth_window.dart';
 import '../models/market.dart';
+import '../models/history_ticker.dart';
 import '../models/price_bar.dart';
 import '../models/run_details.dart';
 import '../models/stock_row.dart';
+
+/// Column names a ticker directory might use for the company name.
+const _nameColumns = {'name', 'company', 'company_name', 'security_name',
+    'long_name', 'description'};
 
 /// Columns a list can be sorted by. Values are physical column names and are
 /// interpolated into SQL, so the enum is the whitelist — never accept a raw
@@ -170,12 +175,16 @@ class MarketDatabase {
     required Map<GrowthWindow, String> tables,
     required String? consistentTable,
     required String? seriesTable,
+    required String? historyTable,
+    required String? directoryTable,
     required String? metadataTable,
     required String? funnelTable,
   }) : _db = database,
        _tables = tables,
        _consistentTable = consistentTable,
        _seriesTable = seriesTable,
+       _historyTable = historyTable,
+       _directoryTable = directoryTable,
        _metadataTable = metadataTable,
        _funnelTable = funnelTable;
 
@@ -185,6 +194,8 @@ class MarketDatabase {
   final Map<GrowthWindow, String> _tables;
   final String? _consistentTable;
   final String? _seriesTable;
+  final String? _historyTable;
+  final String? _directoryTable;
   final String? _metadataTable;
   final String? _funnelTable;
 
@@ -195,6 +206,12 @@ class MarketDatabase {
 
   /// Per-window screen cut-offs, read on demand. See [threshold].
   final Map<GrowthWindow, double?> _thresholds = {};
+
+  /// The whole history table, folded per ticker. See [historyTickers].
+  List<HistoryTicker>? _historyCache;
+
+  /// Ticker -> company name. See [tickerNames].
+  Map<String, String>? _names;
 
   /// Windows this file actually contains, shortest first.
   List<GrowthWindow> get availableWindows {
@@ -244,6 +261,8 @@ class MarketDatabase {
     // The remaining tables are identified by their columns rather than their
     // names, because the pipeline has already renamed and added tables twice.
     String? series;
+    String? history;
+    String? directory;
     String? metadata;
     String? funnel;
     for (final name in candidates) {
@@ -253,10 +272,25 @@ class MarketDatabase {
           if (column['name'] case final String value) value,
       };
 
+      // The screener's own series carries the growth columns; the whole-market
+      // history table published alongside it does not. Without that test the
+      // two are indistinguishable by their columns.
       if (series == null &&
           names.contains('stock_price_date') &&
-          names.contains('close')) {
+          names.contains('close') &&
+          names.contains('growth_count')) {
         series = name;
+      } else if (history == null &&
+          names.contains('stock_price_date') &&
+          names.contains('close') &&
+          names.contains('ticker')) {
+        history = name;
+      } else if (directory == null &&
+          names.contains('ticker') &&
+          !names.contains('close') &&
+          !names.contains('pct_change') &&
+          names.any(_nameColumns.contains)) {
+        directory = name;
       } else if (metadata == null &&
           names.contains('run_id') &&
           names.contains('universe_total')) {
@@ -282,6 +316,8 @@ class MarketDatabase {
       tables: tables,
       consistentTable: consistent,
       seriesTable: series,
+      historyTable: history,
+      directoryTable: directory,
       metadataTable: metadata,
       funnelTable: funnel,
     );
@@ -506,6 +542,124 @@ class MarketDatabase {
     final rows = await _db.rawQuery(sql.toString(), args);
     return [
       for (final row in rows) ConsistentStock.fromMap(row, market: market),
+    ];
+  }
+
+  /// True when the file publishes a bar table covering the whole market, not
+  /// just the tickers a screen picked up.
+  bool get hasMarketHistory => _historyTable != null;
+
+  /// Ticker -> company name, from the directory table when the file has one,
+  /// filled in from the growth tables otherwise.
+  ///
+  /// Read once: the history page asks for it per row, and the growth tables
+  /// only name the few hundred tickers that passed a screen.
+  Future<Map<String, String>> tickerNames() async {
+    final cached = _names;
+    if (cached != null) return cached;
+
+    final names = <String, String>{};
+    final directory = _directoryTable;
+    if (directory != null) {
+      final columns = await _db.rawQuery('PRAGMA table_info("$directory")');
+      final column = [
+        for (final row in columns)
+          if (row['name'] case final String value)
+            if (_nameColumns.contains(value)) value,
+      ].firstOrNull;
+      if (column != null) {
+        final rows = await _db.rawQuery(
+          'SELECT ticker, "$column" AS name FROM "$directory"',
+        );
+        for (final row in rows) {
+          final ticker = row['ticker']?.toString().trim();
+          final name = row['name']?.toString().trim();
+          if (ticker != null && ticker.isNotEmpty) {
+            if (name != null && name.isNotEmpty) names[ticker] = name;
+          }
+        }
+      }
+    }
+
+    // The growth tables name what they carry, which is better than nothing for
+    // a file published before the directory table existed.
+    for (final table in _tables.values) {
+      final rows = await _db.rawQuery(
+        'SELECT DISTINCT ticker, name FROM "$table"',
+      );
+      for (final row in rows) {
+        final ticker = row['ticker']?.toString().trim();
+        final name = row['name']?.toString().trim();
+        if (ticker == null || ticker.isEmpty) continue;
+        if (name == null || name.isEmpty) continue;
+        names.putIfAbsent(ticker, () => name);
+      }
+    }
+
+    return _names = names;
+  }
+
+  /// Every ticker in the published history, summarised, strongest first.
+  ///
+  /// The whole table is read once and folded here: it is 20,000 rows for the
+  /// ASX file, and a per-ticker aggregate would need window functions that the
+  /// SQLite on older Android releases does not have.
+  Future<List<HistoryTicker>> historyTickers() async {
+    final cached = _historyCache;
+    if (cached != null) return cached;
+
+    final table = _historyTable;
+    if (table == null) return const [];
+
+    final rows = await _db.rawQuery(
+      'SELECT * FROM "$table" ORDER BY ticker ASC, stock_price_date ASC',
+    );
+    final names = await tickerNames();
+
+    final summaries = <HistoryTicker>[];
+    final bars = <PriceBar>[];
+    String? current;
+
+    void flush() {
+      final ticker = current;
+      if (ticker == null) return;
+      final summary = HistoryTicker.fromBars(
+        ticker,
+        bars,
+        name: names[ticker],
+      );
+      if (summary != null) summaries.add(summary);
+      bars.clear();
+    }
+
+    for (final row in rows) {
+      final ticker = row['ticker']?.toString().trim() ?? '';
+      if (ticker.isEmpty) continue;
+      if (ticker != current) {
+        flush();
+        current = ticker;
+      }
+      final bar = PriceBar.fromMap(row);
+      if (bar != null) bars.add(bar);
+    }
+    flush();
+
+    summaries.sort((a, b) => b.pctChange.compareTo(a.pctChange));
+    return _historyCache = summaries;
+  }
+
+  /// The published bars for one ticker, oldest first.
+  Future<List<PriceBar>> historyFor(String ticker) async {
+    final table = _historyTable;
+    if (table == null) return const [];
+
+    final rows = await _db.rawQuery(
+      'SELECT * FROM "$table" WHERE ticker = ? ORDER BY stock_price_date ASC',
+      [ticker],
+    );
+    return [
+      for (final row in rows)
+        if (PriceBar.fromMap(row) case final bar?) bar,
     ];
   }
 

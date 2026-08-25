@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import '../models/market.dart';
+
 /// One notification to post.
 @immutable
 class AppNotification {
@@ -9,6 +11,8 @@ class AppNotification {
     required this.title,
     required this.body,
     this.payload,
+    this.group,
+    this.isGroupSummary = false,
   });
 
   final int id;
@@ -17,6 +21,13 @@ class AppNotification {
 
   /// Handed back when the notification is tapped, so the app knows where to go.
   final String? payload;
+
+  /// Bundles related notifications, so a run that names six tickers collapses
+  /// into one entry in the shade rather than six.
+  final String? group;
+
+  /// The entry Android shows when the group is collapsed.
+  final bool isGroupSummary;
 }
 
 /// Posts notifications, and says whether it is allowed to.
@@ -40,6 +51,24 @@ class NotificationIds {
 
   static const digest = 1;
   static const test = 2;
+
+  /// One notification per refreshed file, replaced rather than stacked.
+  static int forFile(Market market) => 10 + market.index;
+
+  /// A stable id per ticker, so re-entering the screen replaces the old alert.
+  ///
+  /// Deliberately not [String.hashCode], which Dart does not promise to keep
+  /// stable across runs of the program.
+  static int forTicker(String key) {
+    var hash = 0;
+    for (final unit in key.codeUnits) {
+      hash = (hash * 31 + unit) & 0x3fffff;
+    }
+    return 1000 + hash;
+  }
+
+  /// Android's group key for the 7-day alerts.
+  static const sevenDayGroup = 'seven_day_screen';
 }
 
 /// The real notifier, backed by flutter_local_notifications.
@@ -127,8 +156,11 @@ class LocalNotifier implements Notifier {
           channelDescription: _channelDescription,
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
-          // The body names several tickers and is longer than one line.
+          // The body names a company or several tickers, and is longer than
+          // one line either way.
           styleInformation: BigTextStyleInformation(notification.body),
+          groupKey: notification.group,
+          setAsGroupSummary: notification.isGroupSummary,
         ),
         linux: const LinuxNotificationDetails(),
       ),

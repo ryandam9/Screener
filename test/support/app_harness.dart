@@ -159,6 +159,19 @@ Future<Map<String, List<int>>> buildFixturePayloads(
     weeklyBars: asxBars,
     // Only the ASX file carries these tables, mirroring production: the app
     // has to show them where they exist and say so where they do not.
+    history: const [
+      // Two tickers the growth tables name, and one they never screened —
+      // which is the case the history page exists for.
+      FixtureHistoryBar(ticker: 'QETH', date: '2026-07-24', close: 16.40),
+      FixtureHistoryBar(ticker: 'QETH', date: '2026-08-07', close: 17.90),
+      FixtureHistoryBar(ticker: 'QETH', date: '2026-08-21', close: 22.42),
+      FixtureHistoryBar(ticker: 'VBTC', date: '2026-07-24', close: 11.10),
+      FixtureHistoryBar(ticker: 'VBTC', date: '2026-08-07', close: 11.60),
+      FixtureHistoryBar(ticker: 'VBTC', date: '2026-08-21', close: 12.70),
+      FixtureHistoryBar(ticker: 'ZZZQ', date: '2026-07-24', close: 5.00),
+      FixtureHistoryBar(ticker: 'ZZZQ', date: '2026-08-07', close: 4.60),
+      FixtureHistoryBar(ticker: 'ZZZQ', date: '2026-08-21', close: 4.20),
+    ],
     run: const FixtureRun(
       runId: '20260823T090042Z-30ac6f5b',
       exchange: 'ASX',
@@ -260,6 +273,9 @@ DbSyncService fixtureSyncService({
   required Directory cacheDir,
   required Map<String, List<int>> payloads,
   bool Function()? shouldFail,
+
+  /// Changes the ETag the fake S3 serves, so a test can publish a new file.
+  String Function()? version,
 }) {
   return DbSyncService(
     preferences: preferences,
@@ -271,7 +287,12 @@ DbSyncService fixtureSyncService({
       final name = request.url.pathSegments.last;
       final bytes = payloads[name];
       if (bytes == null) return http.Response('not found', 404);
-      return http.Response.bytes(bytes, 200, headers: {'etag': '"$name-1"'});
+      final tag = version?.call() ?? '1';
+      return http.Response.bytes(
+        bytes,
+        200,
+        headers: {'etag': '"$name-$tag"'},
+      );
     }),
   );
 }

@@ -9,8 +9,6 @@ class SettingsController extends ChangeNotifier {
   static const _compactKey = 'compact_rows';
   static const _sidebarKey = 'sidebar_collapsed';
   static const _digestKey = 'digest_enabled';
-  static const _digestHourKey = 'digest_hour';
-  static const _digestMinuteKey = 'digest_minute';
 
   final SharedPreferences _prefs;
 
@@ -49,26 +47,11 @@ class SettingsController extends ChangeNotifier {
 
   Future<void> toggleSidebar() => setSidebarCollapsed(!sidebarCollapsed);
 
-  /// The morning digest of the 7-day screen.
+  /// The scheduled refresh and the alerts it posts.
   bool get digestEnabled => _prefs.getBool(_digestKey) ?? false;
 
   Future<void> setDigestEnabled(bool value) async {
     await _prefs.setBool(_digestKey, value);
-    notifyListeners();
-  }
-
-  /// When the digest goes out, local time.
-  ///
-  /// Defaults to a quarter past eight: the pipeline republishes both files at
-  /// eight, and a digest built at eight sharp can summarise yesterday's.
-  TimeOfDay get digestTime => TimeOfDay(
-    hour: _prefs.getInt(_digestHourKey) ?? 8,
-    minute: _prefs.getInt(_digestMinuteKey) ?? 15,
-  );
-
-  Future<void> setDigestTime(TimeOfDay value) async {
-    await _prefs.setInt(_digestHourKey, value.hour);
-    await _prefs.setInt(_digestMinuteKey, value.minute);
     notifyListeners();
   }
 }

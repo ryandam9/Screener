@@ -12,6 +12,7 @@ import '../../services/digest_scheduler.dart';
 import '../../services/notifier.dart';
 import '../../services/digest_service.dart';
 import '../widgets/panels.dart';
+import 'history_screen.dart';
 import 'reports_screen.dart';
 import '../info/page_info.dart';
 import '../widgets/info_dialog.dart';
@@ -129,14 +130,37 @@ class MoreScreen extends StatelessWidget {
         title: 'Reports',
         children: [
           Panel(
-            child: ListTile(
-              leading: Icon(Icons.description_outlined, color: colors.positive),
-              title: const Text('Runs and CSV export'),
-              subtitle: const Text('Every published run, exportable as CSV'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const ReportsScreen()),
-              ),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: Icon(
+                    Icons.description_outlined,
+                    color: colors.positive,
+                  ),
+                  title: const Text('Runs and CSV export'),
+                  subtitle: const Text('Every published run, exportable as CSV'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const ReportsScreen(),
+                    ),
+                  ),
+                ),
+                Divider(height: 1, color: colors.divider, indent: 16),
+                ListTile(
+                  leading: Icon(Icons.timeline_outlined, color: colors.positive),
+                  title: const Text('Price history'),
+                  subtitle: const Text(
+                    'Every ticker the run collected, charted',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const HistoryScreen(),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -372,7 +396,7 @@ class _Section extends StatelessWidget {
   }
 }
 
-/// Turns the morning digest on, sets its time, and says what last went out.
+/// Turns the scheduled refresh and its alerts on, and says what last went out.
 class _DigestPanel extends StatefulWidget {
   const _DigestPanel();
 
@@ -405,26 +429,16 @@ class _DigestPanelState extends State<_DigestPanel> {
     }
 
     await settings.setDigestEnabled(value);
-    await DigestScheduler.configure(
-      enabled: value,
-      at: settings.digestTime,
-    );
+    await DigestScheduler.configure(enabled: value);
   }
 
-  Future<void> _pickTime() async {
-    final settings = context.read<SettingsController>();
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: settings.digestTime,
-      helpText: 'Send the digest at',
-    );
-    if (picked == null) return;
-
-    await settings.setDigestTime(picked);
-    await DigestScheduler.configure(
-      enabled: settings.digestEnabled,
-      at: picked,
-    );
+  /// "9:00 AM and 11:00 AM", in the reader's own clock format.
+  String _scheduleLabel(BuildContext context) {
+    final times = [
+      for (final at in DigestScheduler.refreshTimes) at.format(context),
+    ];
+    if (times.length < 2) return times.join();
+    return '${times.take(times.length - 1).join(', ')} and ${times.last}';
   }
 
   Future<void> _sendNow() async {
@@ -441,13 +455,18 @@ class _DigestPanelState extends State<_DigestPanel> {
         );
         return;
       }
-      final result = await digest.run(force: true, refresh: false);
+      final result = await digest.run(force: true);
+      final digestResult = result.digest;
+      final refreshed = result.refreshed;
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            result == null || result.isEmpty
+            digestResult == null || digestResult.isEmpty
                 ? 'Nothing published in the 7-day window yet.'
-                : result.title,
+                : refreshed.isEmpty
+                ? digestResult.title
+                : '${digestResult.title} · '
+                      '${refreshed.map((m) => m.objectKey).join(', ')} refreshed',
           ),
         ),
       );
@@ -474,32 +493,28 @@ class _DigestPanelState extends State<_DigestPanel> {
             children: [
               SwitchListTile(
                 value: enabled,
-                title: const Text('Morning digest'),
+                title: const Text('Refresh and alerts'),
                 subtitle: const Text(
-                  'What the 7-day screen published, and what is new in it',
+                  'Fetch both files on a schedule, and notify when a ticker '
+                  'joins the 7-day screen',
                 ),
                 onChanged: (value) => _setEnabled(value),
               ),
               Divider(height: 1, color: colors.divider, indent: 16),
               ListTile(
                 enabled: enabled,
-                title: const Text('Send at'),
+                // The times sit in the title rather than in a trailing widget:
+                // at 320dp two of them fill the whole tile.
+                title: Text(
+                  'Refreshes at ${_scheduleLabel(context)}',
+                ),
                 subtitle: Text(
                   DigestScheduler.isSupported
-                      ? 'Files are republished at 8:00, so the digest waits'
-                            ' until after that'
-                      : 'This desktop cannot be woken on a schedule; the'
-                            ' digest goes out when the app is next opened',
+                      ? 'The app is woken to fetch both files and check the '
+                            'screen, whether or not it is open'
+                      : 'This desktop cannot be woken on a schedule; the '
+                            'check runs when the app is next opened',
                 ),
-                trailing: Text(
-                  settings.digestTime.format(context),
-                  style: TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w600,
-                    color: enabled ? colors.textPrimary : colors.textTertiary,
-                  ),
-                ),
-                onTap: enabled ? _pickTime : null,
               ),
               Divider(height: 1, color: colors.divider, indent: 16),
               ListTile(
@@ -511,8 +526,8 @@ class _DigestPanelState extends State<_DigestPanel> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.notifications_active_outlined),
-                title: const Text('Send one now'),
-                subtitle: const Text('Builds today’s digest from the cache'),
+                title: const Text('Check now'),
+                subtitle: const Text('Fetches both files and posts what is new'),
                 onTap: _busy ? null : _sendNow,
               ),
             ],

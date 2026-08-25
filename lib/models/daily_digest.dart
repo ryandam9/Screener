@@ -57,6 +57,10 @@ class DailyDigest {
 
   bool get isEmpty => rows.isEmpty;
 
+  /// True when this run has something to announce: a ticker that was not in
+  /// the screen last time.
+  bool get hasNews => newKeys.isNotEmpty;
+
   /// Today's newcomers, strongest first.
   List<StockRow> get newcomers => [
     for (final row in rows)

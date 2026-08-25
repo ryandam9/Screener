@@ -13,6 +13,7 @@ enum AppSection {
   markets('Markets', Icons.public_outlined, Icons.public),
   watchlist('Watchlist', Icons.star_border_rounded, Icons.star_rounded),
   analysis('Analysis', Icons.show_chart, Icons.show_chart),
+  history('History', Icons.timeline_outlined, Icons.timeline),
   reports('Reports', Icons.description_outlined, Icons.description),
   settings('Settings', Icons.settings_outlined, Icons.settings);
 
