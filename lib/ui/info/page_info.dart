@@ -365,9 +365,9 @@ class PageInfos {
         InfoBullet(
           lead: 'Names',
           text:
-              'come from the growth tables, so tickers that never passed a '
-              'screen show their bar count instead until the file publishes a '
-              'directory of its own.',
+              'come from the file\u2019s ticker directory when it publishes '
+              'one, and from the growth tables otherwise — in which case a '
+              'ticker no screen picked up shows its bar count instead.',
         ),
         InfoBullet(
           lead: 'A–Z',

@@ -145,7 +145,11 @@ void main() {
           );
           final bars = await db.priceHistory(top.single.ticker);
           expect(bars, isNotEmpty);
-          expect(bars.length, lessThanOrEqualTo(53));
+          // Weekly, not daily: a year is 53 weeks, and the files now reach a
+          // little past a year — 58 bars from 2025-07-25 in the run this was
+          // last checked against. Daily bars would be about 250, which is the
+          // mistake worth catching.
+          expect(bars.length, lessThanOrEqualTo(70));
 
           for (var i = 1; i < bars.length; i++) {
             expect(bars[i].date.isAfter(bars[i - 1].date), isTrue);
@@ -197,6 +201,36 @@ void main() {
         // The strongest row, not the first one read: the digest sorts.
         expect(digest.body, contains(digest.rows.first.ticker));
         expect(digest.body, matches(RegExp(r'\+\d+\.\d%')));
+      });
+
+      test('the ASX file names every ticker it charts', () async {
+        final db = await MarketDatabase.open(Market.asx, '$directory/asx.db');
+        addTearDown(db.close);
+
+        if (!db.hasMarketHistory) {
+          // Older copies of the file predate the history table.
+          return;
+        }
+
+        final tickers = await db.historyTickers();
+        expect(tickers, isNotEmpty);
+
+        final named = tickers.where((t) => t.name != null).length;
+        // ignore: avoid_print
+        print('$named of ${tickers.length} history tickers named');
+
+        // asx_universe carries the whole market, so every charted ticker has
+        // a name — not just the few a screen picked up.
+        expect(
+          named,
+          tickers.length,
+          reason: 'the published universe should name every ticker',
+        );
+
+        final first = tickers.first;
+        expect(first.bars, greaterThan(1));
+        expect(first.lastPrice, greaterThan(0));
+        expect(first.lastDate.isAfter(first.firstDate), isTrue);
       });
 
       test('run metadata parses into a real timestamp', () async {

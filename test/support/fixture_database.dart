@@ -197,6 +197,7 @@ Future<String> createFixtureDatabase({
 
   /// The ticker directory, for files that publish one.
   Map<String, String> tickerNames = const {},
+  String universeTable = 'asx_universe',
 }) async {
   final path = '${directory.path}/$fileName';
   final file = File(path);
@@ -319,14 +320,20 @@ Future<String> createFixtureDatabase({
   }
 
   if (tickerNames.isNotEmpty) {
+    // Named and shaped as the published one: ticker, name, and nothing
+    // priced. See the query the pipeline documents:
+    //   SELECT u.name, h.close FROM ASX_1_YEAR_HISTORY h
+    //   JOIN asx_universe u USING (ticker)
     await db.execute(
-      'CREATE TABLE ticker_directory(ticker TEXT, name TEXT, exchange TEXT)',
+      'CREATE TABLE "$universeTable" ('
+      '  ticker TEXT, name TEXT, exchange TEXT, asset_type TEXT)',
     );
     for (final entry in tickerNames.entries) {
-      await db.insert('ticker_directory', {
+      await db.insert(universeTable, {
         'ticker': entry.key,
         'name': entry.value,
         'exchange': 'ASX',
+        'asset_type': 'etf',
       });
     }
   }

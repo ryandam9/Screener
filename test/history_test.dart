@@ -112,16 +112,46 @@ void main() {
       expect(tickers.firstWhere((t) => t.ticker == 'BBB').name, isNull);
     });
 
-    test('a published directory names the rest', () async {
+    test('asx_universe names every ticker, screened or not', () async {
+      // The table the pipeline publishes alongside the history:
+      //   SELECT u.name FROM ASX_1_YEAR_HISTORY h JOIN asx_universe u
+      //   USING (ticker)
       final db = await openFixture(
-        tickerNames: const {'BBB': 'Beta Bank Ltd', 'CCC': 'Gamma Corp'},
+        tickerNames: const {
+          'AAA': 'Alpha Exchange Traded Fund',
+          'BBB': 'Beta Bank Ltd',
+          'CCC': 'Gamma Corp',
+        },
       );
       addTearDown(db.close);
 
       final tickers = await db.historyTickers();
-      expect(tickers.firstWhere((t) => t.ticker == 'BBB').name, 'Beta Bank Ltd');
-      // The growth table's own name still wins for a ticker in both.
-      expect(tickers.firstWhere((t) => t.ticker == 'AAA').name, 'Alpha ETF');
+      expect(
+        tickers.firstWhere((t) => t.ticker == 'BBB').name,
+        'Beta Bank Ltd',
+        reason: 'a ticker no screen ever picked up is named from the universe',
+      );
+      // The universe is the better source when both name a ticker: it carries
+      // the whole market, and the growth tables only what they screened.
+      expect(
+        tickers.firstWhere((t) => t.ticker == 'AAA').name,
+        'Alpha Exchange Traded Fund',
+      );
+      // A name for a ticker with no bars is simply unused.
+      expect([for (final t in tickers) t.ticker], isNot(contains('CCC')));
+    });
+
+    test('the universe table is not mistaken for a screen result', () async {
+      final db = await openFixture(
+        tickerNames: const {'BBB': 'Beta Bank Ltd'},
+      );
+      addTearDown(db.close);
+
+      // Discovery has to tell four ticker-keyed tables apart in one file.
+      expect(db.hasMarketHistory, isTrue);
+      expect(db.hasPriceHistory, isTrue);
+      expect(db.availableWindows, isNotEmpty);
+      expect(db.hasRunMetadata, isFalse);
     });
 
     test('the bars of one ticker come back in order', () async {
