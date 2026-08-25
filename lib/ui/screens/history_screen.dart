@@ -214,8 +214,29 @@ class _Body extends StatelessWidget {
                       builder: (_) => Scaffold(
                         appBar: AppBar(title: Text(ticker.ticker)),
                         body: SafeArea(
-                          child: _Detail(database: database, ticker: ticker),
+                          bottom: false,
+                          child: _Detail(
+                            database: database,
+                            ticker: ticker,
+                            showFooterAction: false,
+                          ),
                         ),
+                        // Pinned rather than scrolled to: on a phone this is
+                        // the one control you reach for without reading the
+                        // page first, so it sits where a thumb already is.
+                        bottomNavigationBar: ticker.googleFinanceUrl == null
+                            ? null
+                            : SafeArea(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    8,
+                                    16,
+                                    12,
+                                  ),
+                                  child: _GoogleFinanceAction(ticker: ticker),
+                                ),
+                              ),
                       ),
                     ),
                   );
@@ -461,12 +482,55 @@ class _HistoryTile extends StatelessWidget {
   }
 }
 
+/// The full-width action that opens the ticker on Google Finance.
+///
+/// A 26px icon in the header is a mouse target; on a phone the same link has
+/// to be reachable with a thumb, which means the bottom of the screen and a
+/// target the width of the page.
+class _GoogleFinanceAction extends StatelessWidget {
+  const _GoogleFinanceAction({required this.ticker});
+
+  final HistoryTicker ticker;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = ticker.googleFinanceUrl;
+    if (url == null) return const SizedBox.shrink();
+
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: () => openExternalUrl(context, url),
+        icon: const Icon(Icons.open_in_new, size: 18),
+        label: Text('${ticker.ticker} on Google Finance'),
+        style: FilledButton.styleFrom(
+          backgroundColor: context.colors.positive,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// The chart and the numbers for one ticker.
 class _Detail extends StatefulWidget {
-  const _Detail({super.key, required this.database, required this.ticker});
+  const _Detail({
+    super.key,
+    required this.database,
+    required this.ticker,
+    this.showFooterAction = true,
+  });
 
   final MarketDatabase database;
   final HistoryTicker ticker;
+
+  /// False where the page pins the action to the bottom of the window
+  /// instead, so a phone does not get the same button twice.
+  final bool showFooterAction;
 
   @override
   State<_Detail> createState() => _DetailState();
@@ -516,122 +580,129 @@ class _DetailState extends State<_Detail> {
             ? (shown.last.plotPrice / shown.first.plotPrice - 1) * 100
             : 0.0;
 
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        ticker.ticker,
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.4,
-                          color: colors.textPrimary,
-                        ),
-                      ),
-                      Text(
-                        ticker.name ??
-                            '${widget.database.market.label} listed',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: colors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (ticker.googleFinanceUrl != null)
-                  GoogleFinanceButton(
-                    url: ticker.googleFinanceUrl,
-                    ticker: ticker.ticker,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  Fmt.price(shown.last.plotPrice),
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.8,
-                    height: 1.05,
-                    color: colors.textPrimary,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: ChangeChip(pctChange: change),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${Fmt.shortDate(shown.first.date)} — '
-              '${Fmt.shortDate(shown.last.date)} · ${shown.length} bars',
-              style: TextStyle(fontSize: 12, color: colors.textTertiary),
-            ),
-            const SizedBox(height: 12),
-            Panel(
-              margin: EdgeInsets.zero,
-              padding: const EdgeInsets.fromLTRB(6, 12, 6, 10),
-              child: Column(
+        // Per screen rather than app-wide: see main.dart.
+        return SelectionArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            children: [
+              Row(
                 children: [
-                  PeriodSelector<_Span>(
-                    values: _Span.values,
-                    selected: _span,
-                    labelOf: (value) => value.label,
-                    onChanged: (value) => setState(() => _span = value),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          ticker.ticker,
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.4,
+                            color: colors.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          ticker.name ??
+                              '${widget.database.market.label} listed',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 6),
-                  PriceChart(
-                    points: ChartPoint.fromBars(shown),
-                    lineColor: colors.forChange(change),
+                  if (ticker.googleFinanceUrl != null)
+                    GoogleFinanceButton(
+                      url: ticker.googleFinanceUrl,
+                      ticker: ticker.ticker,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    Fmt.price(shown.last.plotPrice),
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.8,
+                      height: 1.05,
+                      color: colors.textPrimary,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: ChangeChip(pctChange: change),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 12),
-            Panel(
-              margin: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  MetricRow(
-                    label: 'First close',
-                    value:
-                        '${Fmt.price(shown.first.plotPrice)} · '
-                        '${Fmt.shortDate(shown.first.date)}',
-                  ),
-                  MetricRow(
-                    label: 'Last close',
-                    value:
-                        '${Fmt.price(shown.last.plotPrice)} · '
-                        '${Fmt.shortDate(shown.last.date)}',
-                  ),
-                  MetricRow(label: 'High', value: Fmt.price(ticker.high)),
-                  MetricRow(label: 'Low', value: Fmt.price(ticker.low)),
-                  MetricRow(
-                    label: 'Published bars',
-                    value: Fmt.integer(ticker.bars),
-                  ),
-                  MetricRow(
-                    label: 'Median volume',
-                    value: Fmt.integer(_medianVolume(shown)),
-                  ),
-                ],
+              const SizedBox(height: 4),
+              Text(
+                '${Fmt.shortDate(shown.first.date)} — '
+                '${Fmt.shortDate(shown.last.date)} · ${shown.length} bars',
+                style: TextStyle(fontSize: 12, color: colors.textTertiary),
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              Panel(
+                margin: EdgeInsets.zero,
+                padding: const EdgeInsets.fromLTRB(6, 12, 6, 10),
+                child: Column(
+                  children: [
+                    PeriodSelector<_Span>(
+                      values: _Span.values,
+                      selected: _span,
+                      labelOf: (value) => value.label,
+                      onChanged: (value) => setState(() => _span = value),
+                    ),
+                    const SizedBox(height: 6),
+                    PriceChart(
+                      points: ChartPoint.fromBars(shown),
+                      lineColor: colors.forChange(change),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Panel(
+                margin: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    MetricRow(
+                      label: 'First close',
+                      value:
+                          '${Fmt.price(shown.first.plotPrice)} · '
+                          '${Fmt.shortDate(shown.first.date)}',
+                    ),
+                    MetricRow(
+                      label: 'Last close',
+                      value:
+                          '${Fmt.price(shown.last.plotPrice)} · '
+                          '${Fmt.shortDate(shown.last.date)}',
+                    ),
+                    MetricRow(label: 'High', value: Fmt.price(ticker.high)),
+                    MetricRow(label: 'Low', value: Fmt.price(ticker.low)),
+                    MetricRow(
+                      label: 'Published bars',
+                      value: Fmt.integer(ticker.bars),
+                    ),
+                    MetricRow(
+                      label: 'Median volume',
+                      value: Fmt.integer(_medianVolume(shown)),
+                    ),
+                  ],
+                ),
+              ),
+              if (widget.showFooterAction) ...[
+                const SizedBox(height: 16),
+                _GoogleFinanceAction(ticker: ticker),
+              ],
+            ],
+          ),
         );
       },
     );

@@ -149,94 +149,97 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     final desktop = context.layoutSize.isDesktop;
 
     return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: ReadableWidth(
-          maxWidth: widget.onClose == null ? 900 : double.infinity,
-          child: FutureBuilder<_TickerData>(
-            future: _future,
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return Column(
-                  children: [
-                    _header(context, null),
-                    Expanded(
-                      child: StatusView(
-                        icon: Icons.error_outline,
-                        title: 'Could not read ${widget.ticker}',
-                        message: '${snapshot.error}',
+      // Per screen rather than app-wide: see main.dart.
+      body: SelectionArea(
+        child: SafeArea(
+          bottom: false,
+          child: ReadableWidth(
+            maxWidth: widget.onClose == null ? 900 : double.infinity,
+            child: FutureBuilder<_TickerData>(
+              future: _future,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Column(
+                    children: [
+                      _header(context, null),
+                      Expanded(
+                        child: StatusView(
+                          icon: Icons.error_outline,
+                          title: 'Could not read ${widget.ticker}',
+                          message: '${snapshot.error}',
+                        ),
                       ),
-                    ),
-                  ],
-                );
-              }
-              final data = snapshot.data;
-              if (data == null) {
-                return Column(
-                  children: [
-                    _header(context, null),
-                    const Expanded(
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                  ],
-                );
-              }
-              if (data.rows.isEmpty) {
-                return Column(
-                  children: [
-                    _header(context, null),
-                    Expanded(
-                      child: StatusView(
-                        icon: Icons.search_off,
-                        title: '${widget.ticker} is not in this database',
-                        message:
-                            'It may have dropped out of the latest screener run.',
+                    ],
+                  );
+                }
+                final data = snapshot.data;
+                if (data == null) {
+                  return Column(
+                    children: [
+                      _header(context, null),
+                      const Expanded(
+                        child: Center(child: CircularProgressIndicator()),
                       ),
-                    ),
-                  ],
-                );
-              }
+                    ],
+                  );
+                }
+                if (data.rows.isEmpty) {
+                  return Column(
+                    children: [
+                      _header(context, null),
+                      Expanded(
+                        child: StatusView(
+                          icon: Icons.search_off,
+                          title: '${widget.ticker} is not in this database',
+                          message:
+                              'It may have dropped out of the latest screener run.',
+                        ),
+                      ),
+                    ],
+                  );
+                }
 
-              final window = _resolveWindow(data);
-              final row = data.rowFor(window)!;
+                final window = _resolveWindow(data);
+                final row = data.rowFor(window)!;
 
-              return Column(
-                children: [
-                  _header(context, row),
-                  Expanded(
-                    child: PageTransitionSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      transitionBuilder:
-                          (child, animation, secondaryAnimation) =>
-                              FadeThroughTransition(
-                                animation: animation,
-                                secondaryAnimation: secondaryAnimation,
-                                fillColor: Colors.transparent,
-                                child: child,
-                              ),
-                      child: KeyedSubtree(
-                        key: ValueKey(_tab),
-                        child: switch (_tab) {
-                          _DetailTab.overview => _OverviewTab(
-                            data: data,
-                            row: row,
-                            window: window,
-                            onWindowChanged: (value) =>
-                                setState(() => _window = value),
-                          ),
-                          _DetailTab.metrics => _MetricsTab(
-                            data: data,
-                            row: row,
-                          ),
-                          _DetailTab.windows => _WindowsTab(data: data),
-                          _DetailTab.links => _LinksTab(data: data, row: row),
-                        },
+                return Column(
+                  children: [
+                    _header(context, row),
+                    Expanded(
+                      child: PageTransitionSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        transitionBuilder:
+                            (child, animation, secondaryAnimation) =>
+                                FadeThroughTransition(
+                                  animation: animation,
+                                  secondaryAnimation: secondaryAnimation,
+                                  fillColor: Colors.transparent,
+                                  child: child,
+                                ),
+                        child: KeyedSubtree(
+                          key: ValueKey(_tab),
+                          child: switch (_tab) {
+                            _DetailTab.overview => _OverviewTab(
+                              data: data,
+                              row: row,
+                              window: window,
+                              onWindowChanged: (value) =>
+                                  setState(() => _window = value),
+                            ),
+                            _DetailTab.metrics => _MetricsTab(
+                              data: data,
+                              row: row,
+                            ),
+                            _DetailTab.windows => _WindowsTab(data: data),
+                            _DetailTab.links => _LinksTab(data: data, row: row),
+                          },
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              );
-            },
+                  ],
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -935,7 +938,12 @@ class _WindowsTab extends StatelessWidget {
                     // The cut-off sits beside the change it was applied to, so
                     // the two can be read against each other.
                     if (anyThreshold)
-                      _cell('Cut-off', colors.textSecondary, flex: 3, end: true),
+                      _cell(
+                        'Cut-off',
+                        colors.textSecondary,
+                        flex: 3,
+                        end: true,
+                      ),
                     _cell('Change', colors.textSecondary, flex: 4, end: true),
                   ],
                 ),

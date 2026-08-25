@@ -109,36 +109,39 @@ class InfoDialog extends StatelessWidget {
       surfaceTintColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 28),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: width, maxHeight: maxHeight),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _Header(info: info),
-            Divider(height: 1, color: colors.divider),
-            Flexible(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                shrinkWrap: true,
-                children: [
-                  for (final block in info.blocks) _BlockView(block: block),
-                ],
+      // Its own selection area: the sheets explain the data and get quoted.
+      child: SelectionArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: width, maxHeight: maxHeight),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _Header(info: info),
+              Divider(height: 1, color: colors.divider),
+              Flexible(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                  shrinkWrap: true,
+                  children: [
+                    for (final block in info.blocks) _BlockView(block: block),
+                  ],
+                ),
               ),
-            ),
-            Divider(height: 1, color: colors.divider),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Close'),
-                  ),
-                ],
+              Divider(height: 1, color: colors.divider),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Close'),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

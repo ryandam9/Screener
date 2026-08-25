@@ -116,21 +116,48 @@ void main() {
     expect(example, findsOneWidget);
   });
 
-  testWidgets('body text is selectable', (tester) async {
+  testWidgets('selection lives on the screens that need it, not app-wide', (
+    tester,
+  ) async {
     await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
 
-    // One selection area covers the whole navigator, so any screen's text is
-    // selectable without each screen opting in.
-    expect(find.byType(SelectionArea), findsOneWidget);
-    final ticker = tester.widget<Text>(find.text('MRNA').first);
-    final selectable = SelectionContainer.maybeOf(
-      tester.element(find.text('MRNA').first),
-    );
-    expect(ticker.data, 'MRNA');
+    // Nothing wraps the navigator. One SelectionArea spanning routes is what
+    // crashes the framework when a route comes or goes under it
+    // (flutter/flutter#117527, #125065, #152230), and a market list scrolling
+    // 150 rows through it is the churn that sets it off.
+    expect(find.byType(SelectionArea), findsNothing);
     expect(
-      selectable,
+      SelectionContainer.maybeOf(tester.element(find.text('MRNA').first)),
+      isNull,
+      reason: 'list rows are tapped, not copied',
+    );
+
+    // The detail screen is where the numbers are read closely, so it carries
+    // its own.
+    await tester.tap(find.text('MRNA').first);
+    await settle(tester);
+    expect(find.byType(SelectionArea), findsOneWidget);
+
+    final name = find.text('Moderna, Inc. - Common Stock');
+    expect(name, findsWidgets);
+    expect(
+      SelectionContainer.maybeOf(tester.element(name.first)),
       isNotNull,
-      reason: 'list text must sit inside the selection area',
+      reason: 'the detail text must sit inside the screen\'s selection area',
+    );
+  });
+
+  testWidgets('an info sheet can be selected and quoted', (tester) async {
+    await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
+
+    await tester.tap(find.byType(InfoButton));
+    await settle(tester);
+
+    final heading = find.text('Market cards');
+    expect(
+      SelectionContainer.maybeOf(tester.element(heading)),
+      isNotNull,
+      reason: 'the sheets explain the data and get quoted',
     );
   });
 
