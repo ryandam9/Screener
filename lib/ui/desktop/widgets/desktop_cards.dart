@@ -236,11 +236,7 @@ class MarketSummaryCard extends StatelessWidget {
           ],
           if (state case final state?) ...[
             const SizedBox(height: 10),
-            RefreshStamp(
-              asset: state.asset,
-              busy: state.isBusy,
-              fromCache: state.usingCache,
-            ),
+            RefreshStamp(state: state),
           ],
         ],
       ),

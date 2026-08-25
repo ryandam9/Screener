@@ -1,32 +1,28 @@
 import 'package:flutter/material.dart';
 
-import '../../data/db_sync_service.dart';
+import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 
-/// When this market's file was last downloaded.
+/// When the data on screen was produced.
 ///
-/// Per file rather than per app: the two are fetched independently, and one
-/// can be a day behind the other when a publish fails or a download is
-/// interrupted. The dashboard is where that has to be visible — it is the
-/// screen that answers "is what I am looking at current".
+/// The run's own stamp, from `run_metadata` — not when this device downloaded
+/// the file. The two are different questions, and only one of them says
+/// whether the figures are today's: a file can be fetched five times a day and
+/// still describe yesterday's prices. The download time stays available in the
+/// tooltip, where it answers "did my copy fail to update".
+///
+/// Per market, because the two runs are independent: on the day this was
+/// written the ASX file finished at 08:00 UTC with prices as of the 25th,
+/// while the US file finished at 00:41 UTC with prices as of the 24th.
 class RefreshStamp extends StatelessWidget {
   const RefreshStamp({
     super.key,
-    required this.asset,
-    this.busy = false,
-    this.fromCache = false,
+    required this.state,
     this.dense = false,
   });
 
-  /// The downloaded file, or null when nothing has been fetched yet.
-  final DbAsset? asset;
-
-  /// A download is running right now.
-  final bool busy;
-
-  /// The app is serving the cached copy because the last refresh failed.
-  final bool fromCache;
+  final MarketState state;
 
   /// Tighter type, for the handset's smaller cards.
   final bool dense;
@@ -34,23 +30,31 @@ class RefreshStamp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final stamp = asset?.syncedAt;
+    final published = state.publishedAt?.toLocal();
+    final downloaded = state.asset?.syncedAt;
 
     final (Color, String) status;
-    if (busy) {
+    if (state.isBusy) {
       status = (colors.neutral, 'Refreshing…');
-    } else if (stamp == null) {
+    } else if (downloaded == null) {
       status = (colors.textTertiary, 'Not downloaded yet');
-    } else if (fromCache) {
-      // "Cached" earns the warning colour: the figures are real, but they are
-      // not today's, and the difference matters on a screener.
-      status = (colors.warning, 'Cached · ${Fmt.relativeStamp(stamp)}');
+    } else if (published == null) {
+      // An older file with no run stamp at all: the download time is the only
+      // date there is, and it is labelled as what it is.
+      status = (
+        colors.textTertiary,
+        'Downloaded ${Fmt.relativeStamp(downloaded)}',
+      );
+    } else if (state.usingCache) {
+      // The figures are real, but the last check failed, so nothing here can
+      // promise they are the newest published.
+      status = (colors.warning, 'Cached · ${Fmt.relativeStamp(published)}');
     } else {
-      status = (colors.positive, 'Refreshed ${Fmt.relativeStamp(stamp)}');
+      status = (colors.positive, 'Refreshed ${Fmt.relativeStamp(published)}');
     }
     final (tint, label) = status;
 
-    return Row(
+    final stamp = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
@@ -72,5 +76,15 @@ class RefreshStamp extends StatelessWidget {
         ),
       ],
     );
+
+    final detail = [
+      if (state.dataAsOf case final asOf?) 'Prices as of ${Fmt.date(asOf)}',
+      if (published != null) 'Run finished ${Fmt.dateTime(published)}',
+      if (downloaded != null)
+        'Downloaded to this device ${Fmt.dateTime(downloaded)}',
+      if (state.usingCache) 'The last check for a newer file failed',
+    ].join('\n');
+
+    return detail.isEmpty ? stamp : Tooltip(message: detail, child: stamp);
   }
 }

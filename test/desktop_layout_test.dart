@@ -456,7 +456,10 @@ void main() {
     await launchDesktop(tester);
 
     expect(find.byType(RefreshStamp), findsNWidgets(2));
-    expect(find.textContaining('Refreshed Today'), findsNWidgets(2));
+    // The run's stamp, not the download's: the fixture's run is dated in the
+    // past, while the download happened seconds ago.
+    expect(find.textContaining('Refreshed'), findsNWidgets(2));
+    expect(find.textContaining('Refreshed Today'), findsNothing);
   });
 
   testWidgets('the desktop dashboard carries its own info button', (
