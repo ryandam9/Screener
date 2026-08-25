@@ -180,11 +180,48 @@ void main() {
     late Directory serveDir;
     late Map<String, List<int>> payloads;
 
+    /// The same pair, but with us.db publishing history of its own.
+    late Map<String, List<int>> bothHistories;
+
     setUp(() async {
       SharedPreferences.setMockInitialValues({});
       cacheDir = await Directory.systemTemp.createTemp('screener_hist_cache');
       serveDir = await Directory.systemTemp.createTemp('screener_hist_serve');
       payloads = await buildFixturePayloads(serveDir);
+
+      // Built here rather than in the test body: `testWidgets` runs in a
+      // fake-async zone where real file I/O never completes.
+      final usPath = await createFixtureDatabase(
+        directory: serveDir,
+        fileName: 'us_history.db',
+        tablePrefix: 'us_stocks_growth',
+        includeConsistentTable: false,
+        history: const [
+          FixtureHistoryBar(ticker: 'NVDA', date: '2026-08-07', close: 100),
+          FixtureHistoryBar(ticker: 'NVDA', date: '2026-08-21', close: 140),
+        ],
+        historyTable: 'US_1_YEAR_HISTORY',
+        tickerNames: const {'NVDA': 'NVIDIA Corporation'},
+        universeTable: 'us_universe',
+        rowsBySuffix: const {
+          '_7_days': [
+            FixtureRow(
+              ticker: 'NVDA',
+              name: 'NVIDIA Corporation',
+              exchange: 'NASDAQ',
+              firstDate: '2026-08-14',
+              firstPrice: 120,
+              lastDate: '2026-08-21',
+              latestPrice: 140,
+              pctChange: 16.7,
+            ),
+          ],
+        },
+      );
+      bothHistories = {
+        ...payloads,
+        'us.db': await File(usPath).readAsBytes(),
+      };
     });
 
     tearDown(() async {
@@ -249,6 +286,30 @@ void main() {
       await settle(tester);
 
       expect(find.textContaining('1 of 3 tickers'), findsOneWidget);
+      expect(find.text('QETH'), findsNothing);
+    });
+
+    testWidgets('a second market with history gets a switch', (tester) async {
+      // Today only asx.db publishes the table. When us.db does too, the page
+      // has to reach both rather than silently showing the first.
+      await launchApp(
+        tester,
+        cacheDir: cacheDir,
+        payloads: bothHistories,
+        size: const Size(1440, 900),
+        devicePixelRatio: 1.0,
+      );
+
+      await tester.tap(find.text('History'));
+      await settle(tester);
+
+      // The ASX comes first and charts by default; the US is one tap away.
+      expect(find.text('QETH'), findsWidgets);
+      await tester.tap(find.widgetWithText(InkWell, 'US').last);
+      await settle(tester);
+
+      expect(find.text('NVDA'), findsWidgets);
+      expect(find.text('NVIDIA Corporation'), findsWidgets);
       expect(find.text('QETH'), findsNothing);
     });
 

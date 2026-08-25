@@ -51,6 +51,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   String _query = '';
   HistoryTicker? _selected;
   bool _byChange = true;
+  Market? _market;
 
   @override
   void dispose() {
@@ -86,7 +87,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final markets = _marketsWith(appState);
     final desktop = context.layoutSize.isDesktop;
 
-    final body = markets.isEmpty
+    // Whichever market is chosen, falling back to the first that publishes
+    // history: today that is the ASX, but the page follows the files rather
+    // than naming a market of its own.
+    final market = markets.contains(_market) ? _market! : markets.firstOrNull;
+
+    final body = market == null
         ? const StatusView(
             icon: Icons.timeline_outlined,
             title: 'No price history published',
@@ -95,7 +101,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 'It arrives with the next run that publishes one.',
           )
         : _Body(
-            database: appState.databaseOf(markets.first)!,
+            database: appState.databaseOf(market)!,
+            markets: markets,
+            market: market,
             search: _search,
             query: _query,
             byChange: _byChange,
@@ -104,6 +112,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
             onQuery: (value) => setState(() => _query = value),
             onSort: (value) => setState(() => _byChange = value),
             onSelect: (ticker) => setState(() => _selected = ticker),
+            onMarket: (value) => setState(() {
+              _market = value;
+              // The selection belongs to the market it came from.
+              _selected = null;
+            }),
           );
 
     if (widget.embedded) return body;
@@ -124,6 +137,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
 class _Body extends StatelessWidget {
   const _Body({
     required this.database,
+    required this.markets,
+    required this.market,
     required this.search,
     required this.query,
     required this.byChange,
@@ -132,9 +147,16 @@ class _Body extends StatelessWidget {
     required this.onQuery,
     required this.onSort,
     required this.onSelect,
+    required this.onMarket,
   });
 
   final MarketDatabase database;
+
+  /// Every market whose file publishes history; a selector appears when there
+  /// is more than one.
+  final List<Market> markets;
+  final Market market;
+
   final TextEditingController search;
   final String query;
   final bool byChange;
@@ -143,6 +165,7 @@ class _Body extends StatelessWidget {
   final ValueChanged<String> onQuery;
   final ValueChanged<bool> onSort;
   final ValueChanged<HistoryTicker> onSelect;
+  final ValueChanged<Market> onMarket;
 
   @override
   Widget build(BuildContext context) {
@@ -170,6 +193,9 @@ class _Body extends StatelessWidget {
             final split = constraints.maxWidth >= 900;
             final list = _TickerList(
               database: database,
+              markets: markets,
+              market: market,
+              onMarket: onMarket,
               rows: rows,
               total: all.length,
               search: search,
@@ -231,6 +257,9 @@ class _Body extends StatelessWidget {
 class _TickerList extends StatelessWidget {
   const _TickerList({
     required this.database,
+    required this.markets,
+    required this.market,
+    required this.onMarket,
     required this.rows,
     required this.total,
     required this.search,
@@ -243,6 +272,9 @@ class _TickerList extends StatelessWidget {
   });
 
   final MarketDatabase database;
+  final List<Market> markets;
+  final Market market;
+  final ValueChanged<Market> onMarket;
   final List<HistoryTicker> rows;
   final int total;
   final TextEditingController search;
@@ -259,26 +291,41 @@ class _TickerList extends StatelessWidget {
 
     final header = Padding(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: TextField(
-              controller: search,
-              onChanged: onQuery,
-              decoration: InputDecoration(
-                isDense: true,
-                hintText: 'Search ${database.market.label} tickers',
-                prefixIcon: const Icon(Icons.search, size: 18),
-              ),
+          // Only when there is a choice: one market publishing history needs
+          // no switch, and today only the ASX file does.
+          if (markets.length > 1) ...[
+            PeriodSelector<Market>(
+              values: markets,
+              selected: market,
+              labelOf: (value) => value.label,
+              onChanged: onMarket,
             ),
-          ),
-          const SizedBox(width: 8),
-          PeriodSelector<bool>(
-            values: const [true, false],
-            selected: byChange,
-            labelOf: (value) => value ? 'Change' : 'A–Z',
-            onChanged: onSort,
-            compact: true,
+            const SizedBox(height: 10),
+          ],
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: search,
+                  onChanged: onQuery,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    hintText: 'Search ${database.market.label} tickers',
+                    prefixIcon: const Icon(Icons.search, size: 18),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              PeriodSelector<bool>(
+                values: const [true, false],
+                selected: byChange,
+                labelOf: (value) => value ? 'Change' : 'A–Z',
+                onChanged: onSort,
+                compact: true,
+              ),
+            ],
           ),
         ],
       ),
