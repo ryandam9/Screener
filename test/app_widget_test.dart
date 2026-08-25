@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:screener/models/market.dart';
 import 'package:screener/ui/screens/stock_detail_screen.dart';
+import 'package:screener/ui/widgets/refresh_stamp.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -183,6 +185,37 @@ void main() {
     await settle(tester);
     expect(find.text('Data sources'), findsOneWidget);
     expect(find.textContaining('us.db'), findsWidgets);
+  });
+
+  testWidgets('the dashboard says when each file was refreshed', (
+    tester,
+  ) async {
+    await launch(tester);
+
+    // One stamp per market card, because the two files are fetched
+    // independently and one can be a day behind the other.
+    expect(find.byType(RefreshStamp), findsNWidgets(Market.values.length));
+    expect(find.textContaining('Refreshed Today'), findsNWidgets(2));
+  });
+
+  testWidgets('a cached file says so rather than claiming to be current', (
+    tester,
+  ) async {
+    var failing = false;
+    await launch(tester, shouldFail: () => failing);
+    expect(find.textContaining('Refreshed Today'), findsWidgets);
+
+    // Take the server away and ask for a re-download: the rows stay, and the
+    // stamp stops claiming they are today's.
+    failing = true;
+    await tester.tap(find.text('More'));
+    await settle(tester);
+    await tester.tap(find.text('Re-download'));
+    await settle(tester);
+    await tester.tap(find.text('Dashboard'));
+    await settle(tester);
+
+    expect(find.textContaining('Cached'), findsWidgets);
   });
 
   testWidgets('Reports stacks the run panels on a handset', (tester) async {

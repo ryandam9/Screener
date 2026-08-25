@@ -602,6 +602,7 @@ class _DashboardBody extends StatelessWidget {
                       window: window,
                       instrumentNoun: market.instrumentNoun,
                       trend: data.growthSeries[market] ?? const [],
+                      state: context.watch<AppState>().stateOf(market),
                     ),
                   ),
                   const SizedBox(width: 16),
