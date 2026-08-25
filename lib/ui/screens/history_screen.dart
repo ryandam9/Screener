@@ -214,8 +214,29 @@ class _Body extends StatelessWidget {
                       builder: (_) => Scaffold(
                         appBar: AppBar(title: Text(ticker.ticker)),
                         body: SafeArea(
-                          child: _Detail(database: database, ticker: ticker),
+                          bottom: false,
+                          child: _Detail(
+                            database: database,
+                            ticker: ticker,
+                            showFooterAction: false,
+                          ),
                         ),
+                        // Pinned rather than scrolled to: on a phone this is
+                        // the one control you reach for without reading the
+                        // page first, so it sits where a thumb already is.
+                        bottomNavigationBar: ticker.googleFinanceUrl == null
+                            ? null
+                            : SafeArea(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    8,
+                                    16,
+                                    12,
+                                  ),
+                                  child: _GoogleFinanceAction(ticker: ticker),
+                                ),
+                              ),
                       ),
                     ),
                   );
@@ -461,12 +482,55 @@ class _HistoryTile extends StatelessWidget {
   }
 }
 
+/// The full-width action that opens the ticker on Google Finance.
+///
+/// A 26px icon in the header is a mouse target; on a phone the same link has
+/// to be reachable with a thumb, which means the bottom of the screen and a
+/// target the width of the page.
+class _GoogleFinanceAction extends StatelessWidget {
+  const _GoogleFinanceAction({required this.ticker});
+
+  final HistoryTicker ticker;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = ticker.googleFinanceUrl;
+    if (url == null) return const SizedBox.shrink();
+
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: () => openExternalUrl(context, url),
+        icon: const Icon(Icons.open_in_new, size: 18),
+        label: Text('${ticker.ticker} on Google Finance'),
+        style: FilledButton.styleFrom(
+          backgroundColor: context.colors.positive,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// The chart and the numbers for one ticker.
 class _Detail extends StatefulWidget {
-  const _Detail({super.key, required this.database, required this.ticker});
+  const _Detail({
+    super.key,
+    required this.database,
+    required this.ticker,
+    this.showFooterAction = true,
+  });
 
   final MarketDatabase database;
   final HistoryTicker ticker;
+
+  /// False where the page pins the action to the bottom of the window
+  /// instead, so a phone does not get the same button twice.
+  final bool showFooterAction;
 
   @override
   State<_Detail> createState() => _DetailState();
@@ -633,6 +697,10 @@ class _DetailState extends State<_Detail> {
                   ],
                 ),
               ),
+              if (widget.showFooterAction) ...[
+                const SizedBox(height: 16),
+                _GoogleFinanceAction(ticker: ticker),
+              ],
             ],
           ),
         );

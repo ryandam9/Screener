@@ -376,6 +376,41 @@ void main() {
       expect(find.text('QETH'), findsNothing);
     });
 
+    testWidgets('the handset pins the Google Finance link within reach', (
+      tester,
+    ) async {
+      await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
+
+      await tester.tap(find.text('More'));
+      await settle(tester);
+      await tester.scrollUntilVisible(find.text('Price history'), 200);
+      await settle(tester, frames: 4);
+      await tester.tap(find.text('Price history'));
+      await settle(tester);
+      await tester.tap(find.text('QETH').first);
+      await settle(tester);
+
+      // Full width and pinned to the bottom of the window, not somewhere in
+      // the scroll: a thumb has to reach it without reading the page first.
+      final action = find.widgetWithText(
+        FilledButton,
+        'QETH on Google Finance',
+      );
+      expect(action, findsOneWidget);
+
+      final box = tester.getRect(action);
+      final window = tester.getRect(find.byType(Scaffold).last);
+      expect(box.width, greaterThan(window.width * 0.8));
+      expect(
+        window.bottom - box.bottom,
+        lessThan(window.height * 0.12),
+        reason: 'the button should sit in the bottom tenth of the window',
+      );
+
+      // And it is the only copy on the page — the pane's own footer is off.
+      expect(find.byType(FilledButton), findsOneWidget);
+    });
+
     testWidgets('a handset opens the chart as its own page', (tester) async {
       await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
 
