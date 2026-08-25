@@ -8,8 +8,32 @@ import '../models/run_details.dart';
 import '../models/stock_row.dart';
 
 /// Column names a ticker directory might use for the company name.
-const _nameColumns = {'name', 'company', 'company_name', 'security_name',
-    'long_name', 'description'};
+const _nameColumns = {
+  'name',
+  'company',
+  'company_name',
+  'security_name',
+  'long_name',
+  'description',
+};
+
+/// A table that pairs tickers with names and holds no prices.
+///
+/// Matched by shape rather than by name: the published one is `asx_universe`,
+/// but the pipeline has renamed its tables before. Anything carrying a price,
+/// a change or a run stamp is a screen result, not a directory.
+bool _looksLikeDirectory(Set<String> columns) {
+  if (!columns.contains('ticker')) return false;
+  if (!columns.any(_nameColumns.contains)) return false;
+  return !columns.any(
+    (column) =>
+        column.startsWith('pct_change') ||
+        column.contains('price') ||
+        column == 'close' ||
+        column == 'stock_price_date' ||
+        column == 'run_id',
+  );
+}
 
 /// Columns a list can be sorted by. Values are physical column names and are
 /// interpolated into SQL, so the enum is the whitelist — never accept a raw
@@ -285,11 +309,10 @@ class MarketDatabase {
           names.contains('close') &&
           names.contains('ticker')) {
         history = name;
-      } else if (directory == null &&
-          names.contains('ticker') &&
-          !names.contains('close') &&
-          !names.contains('pct_change') &&
-          names.any(_nameColumns.contains)) {
+      } else if (directory == null && _looksLikeDirectory(names)) {
+        // `asx_universe`: the ticker and its name, and nothing priced. It
+        // names every ticker in the history, not only the few that a screen
+        // picked up.
         directory = name;
       } else if (metadata == null &&
           names.contains('run_id') &&
