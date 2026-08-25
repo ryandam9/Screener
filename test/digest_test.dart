@@ -13,7 +13,11 @@ import 'package:screener/services/notifier.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'package:provider/provider.dart';
+import 'package:screener/state/app_state.dart';
 import 'package:screener/state/digest_router.dart';
+import 'package:screener/ui/desktop/desktop_shell.dart';
+import 'package:screener/ui/screens/home_shell.dart';
 import 'package:screener/ui/screens/market_list_screen.dart';
 
 import 'support/app_harness.dart';
@@ -426,6 +430,65 @@ void main() {
         notifier.posted.map((n) => '${n.title} ${n.body}').join(' '),
         contains('MRNA'),
       );
+    });
+
+    testWidgets('tapping the digest while on another window does not crash', (
+      tester,
+    ) async {
+      // The tap arrives as a notification from outside the tree, so the shell
+      // has to act on it without touching state mid-build. It only ever threw
+      // when the window actually changed, which is why the case below —
+      // sitting on 1M when the digest lands — is the one that matters.
+      final router = DigestRouter();
+      await launchApp(
+        tester,
+        cacheDir: cacheDir,
+        payloads: payloads,
+        router: router,
+        size: const Size(1440, 900),
+        devicePixelRatio: 1.0,
+      );
+
+      final appState = Provider.of<AppState>(
+        tester.element(find.byType(DesktopShell)),
+        listen: false,
+      );
+      appState.selectWindow(GrowthWindow.oneMonth);
+      await settle(tester);
+
+      router.requestSevenDayList();
+      await settle(tester);
+
+      expect(tester.takeException(), isNull);
+      expect(appState.selectedWindow, GrowthWindow.sevenDays);
+      expect(find.byType(MarketListScreen), findsOneWidget);
+      expect(router.showSevenDayList, isFalse);
+    });
+
+    testWidgets('the handset shell survives the same tap', (tester) async {
+      // Both shells consume the request, and both are built inside AppShell's
+      // LayoutBuilder, so the handset had the identical defect.
+      final router = DigestRouter();
+      await launchApp(
+        tester,
+        cacheDir: cacheDir,
+        payloads: payloads,
+        router: router,
+      );
+
+      final appState = Provider.of<AppState>(
+        tester.element(find.byType(HomeShell)),
+        listen: false,
+      );
+      appState.selectWindow(GrowthWindow.oneMonth);
+      await settle(tester);
+
+      router.requestSevenDayList();
+      await settle(tester);
+
+      expect(tester.takeException(), isNull);
+      expect(appState.selectedWindow, GrowthWindow.sevenDays);
+      expect(find.byType(MarketListScreen), findsOneWidget);
     });
 
     testWidgets('tapping the digest lands on the 7-day list', (tester) async {

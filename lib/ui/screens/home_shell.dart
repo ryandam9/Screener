@@ -22,16 +22,32 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
+  /// True between raising the post-frame handler and it running.
+  bool _handlingDigestRequest = false;
+
   void _goToMarkets() => setState(() => _index = 1);
 
   /// Lands on the 7-day list when the morning digest was tapped.
+  ///
+  /// Everything happens after the frame, never inside it. Both shells are
+  /// built from `AppShell`'s LayoutBuilder — that is, during layout — and
+  /// `selectWindow` notifies its listeners, which marks a provider above this
+  /// widget dirty. Doing that mid-build throws, and it only throws when the
+  /// window actually changes: the crash hid until someone tapped a digest
+  /// while looking at a window other than 7D.
   void _consumeDigestRequest(BuildContext context) {
-    final router = context.read<DigestRouter>();
-    if (!router.showSevenDayList) return;
-    router.consume();
-    context.read<AppState>().selectWindow(GrowthWindow.sevenDays);
+    if (_handlingDigestRequest) return;
+    if (!context.read<DigestRouter>().showSevenDayList) return;
+    _handlingDigestRequest = true;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() => _index = 1);
+      _handlingDigestRequest = false;
+      if (!mounted) return;
+      final router = context.read<DigestRouter>();
+      if (!router.showSevenDayList) return;
+      router.consume();
+      context.read<AppState>().selectWindow(GrowthWindow.sevenDays);
+      setState(() => _index = 1);
     });
   }
 
