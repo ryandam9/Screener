@@ -289,7 +289,7 @@ void main() {
         notifier.posted.map((n) => n.title),
         containsAll(['asx.db refreshed', 'us.db refreshed']),
       );
-      expect(notifier.posted.first.body, contains('downloaded at'));
+      expect(notifier.posted.first.body, contains('downloaded'));
     });
 
     test('a failed download is not announced', () async {

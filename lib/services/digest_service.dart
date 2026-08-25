@@ -98,9 +98,10 @@ class DigestService {
             AppNotification(
               id: NotificationIds.forFile(market),
               title: '${market.objectKey} refreshed',
-              body:
-                  '${Fmt.bytes(asset.sizeBytes)} downloaded at '
-                  '${Fmt.clock(_now())}',
+              // No time in the body: the shade stamps every notification with
+              // its arrival, and the clock format carries seconds and a zone
+              // that read as noise here.
+              body: '${Fmt.bytes(asset.sizeBytes)} downloaded',
             ),
           );
         }
