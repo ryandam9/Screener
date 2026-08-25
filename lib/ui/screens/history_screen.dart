@@ -11,6 +11,7 @@ import '../../utils/formatters.dart';
 import '../info/page_info.dart';
 import '../responsive.dart';
 import '../widgets/change_chip.dart';
+import '../widgets/google_finance_button.dart';
 import '../widgets/info_dialog.dart';
 import '../widgets/panels.dart';
 import '../widgets/price_chart.dart';
@@ -427,6 +428,12 @@ class _HistoryTile extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   ChangeChip(pctChange: row.pctChange, dense: true),
+                  if (row.googleFinanceUrl != null)
+                    GoogleFinanceButton(
+                      url: row.googleFinanceUrl,
+                      ticker: row.ticker,
+                      dense: true,
+                    ),
                 ],
               ),
               // The name when the file publishes one; the span of bars either
@@ -512,18 +519,39 @@ class _DetailState extends State<_Detail> {
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
-            Text(
-              ticker.ticker,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.4,
-                color: colors.textPrimary,
-              ),
-            ),
-            Text(
-              ticker.name ?? '${widget.database.market.label} listed',
-              style: TextStyle(fontSize: 13, color: colors.textSecondary),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        ticker.ticker,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.4,
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        ticker.name ??
+                            '${widget.database.market.label} listed',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: colors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (ticker.googleFinanceUrl != null)
+                  GoogleFinanceButton(
+                    url: ticker.googleFinanceUrl,
+                    ticker: ticker.ticker,
+                  ),
+              ],
             ),
             const SizedBox(height: 14),
             Row(
