@@ -106,79 +106,88 @@ class _ReportsScreenState extends State<ReportsScreen> {
           SizedBox(width: 4),
         ],
       ),
-      body: FutureBuilder<List<_MarketReport>>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return StatusView(
-              icon: Icons.error_outline,
-              title: 'Could not read the run metadata',
-              message: '${snapshot.error}',
-            );
-          }
-          final reports = snapshot.data;
-          if (reports == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (reports.isEmpty || reports.every((r) => r.runs.isEmpty)) {
-            return StatusView(
-              icon: Icons.cloud_off,
-              title: 'No runs available',
-              message: 'Download the databases to see their runs.',
-              actionLabel: 'Download',
-              onAction: () => appState.refreshAll(force: true),
-            );
-          }
+      // Its own selection area, not the app's: the run ids and stamps here
+      // are meant to be copied, and a selection that spans routes is what
+      // crashes the framework.
+      body: SelectionArea(
+        child: FutureBuilder<List<_MarketReport>>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return StatusView(
+                icon: Icons.error_outline,
+                title: 'Could not read the run metadata',
+                message: '${snapshot.error}',
+              );
+            }
+            final reports = snapshot.data;
+            if (reports == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (reports.isEmpty || reports.every((r) => r.runs.isEmpty)) {
+              return StatusView(
+                icon: Icons.cloud_off,
+                title: 'No runs available',
+                message: 'Download the databases to see their runs.',
+                actionLabel: 'Download',
+                onAction: () => appState.refreshAll(force: true),
+              );
+            }
 
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-            children: [
-              for (final report in reports) ...[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(2, 6, 2, 10),
-                  child: Text(
-                    '${report.market.label} — ${report.market.objectKey}',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: colors.textPrimary,
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+              children: [
+                for (final report in reports) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(2, 6, 2, 10),
+                    child: Text(
+                      '${report.market.label} — ${report.market.objectKey}',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: colors.textPrimary,
+                      ),
                     ),
                   ),
-                ),
-                Panel(
-                  margin: EdgeInsets.zero,
-                  child: Column(
-                    children: [
-                      for (final run in report.runs) ...[
-                        _RunTile(
-                          run: run,
-                          busy:
-                              _exporting ==
-                              '${report.market.id}-${run.window.name}',
-                          onExport: run.rowCount == 0
-                              ? null
-                              : () => _export(
-                                  appState.databaseOf(report.market)!,
-                                  run.window,
-                                ),
-                        ),
-                        if (run != report.runs.last)
-                          Divider(height: 1, color: colors.divider, indent: 16),
+                  Panel(
+                    margin: EdgeInsets.zero,
+                    child: Column(
+                      children: [
+                        for (final run in report.runs) ...[
+                          _RunTile(
+                            run: run,
+                            busy:
+                                _exporting ==
+                                '${report.market.id}-${run.window.name}',
+                            onExport: run.rowCount == 0
+                                ? null
+                                : () => _export(
+                                    appState.databaseOf(report.market)!,
+                                    run.window,
+                                  ),
+                          ),
+                          if (run != report.runs.last)
+                            Divider(
+                              height: 1,
+                              color: colors.divider,
+                              indent: 16,
+                            ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
+                  const SizedBox(height: 12),
+                  _Provenance(report: report),
+                  const SizedBox(height: 22),
+                ],
+                Text(
+                  'CSV exports carry every published column, unchanged.',
+                  style: TextStyle(fontSize: 11.5, color: colors.textTertiary),
                 ),
-                const SizedBox(height: 12),
-                _Provenance(report: report),
-                const SizedBox(height: 22),
               ],
-              Text(
-                'CSV exports carry every published column, unchanged.',
-                style: TextStyle(fontSize: 11.5, color: colors.textTertiary),
-              ),
-            ],
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

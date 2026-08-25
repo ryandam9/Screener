@@ -516,122 +516,125 @@ class _DetailState extends State<_Detail> {
             ? (shown.last.plotPrice / shown.first.plotPrice - 1) * 100
             : 0.0;
 
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        ticker.ticker,
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.4,
-                          color: colors.textPrimary,
-                        ),
-                      ),
-                      Text(
-                        ticker.name ??
-                            '${widget.database.market.label} listed',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: colors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (ticker.googleFinanceUrl != null)
-                  GoogleFinanceButton(
-                    url: ticker.googleFinanceUrl,
-                    ticker: ticker.ticker,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  Fmt.price(shown.last.plotPrice),
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.8,
-                    height: 1.05,
-                    color: colors.textPrimary,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: ChangeChip(pctChange: change),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${Fmt.shortDate(shown.first.date)} — '
-              '${Fmt.shortDate(shown.last.date)} · ${shown.length} bars',
-              style: TextStyle(fontSize: 12, color: colors.textTertiary),
-            ),
-            const SizedBox(height: 12),
-            Panel(
-              margin: EdgeInsets.zero,
-              padding: const EdgeInsets.fromLTRB(6, 12, 6, 10),
-              child: Column(
+        // Per screen rather than app-wide: see main.dart.
+        return SelectionArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            children: [
+              Row(
                 children: [
-                  PeriodSelector<_Span>(
-                    values: _Span.values,
-                    selected: _span,
-                    labelOf: (value) => value.label,
-                    onChanged: (value) => setState(() => _span = value),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          ticker.ticker,
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.4,
+                            color: colors.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          ticker.name ??
+                              '${widget.database.market.label} listed',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 6),
-                  PriceChart(
-                    points: ChartPoint.fromBars(shown),
-                    lineColor: colors.forChange(change),
+                  if (ticker.googleFinanceUrl != null)
+                    GoogleFinanceButton(
+                      url: ticker.googleFinanceUrl,
+                      ticker: ticker.ticker,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    Fmt.price(shown.last.plotPrice),
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.8,
+                      height: 1.05,
+                      color: colors.textPrimary,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: ChangeChip(pctChange: change),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 12),
-            Panel(
-              margin: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  MetricRow(
-                    label: 'First close',
-                    value:
-                        '${Fmt.price(shown.first.plotPrice)} · '
-                        '${Fmt.shortDate(shown.first.date)}',
-                  ),
-                  MetricRow(
-                    label: 'Last close',
-                    value:
-                        '${Fmt.price(shown.last.plotPrice)} · '
-                        '${Fmt.shortDate(shown.last.date)}',
-                  ),
-                  MetricRow(label: 'High', value: Fmt.price(ticker.high)),
-                  MetricRow(label: 'Low', value: Fmt.price(ticker.low)),
-                  MetricRow(
-                    label: 'Published bars',
-                    value: Fmt.integer(ticker.bars),
-                  ),
-                  MetricRow(
-                    label: 'Median volume',
-                    value: Fmt.integer(_medianVolume(shown)),
-                  ),
-                ],
+              const SizedBox(height: 4),
+              Text(
+                '${Fmt.shortDate(shown.first.date)} — '
+                '${Fmt.shortDate(shown.last.date)} · ${shown.length} bars',
+                style: TextStyle(fontSize: 12, color: colors.textTertiary),
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              Panel(
+                margin: EdgeInsets.zero,
+                padding: const EdgeInsets.fromLTRB(6, 12, 6, 10),
+                child: Column(
+                  children: [
+                    PeriodSelector<_Span>(
+                      values: _Span.values,
+                      selected: _span,
+                      labelOf: (value) => value.label,
+                      onChanged: (value) => setState(() => _span = value),
+                    ),
+                    const SizedBox(height: 6),
+                    PriceChart(
+                      points: ChartPoint.fromBars(shown),
+                      lineColor: colors.forChange(change),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Panel(
+                margin: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    MetricRow(
+                      label: 'First close',
+                      value:
+                          '${Fmt.price(shown.first.plotPrice)} · '
+                          '${Fmt.shortDate(shown.first.date)}',
+                    ),
+                    MetricRow(
+                      label: 'Last close',
+                      value:
+                          '${Fmt.price(shown.last.plotPrice)} · '
+                          '${Fmt.shortDate(shown.last.date)}',
+                    ),
+                    MetricRow(label: 'High', value: Fmt.price(ticker.high)),
+                    MetricRow(label: 'Low', value: Fmt.price(ticker.low)),
+                    MetricRow(
+                      label: 'Published bars',
+                      value: Fmt.integer(ticker.bars),
+                    ),
+                    MetricRow(
+                      label: 'Median volume',
+                      value: Fmt.integer(_medianVolume(shown)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
