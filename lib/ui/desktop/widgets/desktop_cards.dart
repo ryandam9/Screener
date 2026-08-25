@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../data/market_database.dart';
 import '../../../models/growth_window.dart';
 import '../../../models/price_bar.dart';
+import '../../../state/app_state.dart';
 import '../../../theme/app_theme.dart';
+import '../../widgets/refresh_stamp.dart';
 import '../../../utils/formatters.dart';
 import '../../widgets/sparkline.dart';
 
@@ -167,6 +169,7 @@ class MarketSummaryCard extends StatelessWidget {
     required this.window,
     required this.instrumentNoun,
     this.trend = const [],
+    this.state,
   });
 
   final String title;
@@ -174,6 +177,9 @@ class MarketSummaryCard extends StatelessWidget {
   final MarketSummary? summary;
   final GrowthWindow window;
   final String instrumentNoun;
+
+  /// The download behind this card, for the refresh stamp.
+  final MarketState? state;
 
   /// Weekly growth curve; when empty the sparkline falls back to the median
   /// of each window, which is all an older file supports.
@@ -226,6 +232,14 @@ class MarketSummaryCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(fontSize: 11.5, color: colors.textSecondary),
+            ),
+          ],
+          if (state case final state?) ...[
+            const SizedBox(height: 10),
+            RefreshStamp(
+              asset: state.asset,
+              busy: state.isBusy,
+              fromCache: state.usingCache,
             ),
           ],
         ],

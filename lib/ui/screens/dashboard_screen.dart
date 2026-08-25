@@ -9,6 +9,7 @@ import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../widgets/panels.dart';
+import '../widgets/refresh_stamp.dart';
 import '../widgets/sparkline.dart';
 import '../widgets/stock_tile.dart';
 import 'market_list_screen.dart';
@@ -241,6 +242,7 @@ class _DashboardBody extends StatelessWidget {
                       market: market,
                       summary: data.summaries[market],
                       window: window,
+                      state: context.watch<AppState>().stateOf(market),
                     ),
                   ),
                   if (market != Market.values.last) const SizedBox(width: 12),
@@ -305,11 +307,15 @@ class _MarketCard extends StatelessWidget {
     required this.market,
     required this.summary,
     required this.window,
+    required this.state,
   });
 
   final Market market;
   final MarketSummary? summary;
   final GrowthWindow window;
+
+  /// The download behind this card, for the refresh stamp.
+  final MarketState state;
 
   @override
   Widget build(BuildContext context) {
@@ -390,6 +396,13 @@ class _MarketCard extends StatelessWidget {
                   style: TextStyle(fontSize: 11.5, color: colors.textSecondary),
                 ),
               ],
+              const SizedBox(height: 8),
+              RefreshStamp(
+                asset: state.asset,
+                busy: state.isBusy,
+                fromCache: state.usingCache,
+                dense: true,
+              ),
             ],
           ),
         ),

@@ -8,6 +8,7 @@ import 'package:screener/ui/desktop/desktop_shell.dart';
 import 'package:screener/ui/widgets/info_dialog.dart';
 import 'package:screener/ui/widgets/change_chip.dart';
 import 'package:screener/ui/widgets/panels.dart';
+import 'package:screener/ui/widgets/refresh_stamp.dart';
 import 'package:screener/ui/widgets/table_frame.dart';
 import 'package:screener/models/market.dart';
 import 'package:screener/ui/desktop/desktop_dashboard.dart';
@@ -449,6 +450,13 @@ void main() {
     expect((digest.dy - dataSources.dy).abs(), lessThan(1));
     expect(reports.dx, dataSources.dx, reason: 'the fourth wraps around');
     expect(reports.dy, greaterThan(dataSources.dy));
+  });
+
+  testWidgets('the desktop dashboard stamps each market card', (tester) async {
+    await launchDesktop(tester);
+
+    expect(find.byType(RefreshStamp), findsNWidgets(2));
+    expect(find.textContaining('Refreshed Today'), findsNWidgets(2));
   });
 
   testWidgets('the desktop dashboard carries its own info button', (
