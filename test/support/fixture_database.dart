@@ -12,6 +12,21 @@ const _growthColumns =
     '"median_volume" FLOAT, "price_basis" TEXT, "data_as_of" TEXT, '
     '"run_id" TEXT, "google_finance" TEXT';
 
+/// One bar of the whole-market history table.
+class FixtureHistoryBar {
+  const FixtureHistoryBar({
+    required this.ticker,
+    required this.date,
+    required this.close,
+    this.volume = 1000,
+  });
+
+  final String ticker;
+  final String date;
+  final double close;
+  final double volume;
+}
+
 /// One row of test data, mirroring what the pipeline writes.
 class FixtureRow {
   const FixtureRow({
@@ -175,6 +190,13 @@ Future<String> createFixtureDatabase({
   List<FixtureStage> funnel = const [],
   List<(String ticker, String name, String exchange, double pct)> consistent =
       const [],
+
+  /// The whole-market history table the ASX file publishes.
+  List<FixtureHistoryBar> history = const [],
+  String historyTable = 'ASX_1_YEAR_HISTORY',
+
+  /// The ticker directory, for files that publish one.
+  Map<String, String> tickerNames = const {},
 }) async {
   final path = '${directory.path}/$fileName';
   final file = File(path);
@@ -270,6 +292,41 @@ Future<String> createFixtureDatabase({
         'position': stage.position,
         'stage': stage.stage,
         'count': stage.count,
+      });
+    }
+  }
+
+  if (history.isNotEmpty) {
+    // Named as the published table is, and with the same TEXT columns: the
+    // pipeline writes every number as text.
+    await db.execute(
+      'CREATE TABLE "$historyTable" ('
+      '  ticker TEXT, stock_price_date TEXT, open TEXT, high TEXT,'
+      '  low TEXT, close TEXT, adj_close TEXT, volume TEXT)',
+    );
+    for (final bar in history) {
+      await db.insert(historyTable, {
+        'ticker': bar.ticker,
+        'stock_price_date': bar.date,
+        'open': '${bar.close}',
+        'high': '${bar.close}',
+        'low': '${bar.close}',
+        'close': '${bar.close}',
+        'adj_close': '${bar.close}',
+        'volume': '${bar.volume}',
+      });
+    }
+  }
+
+  if (tickerNames.isNotEmpty) {
+    await db.execute(
+      'CREATE TABLE ticker_directory(ticker TEXT, name TEXT, exchange TEXT)',
+    );
+    for (final entry in tickerNames.entries) {
+      await db.insert('ticker_directory', {
+        'ticker': entry.key,
+        'name': entry.value,
+        'exchange': 'ASX',
       });
     }
   }

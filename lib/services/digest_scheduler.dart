@@ -21,8 +21,19 @@ import 'notifier.dart';
 class DigestScheduler {
   const DigestScheduler._();
 
-  static const uniqueName = 'daily-7d-digest';
   static const taskName = 'daily-7d-digest';
+
+  /// When the files are fetched. The pipeline republishes them in the morning;
+  /// the second run catches a late publish without waiting for tomorrow.
+  static const refreshTimes = [
+    TimeOfDay(hour: 9, minute: 0),
+    TimeOfDay(hour: 11, minute: 0),
+  ];
+
+  /// One WorkManager registration per time of day.
+  static String uniqueNameFor(TimeOfDay at) =>
+      'refresh-${at.hour.toString().padLeft(2, '0')}'
+      '${at.minute.toString().padLeft(2, '0')}';
 
   /// True where a scheduled wake-up is actually available.
   static bool get isSupported =>
@@ -36,30 +47,36 @@ class DigestScheduler {
     return next.difference(now);
   }
 
-  /// Registers or cancels the daily task to match the current settings.
+  /// Registers or cancels the daily tasks to match the current settings.
   static Future<void> configure({
     required bool enabled,
-    required TimeOfDay at,
+    List<TimeOfDay> times = refreshTimes,
     DateTime? now,
   }) async {
     if (!isSupported) return;
 
     final manager = Workmanager();
-    if (!enabled) {
-      await manager.cancelByUniqueName(uniqueName);
-      return;
+    // Cancel first: the times are fixed today, but a changed list must not
+    // leave yesterday's registration running.
+    for (final at in refreshTimes) {
+      await manager.cancelByUniqueName(uniqueNameFor(at));
     }
+    // The name the single daily digest used before the refresh schedule.
+    await manager.cancelByUniqueName('daily-7d-digest');
+    if (!enabled) return;
 
-    await manager.registerPeriodicTask(
-      uniqueName,
-      taskName,
-      frequency: const Duration(hours: 24),
-      initialDelay: delayUntil(at, now ?? DateTime.now()),
-      existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
-      // The digest needs the morning's files; without a connection the run
-      // would only ever re-summarise yesterday's.
-      constraints: Constraints(networkType: NetworkType.connected),
-    );
+    for (final at in times) {
+      await manager.registerPeriodicTask(
+        uniqueNameFor(at),
+        taskName,
+        frequency: const Duration(hours: 24),
+        initialDelay: delayUntil(at, now ?? DateTime.now()),
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
+        // The run needs the morning's files; without a connection it would
+        // only ever re-read yesterday's.
+        constraints: Constraints(networkType: NetworkType.connected),
+      );
+    }
   }
 
   /// Registers the background entry point. Safe to call on every launch.
@@ -89,6 +106,8 @@ void digestCallbackDispatcher() {
 
     final sync = DbSyncService(preferences: preferences);
     try {
+      // Fetches both files, says which changed, then says which tickers are
+      // new in the 7-day screen.
       await DigestService(
         preferences: preferences,
         sync: sync,

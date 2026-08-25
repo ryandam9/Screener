@@ -343,6 +343,47 @@ class PageInfos {
     ],
   );
 
+  static const history = PageInfo(
+    title: 'Price history',
+    subtitle: 'Every ticker the run collected',
+    icon: Icons.timeline_outlined,
+    blocks: [
+      InfoParagraph(
+        'The growth tables only carry what passed a screen. This page reads '
+        'the whole-market history table published alongside them, so a ticker '
+        'that never moved enough to be screened can still be looked up and '
+        'charted.',
+      ),
+      InfoHeading('Reading the list', icon: Icons.list_alt_outlined),
+      InfoBullets([
+        InfoBullet(
+          lead: 'The change',
+          text:
+              'is measured across the whole published history, first bar to '
+              'last — not the screener windows, which cover fixed periods.',
+        ),
+        InfoBullet(
+          lead: 'Names',
+          text:
+              'come from the growth tables, so tickers that never passed a '
+              'screen show their bar count instead until the file publishes a '
+              'directory of its own.',
+        ),
+        InfoBullet(
+          lead: 'A–Z',
+          text: 'sorts by ticker when you are looking for one in particular.',
+        ),
+      ]),
+      InfoHeading('The chart', icon: Icons.show_chart),
+      InfoParagraph(
+        'Published closes at their real dates, adjusted where the file '
+        'publishes an adjusted price. The period buttons trim the range from '
+        'the last bar backwards; "All" shows everything the file holds.',
+      ),
+      _screenerNumbers,
+    ],
+  );
+
   static const settings = PageInfo(
     title: 'Settings',
     subtitle: 'Data sources, cache and appearance',
@@ -373,32 +414,36 @@ class PageInfos {
         'serving the cached files rather than emptying the screens.',
       ),
       InfoDivider(),
-      InfoHeading('Daily digest', icon: Icons.notifications_none),
+      InfoHeading('Refresh and alerts', icon: Icons.notifications_none),
       InfoParagraph(
-        'One notification a morning, naming what the 7-day screen published '
-        'and which of those names were not in the previous one. The files are '
-        'republished around eight, so the digest is set to a quarter past by '
-        'default.',
+        'Both files are fetched at 9:00 and again at 11:00, and each one that '
+        'actually changed is announced. Then the 7-day screen is compared '
+        'with the last time it was checked: every ticker that joined gets a '
+        'notification of its own, naming the company and its move.',
       ),
       InfoBullets([
         InfoBullet(
+          lead: 'Only what is new',
+          text:
+              'a ticker already in the screen is never announced twice, so '
+              'the second run of the day is usually silent.',
+        ),
+        InfoBullet(
           lead: 'On Android',
           text:
-              'the app is woken to build it, so the notification arrives '
-              'whether or not the app is open. The system may hold it back a '
-              'few minutes to batch work.',
+              'the app is woken to do the work, so the alerts arrive whether '
+              'or not it is open. The system may hold a wake-up back a few '
+              'minutes to batch work.',
         ),
         InfoBullet(
           lead: 'On desktop',
           text:
-              'nothing wakes the app on a schedule, so the digest goes out '
-              'the next time it is opened.',
+              'nothing wakes the app on a schedule, so the check runs the '
+              'next time it is opened.',
         ),
         InfoBullet(
-          lead: 'Send one now',
-          text:
-              'builds today’s digest from the cached files without waiting '
-              'for the schedule.',
+          lead: 'Check now',
+          text: 'fetches both files and posts what is in the screen today.',
         ),
       ]),
       InfoDivider(),

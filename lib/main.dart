@@ -126,11 +126,11 @@ class ScreenerApp extends StatelessWidget {
   }
 }
 
-/// Posts the day's digest when the app is opened and it has not gone out yet.
+/// Checks the 7-day screen when the app is opened.
 ///
-/// On Android the scheduler normally gets there first; this covers the day the
-/// phone was off at eight, and it is the only path on desktop, where nothing
-/// wakes the app on a schedule.
+/// On Android the scheduled refreshes normally get there first; this covers
+/// the day the phone was off at nine, and it is the only path on desktop,
+/// where nothing wakes the app on a schedule.
 class _DigestOnLaunch extends StatefulWidget {
   const _DigestOnLaunch({required this.child});
 
@@ -148,20 +148,22 @@ class _DigestOnLaunchState extends State<_DigestOnLaunch> {
     final appState = context.watch<AppState>();
     final settings = context.watch<SettingsController>();
 
-    // Only once the files are open: a digest built while the download is still
-    // running would describe yesterday's data and mark today as done.
+    // Only once the files are open: a comparison run mid-download would be
+    // against yesterday's rows, and would then be recorded as the baseline.
     if (!_ran &&
         settings.digestEnabled &&
         appState.allReady &&
         !appState.anyBusy) {
       _ran = true;
       final digest = context.read<DigestService>();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        // A digest that cannot be posted must not take the app down with it.
-        digest.run(refresh: false).catchError((Object error) {
-          debugPrint('Digest not sent: $error');
-          return null;
-        });
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        // An alert that cannot be posted must not take the app down with it.
+        // The files were just synced by AppState, so this only compares.
+        try {
+          await digest.notifyNewcomers();
+        } on Object catch (error) {
+          debugPrint('Alerts not sent: $error');
+        }
       });
     }
 

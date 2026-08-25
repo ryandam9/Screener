@@ -9,6 +9,7 @@ import 'package:screener/models/market.dart';
 import 'package:screener/models/stock_row.dart';
 import 'package:screener/services/digest_scheduler.dart';
 import 'package:screener/services/digest_service.dart';
+import 'package:screener/services/notifier.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -143,7 +144,7 @@ void main() {
     });
   });
 
-  group('sending it', () {
+  group('sending alerts', () {
     late Directory cacheDir;
     late Directory serveDir;
     late Map<String, List<int>> payloads;
@@ -151,6 +152,7 @@ void main() {
     late FakeNotifier notifier;
     late DbSyncService sync;
     late DateTime now;
+    late String version;
 
     setUpAll(() {
       sqfliteFfiInit();
@@ -164,11 +166,13 @@ void main() {
       serveDir = await Directory.systemTemp.createTemp('screener_digest_serve');
       payloads = await buildFixturePayloads(serveDir);
       notifier = FakeNotifier();
-      now = DateTime(2026, 8, 24, 8, 15);
+      now = DateTime(2026, 8, 24, 9, 0);
+      version = '1';
       sync = fixtureSyncService(
         preferences: prefs,
         cacheDir: cacheDir,
         payloads: payloads,
+        version: () => version,
       );
     });
 
@@ -186,50 +190,109 @@ void main() {
       clock: () => now,
     );
 
-    test('posts the digest, then leaves the day alone', () async {
-      final digest = service();
+    test('the first run takes a baseline without announcing it', () async {
+      final digest = (await service().run()).digest!;
 
-      final first = await digest.run();
-      expect(first, isNotNull);
-      expect(notifier.posted, hasLength(1));
-      expect(notifier.last!.title, contains('7-day screen'));
-      expect(notifier.last!.payload, DigestService.tapPayload);
-      // The fixture publishes MRNA and AMLX for the US, QETH for the ASX.
-      expect(notifier.last!.body, contains('MRNA'));
-
-      // Opening the app again the same day must not post a second time.
-      expect(await digest.run(), isNull);
-      expect(notifier.posted, hasLength(1));
-    });
-
-    test('the snapshot makes tomorrow a comparison', () async {
-      await service().run();
-      expect(service().snapshot, contains('us:MRNA'));
-
-      now = now.add(const Duration(days: 1));
-      final second = await service().run();
-
-      expect(second, isNotNull);
-      expect(second!.isFirstRun, isFalse);
+      expect(digest.isFirstRun, isTrue);
       expect(
-        second.newKeys,
+        notifier.posted,
         isEmpty,
-        reason: 'the fixture publishes the same rows both days',
+        reason: 'a first run has no yesterday to call anything new against',
       );
-      expect(notifier.posted, hasLength(2));
-      expect(notifier.posted.last.body, contains('no new names'));
+      expect(service().snapshot, contains('us:MRNA'));
     });
 
-    test('a forced send ignores the once-a-day guard', () async {
-      final digest = service();
-      await digest.run();
-      expect(await digest.run(force: true), isNotNull);
-      expect(notifier.posted, hasLength(2));
+    test('a ticker that joins the screen gets its own alert', () async {
+      // Yesterday saw everything except AMLX.
+      await prefs.setStringList('digest_snapshot_7d', [
+        'us:MRNA',
+        'asx:QETH',
+      ]);
+
+      final digest = (await service().run()).digest!;
+      expect(digest.newKeys, {'us:AMLX'});
+
+      expect(notifier.posted, hasLength(1), reason: 'one ticker, one alert');
+      final alert = notifier.last!;
+      expect(alert.title, 'AMLX is up 81.9%');
+      expect(alert.body, contains('Amylyx Pharmaceuticals, Inc.'));
+      expect(alert.body, contains('39.16'));
+      expect(alert.payload, DigestService.tapPayload);
+      expect(alert.group, NotificationIds.sevenDayGroup);
+      expect(alert.isGroupSummary, isFalse);
     });
 
-    test('a failed download still summarises the cache', () async {
-      // Prime the cache, then take the server away.
+    test('several newcomers are grouped under a summary', () async {
+      await prefs.setStringList('digest_snapshot_7d', ['us:GONE']);
+
       await service().run();
+
+      final summaries = notifier.posted.where((n) => n.isGroupSummary);
+      expect(summaries, hasLength(1));
+      expect(summaries.single.title, contains('new in the 7-day screen'));
+      // One per ticker, plus the summary above them.
+      expect(notifier.posted.length, greaterThan(2));
+      expect(
+        notifier.posted.where((n) => !n.isGroupSummary).map((n) => n.title),
+        contains('MRNA is up 117.9%'),
+      );
+    });
+
+    test('nothing new means nothing posted, however often it runs', () async {
+      await service().run();
+      notifier.posted.clear();
+
+      await service().run();
+      await service().run();
+      expect(notifier.posted, isEmpty);
+    });
+
+    test('an alert is not repeated the next day', () async {
+      await prefs.setStringList('digest_snapshot_7d', ['us:MRNA']);
+      await service().run();
+      expect(notifier.posted, isNotEmpty);
+
+      notifier.posted.clear();
+      now = now.add(const Duration(days: 1));
+      await service().run();
+      expect(notifier.posted, isEmpty);
+    });
+
+    test('a forced check posts even when nothing is new', () async {
+      await service().run();
+      notifier.posted.clear();
+
+      await service().run(force: true);
+      expect(notifier.posted, isNotEmpty);
+    });
+
+    test('a run that adds many tickers caps the alerts', () {
+      // The cap is on the alerts, not on the digest, which still counts them.
+      expect(DigestService.maxAlerts, lessThan(20));
+    });
+
+    test('a refreshed file is announced once, when it changes', () async {
+      // The first sync has nothing to compare against, so it is recorded.
+      expect(await service().refresh(), isEmpty);
+      expect(notifier.posted, isEmpty);
+
+      // Unchanged bytes: the conditional request says nothing happened.
+      expect(await service().refresh(), isEmpty);
+      expect(notifier.posted, isEmpty);
+
+      // A new publish changes the ETag.
+      version = '2';
+      final changed = await service().refresh();
+      expect(changed, hasLength(2), reason: 'both files were republished');
+      expect(notifier.posted, hasLength(2));
+      expect(
+        notifier.posted.map((n) => n.title),
+        containsAll(['asx.db refreshed', 'us.db refreshed']),
+      );
+      expect(notifier.posted.first.body, contains('downloaded at'));
+    });
+
+    test('a failed download is not announced', () async {
       final offline = DigestService(
         preferences: prefs,
         sync: fixtureSyncService(
@@ -239,12 +302,11 @@ void main() {
           shouldFail: () => true,
         ),
         notifier: notifier,
-        clock: () => now.add(const Duration(days: 1)),
+        clock: () => now,
       );
 
-      final digest = await offline.run();
-      expect(digest, isNotNull);
-      expect(digest!.isEmpty, isFalse);
+      expect(await offline.refresh(), isEmpty);
+      expect(notifier.posted, isEmpty);
     });
 
     test('nothing cached means nothing posted', () async {
@@ -263,14 +325,9 @@ void main() {
         clock: () => now,
       );
 
-      final digest = await offline.run();
-      expect(digest!.isEmpty, isTrue);
-      expect(notifier.posted, isEmpty, reason: 'an empty digest is not news');
-      expect(
-        prefs.getString('digest_last_sent'),
-        isNull,
-        reason: 'the day is not spent on a digest that never went out',
-      );
+      final digest = (await offline.run()).digest!;
+      expect(digest.isEmpty, isTrue);
+      expect(notifier.posted, isEmpty, reason: 'an empty screen is not news');
     });
   });
 
@@ -306,7 +363,7 @@ void main() {
       );
       await tester.tap(find.text('More'));
       await settle(tester);
-      await tester.scrollUntilVisible(find.text('Morning digest'), 200);
+      await tester.scrollUntilVisible(find.text('Refresh and alerts'), 200);
       await settle(tester, frames: 4);
     }
 
@@ -317,7 +374,7 @@ void main() {
       await openSettings(tester, notifier);
 
       final toggle = find.ancestor(
-        of: find.text('Morning digest'),
+        of: find.text('Refresh and alerts'),
         matching: find.byType(SwitchListTile),
       );
       expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
@@ -336,7 +393,7 @@ void main() {
       await openSettings(tester, notifier);
 
       final toggle = find.ancestor(
-        of: find.text('Morning digest'),
+        of: find.text('Refresh and alerts'),
         matching: find.byType(SwitchListTile),
       );
       await tester.tap(find.descendant(of: toggle, matching: find.byType(Switch)));
@@ -346,15 +403,29 @@ void main() {
       expect(find.textContaining('blocked'), findsOneWidget);
     });
 
-    testWidgets('"Send one now" posts today’s digest', (tester) async {
+    testWidgets('"Check now" posts what the screen holds', (tester) async {
       final notifier = FakeNotifier();
       await openSettings(tester, notifier);
 
-      await tester.tap(find.text('Send one now'));
-      await settle(tester);
+      await tester.scrollUntilVisible(find.text('Check now'), 150);
+      await settle(tester, frames: 4);
+      await tester.tap(find.text('Check now'));
+      // "Check now" downloads before it compares, so the fake clock and the
+      // real one have to take turns until the file lands.
+      for (var i = 0; i < 6; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 300)),
+        );
+        await settle(tester, frames: 10);
+      }
 
-      expect(notifier.posted, hasLength(1));
-      expect(notifier.last!.body, contains('MRNA'));
+      // Forced, so it posts even on a first run: one alert per ticker, with a
+      // summary above them.
+      expect(notifier.posted, isNotEmpty);
+      expect(
+        notifier.posted.map((n) => '${n.title} ${n.body}').join(' '),
+        contains('MRNA'),
+      );
     });
 
     testWidgets('tapping the digest lands on the 7-day list', (tester) async {
