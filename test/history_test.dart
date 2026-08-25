@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:screener/data/market_database.dart';
 import 'package:screener/models/market.dart';
 import 'package:screener/ui/screens/history_screen.dart';
+import 'package:screener/ui/widgets/google_finance_button.dart';
 import 'package:screener/ui/widgets/price_chart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -70,16 +71,19 @@ void main() {
   }
 
   group('the data layer', () {
-    test('finds the history table without mistaking it for the series', () async {
-      final db = await openFixture();
-      addTearDown(db.close);
+    test(
+      'finds the history table without mistaking it for the series',
+      () async {
+        final db = await openFixture();
+        addTearDown(db.close);
 
-      expect(db.hasMarketHistory, isTrue);
-      // The screener's own weekly series is a different table, and is still
-      // found: both carry stock_price_date and close.
-      expect(db.hasPriceHistory, isTrue);
-      expect(db.availableWindows, isNotEmpty);
-    });
+        expect(db.hasMarketHistory, isTrue);
+        // The screener's own weekly series is a different table, and is still
+        // found: both carry stock_price_date and close.
+        expect(db.hasPriceHistory, isTrue);
+        expect(db.availableWindows, isNotEmpty);
+      },
+    );
 
     test('summarises every ticker, strongest first', () async {
       final db = await openFixture();
@@ -102,15 +106,18 @@ void main() {
       expect(tickers.last.pctChange, closeTo(-10, 0.001));
     });
 
-    test('names come from the growth tables when there is no directory', () async {
-      final db = await openFixture();
-      addTearDown(db.close);
+    test(
+      'names come from the growth tables when there is no directory',
+      () async {
+        final db = await openFixture();
+        addTearDown(db.close);
 
-      final tickers = await db.historyTickers();
-      expect(tickers.firstWhere((t) => t.ticker == 'AAA').name, 'Alpha ETF');
-      // BBB never passed a screen, so the file has no name for it.
-      expect(tickers.firstWhere((t) => t.ticker == 'BBB').name, isNull);
-    });
+        final tickers = await db.historyTickers();
+        expect(tickers.firstWhere((t) => t.ticker == 'AAA').name, 'Alpha ETF');
+        // BBB never passed a screen, so the file has no name for it.
+        expect(tickers.firstWhere((t) => t.ticker == 'BBB').name, isNull);
+      },
+    );
 
     test('asx_universe names every ticker, screened or not', () async {
       // The table the pipeline publishes alongside the history:
@@ -142,9 +149,7 @@ void main() {
     });
 
     test('the universe table is not mistaken for a screen result', () async {
-      final db = await openFixture(
-        tickerNames: const {'BBB': 'Beta Bank Ltd'},
-      );
+      final db = await openFixture(tickerNames: const {'BBB': 'Beta Bank Ltd'});
       addTearDown(db.close);
 
       // Discovery has to tell four ticker-keyed tables apart in one file.
@@ -153,6 +158,39 @@ void main() {
       expect(db.availableWindows, isNotEmpty);
       expect(db.hasRunMetadata, isFalse);
     });
+
+    test('links to Google Finance over the year it charts', () async {
+      final db = await openFixture(tickerNames: const {'BBB': 'Beta Bank Ltd'});
+      addTearDown(db.close);
+
+      final tickers = await db.historyTickers();
+      final beta = tickers.firstWhere((t) => t.ticker == 'BBB');
+
+      // The exchange comes from the universe table, and the window is the one
+      // this page shows — the growth tables' own link points at five days.
+      expect(beta.exchange, 'ASX');
+      expect(
+        beta.googleFinanceUrl,
+        'https://www.google.com/finance/quote/BBB:ASX?window=1Y',
+      );
+    });
+
+    test(
+      'a ticker with no exchange gets no link rather than a broken one',
+      () async {
+        final db = await openFixture(
+          history: const [
+            FixtureHistoryBar(ticker: 'ZZZ', date: '2026-08-07', close: 5),
+            FixtureHistoryBar(ticker: 'ZZZ', date: '2026-08-21', close: 6),
+          ],
+        );
+        addTearDown(db.close);
+
+        final zzz = (await db.historyTickers()).single;
+        expect(zzz.exchange, isNull);
+        expect(zzz.googleFinanceUrl, isNull);
+      },
+    );
 
     test('the bars of one ticker come back in order', () async {
       final db = await openFixture();
@@ -218,10 +256,7 @@ void main() {
           ],
         },
       );
-      bothHistories = {
-        ...payloads,
-        'us.db': await File(usPath).readAsBytes(),
-      };
+      bothHistories = {...payloads, 'us.db': await File(usPath).readAsBytes()};
     });
 
     tearDown(() async {
@@ -268,6 +303,34 @@ void main() {
 
       expect(find.byType(PriceChart), findsOneWidget);
       expect(find.text('Published bars'), findsOneWidget);
+    });
+
+    testWidgets('the chart pane offers the Google Finance link', (
+      tester,
+    ) async {
+      await launchApp(
+        tester,
+        cacheDir: cacheDir,
+        payloads: payloads,
+        size: const Size(1440, 900),
+        devicePixelRatio: 1.0,
+      );
+
+      await tester.tap(find.text('History'));
+      await settle(tester);
+
+      // One per listed row, plus the one in the chart pane's header.
+      final buttons = find.byType(GoogleFinanceButton);
+      expect(buttons, findsWidgets);
+      final urls = tester
+          .widgetList<GoogleFinanceButton>(buttons)
+          .map((button) => button.url)
+          .toSet();
+      expect(urls, everyElement(contains('window=1Y')));
+      expect(
+        urls,
+        contains('https://www.google.com/finance/quote/QETH:ASX?window=1Y'),
+      );
     });
 
     testWidgets('search narrows the list', (tester) async {

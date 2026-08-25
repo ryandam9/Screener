@@ -234,8 +234,9 @@ class MarketDatabase {
   /// The whole history table, folded per ticker. See [historyTickers].
   List<HistoryTicker>? _historyCache;
 
-  /// Ticker -> company name. See [tickerNames].
+  /// Ticker -> company name and exchange. See [tickerNames].
   Map<String, String>? _names;
+  Map<String, String>? _exchanges;
 
   /// The run stamp and the data date, read once. See [publishedAt].
   DateTime? _publishedAt;
@@ -584,48 +585,71 @@ class MarketDatabase {
   /// Read once: the history page asks for it per row, and the growth tables
   /// only name the few hundred tickers that passed a screen.
   Future<Map<String, String>> tickerNames() async {
-    final cached = _names;
-    if (cached != null) return cached;
+    await _loadDirectory();
+    return _names!;
+  }
+
+  /// Ticker -> exchange code, from the same sources.
+  ///
+  /// Needed to address a ticker on Google Finance, which wants `VAS:ASX`.
+  Future<Map<String, String>> tickerExchanges() async {
+    await _loadDirectory();
+    return _exchanges!;
+  }
+
+  Future<void> _loadDirectory() async {
+    if (_names != null) return;
 
     final names = <String, String>{};
+    final exchanges = <String, String>{};
+
+    void record(Object? ticker, Object? name, Object? exchange) {
+      final key = ticker?.toString().trim();
+      if (key == null || key.isEmpty) return;
+      final label = name?.toString().trim();
+      if (label != null && label.isNotEmpty) names.putIfAbsent(key, () => label);
+      final code = exchange?.toString().trim();
+      if (code != null && code.isNotEmpty) {
+        exchanges.putIfAbsent(key, () => code);
+      }
+    }
+
     final directory = _directoryTable;
     if (directory != null) {
       final columns = await _db.rawQuery('PRAGMA table_info("$directory")');
-      final column = [
+      final present = {
         for (final row in columns)
-          if (row['name'] case final String value)
-            if (_nameColumns.contains(value)) value,
-      ].firstOrNull;
-      if (column != null) {
+          if (row['name'] case final String value) value,
+      };
+      final column = present.firstWhere(
+        _nameColumns.contains,
+        orElse: () => '',
+      );
+      if (column.isNotEmpty) {
+        final hasExchange = present.contains('exchange');
         final rows = await _db.rawQuery(
-          'SELECT ticker, "$column" AS name FROM "$directory"',
+          'SELECT ticker, "$column" AS name'
+          '${hasExchange ? ', exchange' : ''} FROM "$directory"',
         );
         for (final row in rows) {
-          final ticker = row['ticker']?.toString().trim();
-          final name = row['name']?.toString().trim();
-          if (ticker != null && ticker.isNotEmpty) {
-            if (name != null && name.isNotEmpty) names[ticker] = name;
-          }
+          record(row['ticker'], row['name'], row['exchange']);
         }
       }
     }
 
-    // The growth tables name what they carry, which is better than nothing for
-    // a file published before the directory table existed.
+    // The growth tables name and place what they carry, which is better than
+    // nothing for a file published before the directory table existed.
     for (final table in _tables.values) {
       final rows = await _db.rawQuery(
-        'SELECT DISTINCT ticker, name FROM "$table"',
+        'SELECT DISTINCT ticker, name, exchange FROM "$table"',
       );
       for (final row in rows) {
-        final ticker = row['ticker']?.toString().trim();
-        final name = row['name']?.toString().trim();
-        if (ticker == null || ticker.isEmpty) continue;
-        if (name == null || name.isEmpty) continue;
-        names.putIfAbsent(ticker, () => name);
+        record(row['ticker'], row['name'], row['exchange']);
       }
     }
 
-    return _names = names;
+    _names = names;
+    _exchanges = exchanges;
   }
 
   /// Every ticker in the published history, summarised, strongest first.
@@ -644,6 +668,7 @@ class MarketDatabase {
       'SELECT * FROM "$table" ORDER BY ticker ASC, stock_price_date ASC',
     );
     final names = await tickerNames();
+    final exchanges = await tickerExchanges();
 
     final summaries = <HistoryTicker>[];
     final bars = <PriceBar>[];
@@ -656,6 +681,7 @@ class MarketDatabase {
         ticker,
         bars,
         name: names[ticker],
+        exchange: exchanges[ticker],
       );
       if (summary != null) summaries.add(summary);
       bars.clear();
