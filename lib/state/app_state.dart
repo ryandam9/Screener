@@ -16,6 +16,8 @@ class MarketState {
     this.database,
     this.asset,
     this.usingCache = false,
+    this.publishedAt,
+    this.dataAsOf,
   });
 
   final SyncPhase phase;
@@ -28,6 +30,13 @@ class MarketState {
 
   /// True when the data on screen came from disk after a failed refresh.
   final bool usingCache;
+
+  /// When the run that produced this file finished, from its own metadata —
+  /// not when this device downloaded it.
+  final DateTime? publishedAt;
+
+  /// The date the prices are as of, as published.
+  final String? dataAsOf;
 
   bool get isReady => phase == SyncPhase.ready && database != null;
   bool get isBusy =>
@@ -42,6 +51,8 @@ class MarketState {
     MarketDatabase? database,
     DbAsset? asset,
     bool? usingCache,
+    DateTime? publishedAt,
+    String? dataAsOf,
     bool clearError = false,
     bool clearProgress = false,
   }) {
@@ -52,6 +63,8 @@ class MarketState {
       database: database ?? this.database,
       asset: asset ?? this.asset,
       usingCache: usingCache ?? this.usingCache,
+      publishedAt: publishedAt ?? this.publishedAt,
+      dataAsOf: dataAsOf ?? this.dataAsOf,
     );
   }
 }
@@ -136,6 +149,8 @@ class AppState extends ChangeNotifier {
           database: database,
           asset: cached,
           usingCache: true,
+          publishedAt: await database.publishedAt(),
+          dataAsOf: await database.dataAsOf(),
         ),
       );
       _ensureWindowAvailable();
@@ -216,6 +231,10 @@ class AppState extends ChangeNotifier {
           database: database,
           asset: asset,
           usingCache: false,
+          // Read while the file is being opened: the dashboard shows the run's
+          // own stamp, and asking per rebuild would re-query on every frame.
+          publishedAt: await database.publishedAt(),
+          dataAsOf: await database.dataAsOf(),
         ),
       );
       _ensureWindowAvailable();

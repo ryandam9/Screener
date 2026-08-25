@@ -219,6 +219,58 @@ void main() {
     expect(stage.count, 5);
   });
 
+  group('when the file was produced', () {
+    test('prefers the run\'s finish over anything else', () async {
+      final db = await open();
+      addTearDown(db.close);
+
+      // The fixture's run finished 1.4 seconds after it started.
+      final run = (await db.runMetadata())!;
+      expect(await db.publishedAt(), run.finishedAt!.toUtc());
+      expect(await db.dataAsOf(), '2026-08-21');
+    });
+
+    test('falls back to the run id when there is no metadata table', () async {
+      final db = await open(run: null, stages: const []);
+      addTearDown(db.close);
+
+      // 20260822T224430Z-a4761276, as the pipeline stamps them.
+      expect(await db.publishedAt(), DateTime.utc(2026, 8, 22, 22, 44, 30));
+      // And the date the rows themselves carry.
+      expect(await db.dataAsOf(), '2026-08-21');
+    });
+
+    test('is null when the file carries no stamp at all', () async {
+      final path = await createFixtureDatabase(
+        directory: tempDir,
+        fileName: 'bare.db',
+        tablePrefix: 'us_stocks_growth',
+        includeConsistentTable: false,
+        rowsBySuffix: const {
+          '_7_days': [
+            FixtureRow(
+              ticker: 'AAA',
+              name: 'Alpha',
+              exchange: 'NASDAQ',
+              firstDate: '2026-08-14',
+              firstPrice: 10,
+              lastDate: '2026-08-21',
+              latestPrice: 12,
+              pctChange: 20,
+              runId: 'not-a-stamp',
+              dataAsOf: '',
+            ),
+          ],
+        },
+      );
+      final bare = await MarketDatabase.open(Market.us, path);
+      addTearDown(bare.close);
+
+      expect(await bare.publishedAt(), isNull);
+      expect(await bare.dataAsOf(), isNull);
+    });
+  });
+
   group('the metadata panel on screen', () {
     late Directory cacheDir;
     late Directory serveDir;

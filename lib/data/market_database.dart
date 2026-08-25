@@ -237,6 +237,12 @@ class MarketDatabase {
   /// Ticker -> company name. See [tickerNames].
   Map<String, String>? _names;
 
+  /// The run stamp and the data date, read once. See [publishedAt].
+  DateTime? _publishedAt;
+  bool _publishedAtLoaded = false;
+  String? _dataAsOf;
+  bool _dataAsOfLoaded = false;
+
   /// Windows this file actually contains, shortest first.
   List<GrowthWindow> get availableWindows {
     final windows = _tables.keys.toList()
@@ -684,6 +690,57 @@ class MarketDatabase {
       for (final row in rows)
         if (PriceBar.fromMap(row) case final bar?) bar,
     ];
+  }
+
+  /// When the run that produced this file finished, in UTC — callers convert
+  /// for display.
+  ///
+  /// This is what "refreshed" means to a reader: the pipeline's own stamp, not
+  /// the moment this device downloaded the bytes. A file can be fetched five
+  /// times a day and still be describing yesterday's prices.
+  ///
+  /// Falls back through what the file publishes: the run's finish, then its
+  /// start, then the timestamp inside `run_id` — which is all an older file
+  /// without `run_metadata` carries.
+  Future<DateTime?> publishedAt() async {
+    if (_publishedAtLoaded) return _publishedAt;
+    _publishedAtLoaded = true;
+
+    final run = await runMetadata();
+    _publishedAt = (run?.finishedAt ?? run?.startedAt)?.toUtc();
+    if (_publishedAt != null) return _publishedAt;
+
+    for (final window in availableWindows) {
+      final info = await runInfo(window);
+      final stamp = info?.runStartedAt;
+      if (stamp != null) return _publishedAt = stamp.toUtc();
+    }
+    return _publishedAt;
+  }
+
+  /// The date the prices are as of, as published — "2026-08-25".
+  ///
+  /// The run can finish hours after the last close it describes, and on the
+  /// US file it routinely does.
+  Future<String?> dataAsOf() async {
+    if (_dataAsOfLoaded) return _dataAsOf;
+    _dataAsOfLoaded = true;
+
+    String? clean(String? value) {
+      final text = value?.trim();
+      return text == null || text.isEmpty ? null : text;
+    }
+
+    final run = await runMetadata();
+    _dataAsOf = clean(run?.dataAsOf);
+    if (_dataAsOf != null) return _dataAsOf;
+
+    for (final window in availableWindows) {
+      final info = await runInfo(window);
+      final asOf = clean(info?.dataAsOf);
+      if (asOf != null) return _dataAsOf = asOf;
+    }
+    return _dataAsOf;
   }
 
   /// The cut-off the screen applied to a window, in percent.

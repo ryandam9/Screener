@@ -397,12 +397,7 @@ class _MarketCard extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 8),
-              RefreshStamp(
-                asset: state.asset,
-                busy: state.isBusy,
-                fromCache: state.usingCache,
-                dense: true,
-              ),
+              RefreshStamp(state: state, dense: true),
             ],
           ),
         ),

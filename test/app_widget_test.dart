@@ -187,15 +187,45 @@ void main() {
     expect(find.textContaining('us.db'), findsWidgets);
   });
 
-  testWidgets('the dashboard says when each file was refreshed', (
+  testWidgets('the dashboard dates the run, not the download', (tester) async {
+    await launch(tester);
+
+    // One stamp per market card, because the two runs are independent.
+    expect(find.byType(RefreshStamp), findsNWidgets(Market.values.length));
+
+    // The fixture's run is stamped 22 August 2026; the download happened in
+    // this test, seconds ago. A label saying "Today" would be dating the
+    // download — the thing the reader cannot use.
+    expect(find.textContaining('Refreshed'), findsWidgets);
+    expect(find.textContaining('Refreshed Today'), findsNothing);
+
+    // And the run's date is the one in the tooltip.
+    final tooltip = tester
+        .widgetList<Tooltip>(
+          find.descendant(
+            of: find.byType(RefreshStamp).first,
+            matching: find.byType(Tooltip),
+          ),
+        )
+        .first;
+    expect(tooltip.message, contains('Run finished Aug 22, 2026'));
+  });
+
+  testWidgets('the tooltip separates the run from the download', (
     tester,
   ) async {
     await launch(tester);
 
-    // One stamp per market card, because the two files are fetched
-    // independently and one can be a day behind the other.
-    expect(find.byType(RefreshStamp), findsNWidgets(Market.values.length));
-    expect(find.textContaining('Refreshed Today'), findsNWidgets(2));
+    final stamp = tester.widgetList<Tooltip>(
+      find.descendant(
+        of: find.byType(RefreshStamp).first,
+        matching: find.byType(Tooltip),
+      ),
+    );
+    final message = stamp.first.message!;
+    expect(message, contains('Prices as of'));
+    expect(message, contains('Run finished'));
+    expect(message, contains('Downloaded to this device'));
   });
 
   testWidgets('a cached file says so rather than claiming to be current', (
@@ -203,7 +233,7 @@ void main() {
   ) async {
     var failing = false;
     await launch(tester, shouldFail: () => failing);
-    expect(find.textContaining('Refreshed Today'), findsWidgets);
+    expect(find.textContaining('Refreshed'), findsWidgets);
 
     // Take the server away and ask for a re-download: the rows stay, and the
     // stamp stops claiming they are today's.
@@ -216,6 +246,7 @@ void main() {
     await settle(tester);
 
     expect(find.textContaining('Cached'), findsWidgets);
+    expect(find.textContaining('Refreshed'), findsNothing);
   });
 
   testWidgets('Reports stacks the run panels on a handset', (tester) async {
