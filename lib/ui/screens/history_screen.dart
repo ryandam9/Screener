@@ -94,7 +94,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     final body = market == null
         ? const StatusView(
-            icon: Icons.timeline_outlined,
+            icon: Icons.candlestick_chart_outlined,
             title: 'No price history published',
             message:
                 'Neither file carries the whole-market history table yet. '

@@ -346,7 +346,7 @@ class PageInfos {
   static const history = PageInfo(
     title: 'Price history',
     subtitle: 'Every ticker the run collected',
-    icon: Icons.timeline_outlined,
+    icon: Icons.candlestick_chart_outlined,
     blocks: [
       InfoParagraph(
         'The growth tables only carry what passed a screen. This page reads '

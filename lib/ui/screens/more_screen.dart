@@ -138,7 +138,9 @@ class MoreScreen extends StatelessWidget {
                     color: colors.positive,
                   ),
                   title: const Text('Runs and CSV export'),
-                  subtitle: const Text('Every published run, exportable as CSV'),
+                  subtitle: const Text(
+                    'Every published run, exportable as CSV',
+                  ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
@@ -148,7 +150,10 @@ class MoreScreen extends StatelessWidget {
                 ),
                 Divider(height: 1, color: colors.divider, indent: 16),
                 ListTile(
-                  leading: Icon(Icons.timeline_outlined, color: colors.positive),
+                  leading: Icon(
+                    Icons.candlestick_chart_outlined,
+                    color: colors.positive,
+                  ),
                   title: const Text('Price history'),
                   subtitle: const Text(
                     'Every ticker the run collected, charted',
@@ -505,9 +510,7 @@ class _DigestPanelState extends State<_DigestPanel> {
                 enabled: enabled,
                 // The times sit in the title rather than in a trailing widget:
                 // at 320dp two of them fill the whole tile.
-                title: Text(
-                  'Refreshes at ${_scheduleLabel(context)}',
-                ),
+                title: Text('Refreshes at ${_scheduleLabel(context)}'),
                 subtitle: Text(
                   DigestScheduler.isSupported
                       ? 'The app is woken to fetch both files and check the '
@@ -527,7 +530,9 @@ class _DigestPanelState extends State<_DigestPanel> {
                       )
                     : const Icon(Icons.notifications_active_outlined),
                 title: const Text('Check now'),
-                subtitle: const Text('Fetches both files and posts what is new'),
+                subtitle: const Text(
+                  'Fetches both files and posts what is new',
+                ),
                 onTap: _busy ? null : _sendNow,
               ),
             ],
