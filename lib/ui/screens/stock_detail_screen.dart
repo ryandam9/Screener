@@ -450,7 +450,11 @@ class _OverviewTab extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 row.name,
-                style: TextStyle(fontSize: 13.5, color: colors.textSecondary),
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w500,
+                  color: colors.textName,
+                ),
               ),
               const SizedBox(height: 2),
               Text(

@@ -470,7 +470,14 @@ class _HistoryTile extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     height: 1.25,
-                    color: colors.textSecondary,
+                    // Only a real name is content; the bar count in its place
+                    // is chrome and stays secondary.
+                    fontWeight: row.name == null
+                        ? FontWeight.w400
+                        : FontWeight.w500,
+                    color: row.name == null
+                        ? colors.textSecondary
+                        : colors.textName,
                   ),
                 ),
               ),
@@ -606,7 +613,12 @@ class _DetailState extends State<_Detail> {
                               '${widget.database.market.label} listed',
                           style: TextStyle(
                             fontSize: 13,
-                            color: colors.textSecondary,
+                            fontWeight: ticker.name == null
+                                ? FontWeight.w400
+                                : FontWeight.w500,
+                            color: ticker.name == null
+                                ? colors.textSecondary
+                                : colors.textName,
                           ),
                         ),
                       ],
