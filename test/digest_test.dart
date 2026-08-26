@@ -136,40 +136,42 @@ void main() {
       expect(digest.body, contains('1 US'));
     });
 
-    test('the alert budget is shared out, not taken by the loudest file', () {
-      // What production looks like: hundreds of US rows moving in the
-      // hundreds of percent, a couple of ASX rows in the twenties.
+    test('narrows to one file, counts and title with it', () {
       final digest = DailyDigest.build(
         rows: [
-          for (var i = 0; i < 20; i++) row('US$i', 400 - i.toDouble()),
+          row('MRNA', 117.9),
+          row('AMLX', 81.9),
           row('QETH', 21.0, market: Market.asx),
-          row('VBTC', 14.4, market: Market.asx),
         ],
-        previousKeys: const {'us:GONE'},
+        previousKeys: const {'us:MRNA', 'asx:GONE'},
         date: today,
       );
 
-      final alerts = digest.alerts(budget: 8);
-      expect(alerts, hasLength(8));
-      expect(
-        [for (final r in alerts) r.ticker],
-        containsAll(['QETH', 'VBTC']),
-        reason: 'no ASX row ever out-moves a US one, so a strongest-first '
-            'cap would never announce one',
-      );
-      // The rest of the budget still goes to the strongest, in order.
-      expect(alerts.first.ticker, 'US0');
-      expect([for (final r in alerts) r.ticker].take(3), ['US0', 'US1', 'US2']);
+      final asx = digest.onlyFor(Market.asx);
+      expect([for (final r in asx.rows) r.ticker], ['QETH']);
+      expect(asx.newKeys, {'asx:QETH'});
+      expect(asx.title, '1 new in the ASX 7-day screen');
+      // The title names the file, so the body does not repeat the count.
+      expect(asx.body, isNot(contains('1 ASX')));
+      // A ticker the ASX run dropped belongs to the ASX digest, not the US one.
+      expect(asx.droppedKeys, {'asx:GONE'});
+
+      final us = digest.onlyFor(Market.us);
+      expect([for (final r in us.rows) r.ticker], ['MRNA', 'AMLX']);
+      expect(us.newKeys, {'us:AMLX'});
+      expect(us.title, '1 new in the US 7-day screen');
+      expect(us.droppedKeys, isEmpty);
     });
 
-    test('a file with nothing new leaves its share to the other', () {
+    test('a file with nothing published is empty, not the other file', () {
       final digest = DailyDigest.build(
         rows: [for (var i = 0; i < 10; i++) row('US$i', 100 - i.toDouble())],
         previousKeys: const {'us:GONE'},
         date: today,
       );
 
-      expect(digest.alerts(budget: 4), hasLength(4));
+      expect(digest.onlyFor(Market.asx).isEmpty, isTrue);
+      expect(digest.onlyFor(Market.us).rows, hasLength(10));
       expect(digest.newcomersFor(Market.asx), isEmpty);
     });
 
@@ -257,12 +259,12 @@ void main() {
       final alert = notifier.last!;
       // The name is the point of the alert, so it is in the title rather than
       // buried in a body the shade may collapse.
-      expect(alert.title, 'AMLX — Amylyx Pharmaceuticals, Inc.');
+      expect(alert.title, '📈 AMLX — Amylyx Pharmaceuticals, Inc.');
       expect(alert.body, startsWith('Increased 81.9% in the last week.'));
       expect(alert.body, contains(r'Current price $39.16'));
       expect(alert.body, contains('cut-off 10%'));
       expect(alert.payload, DigestService.tapPayload);
-      expect(alert.group, NotificationIds.sevenDayGroup);
+      expect(alert.group, NotificationIds.sevenDayGroupFor(Market.us));
       expect(alert.isGroupSummary, isFalse);
     });
 
@@ -271,44 +273,47 @@ void main() {
 
       await service().run();
 
+      // The US file has two newcomers, so they get a summary above them; the
+      // ASX file has one, which needs no group of its own.
       final summaries = notifier.posted.where((n) => n.isGroupSummary);
       expect(summaries, hasLength(1));
-      expect(summaries.single.title, contains('new in the 7-day screen'));
-      // One per ticker, plus the summary above them.
-      expect(notifier.posted.length, greaterThan(2));
+      final summary = summaries.single;
+      expect(summary.title, '🇺🇸 2 new in the US 7-day screen');
+      expect(summary.id, NotificationIds.digestFor(Market.us));
       expect(
         notifier.posted.where((n) => !n.isGroupSummary).map((n) => n.title),
-        contains('MRNA — Moderna, Inc.'),
+        contains('📈 MRNA — Moderna, Inc.'),
       );
 
       // The summary is a list, not a paragraph: one line per ticker, which is
       // what Android expands the collapsed group into.
-      final summary = summaries.single;
-      expect(
-        summary.lines,
-        hasLength(notifier.posted.length - 1),
-        reason: 'a line for each ticker posted under it',
-      );
+      expect(summary.lines, hasLength(2));
       expect(summary.lines.first, startsWith('MRNA +117.9%'));
       expect(summary.lines.first, contains('Moderna, Inc.'));
-      expect(summary.summaryText, contains('US'));
+      expect(summary.summaryText, contains('stocks'));
     });
 
-    test('an ASX newcomer is alerted even when US moves harder', () async {
-      // Both files carry newcomers; the US ones are larger, and under a
-      // strongest-first cap they would take every slot.
+    test('each file is announced on its own, in its own group', () async {
+      // Both files carry newcomers. They are separate screens, so neither is
+      // bundled under the other's summary.
       await prefs.setStringList('digest_snapshot_7d', ['us:GONE']);
 
       await service().run();
 
-      final titles = notifier.posted
-          .where((n) => !n.isGroupSummary)
-          .map((n) => n.title)
-          .toList();
+      Iterable<AppNotification> inGroup(Market market) => notifier.posted.where(
+        (n) => n.group == NotificationIds.sevenDayGroupFor(market),
+      );
+
       expect(
-        titles.where((title) => title.startsWith('QETH')),
-        isNotEmpty,
-        reason: 'the ASX file is watched for a reason',
+        [for (final n in inGroup(Market.asx)) n.title],
+        ['📈 QETH — Betashares Ethereum ETF'],
+        reason: 'the ASX newcomer gets its own alert, under its own group',
+      );
+      expect(inGroup(Market.us), hasLength(3), reason: 'two tickers, one summary');
+      expect(
+        notifier.posted.map((n) => n.group).toSet(),
+        hasLength(2),
+        reason: 'one group per file, never a shared one',
       );
     });
 
@@ -342,7 +347,7 @@ void main() {
 
     test('a run that adds many tickers caps the alerts', () {
       // The cap is on the alerts, not on the digest, which still counts them.
-      expect(DigestService.maxAlerts, lessThan(20));
+      expect(DigestService.maxAlertsPerMarket, lessThan(20));
     });
 
     test('an alert prices each market in its own currency', () {
@@ -373,7 +378,7 @@ void main() {
       expect(notifier.posted, hasLength(2));
       expect(
         notifier.posted.map((n) => n.title),
-        containsAll(['asx.db refreshed', 'us.db refreshed']),
+        containsAll(['🇦🇺 asx.db refreshed', '🇺🇸 us.db refreshed']),
       );
       expect(notifier.posted.first.body, contains('downloaded'));
     });
