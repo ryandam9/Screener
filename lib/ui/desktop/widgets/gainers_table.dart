@@ -173,7 +173,8 @@ class _GainerRow extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   height: 1.25,
-                  color: colors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                  color: colors.textName,
                 ),
               ),
             ),

@@ -70,6 +70,53 @@ class DailyDigest {
   int countFor(Market market) =>
       rows.where((row) => row.market == market).length;
 
+  /// Today's newcomers in one market, strongest first.
+  List<StockRow> newcomersFor(Market market) => [
+    for (final row in newcomers)
+      if (row.market == market) row,
+  ];
+
+  /// The rows worth a notification of their own, at most [budget] of them.
+  List<StockRow> alerts({required int budget}) =>
+      shareOut(newcomers.isEmpty ? rows : newcomers, budget);
+
+  /// Picks [budget] rows from [rows], dealing one market at a time.
+  ///
+  /// Taking the strongest [budget] outright is market-blind, and the two files
+  /// are not comparable: the US screen publishes hundreds of rows with moves
+  /// into the hundreds of percent, the ASX one publishes a handful in the
+  /// twenties. Sorted together, every slot goes to a US ticker and the ASX
+  /// newcomer is never announced. Dealing in turn gives each market its share,
+  /// and a market with fewer newcomers than its share leaves the remainder to
+  /// the other rather than holding slots empty.
+  static List<StockRow> shareOut(List<StockRow> rows, int budget) {
+    if (budget <= 0 || rows.isEmpty) return const [];
+
+    final queues = <List<StockRow>>[
+      for (final market in Market.values)
+        [
+          for (final row in rows)
+            if (row.market == market) row,
+        ],
+    ]..removeWhere((queue) => queue.isEmpty);
+
+    final picked = <StockRow>[];
+    var cursor = 0;
+    while (picked.length < budget && queues.isNotEmpty) {
+      cursor %= queues.length;
+      picked.add(queues[cursor].removeAt(0));
+      if (queues[cursor].isEmpty) {
+        queues.removeAt(cursor);
+      } else {
+        cursor++;
+      }
+    }
+
+    // Back into one order, so the shade reads like the screen does.
+    picked.sort((a, b) => b.pctChange.compareTo(a.pctChange));
+    return picked;
+  }
+
   /// The notification's first line.
   String get title {
     if (isEmpty) return 'No 7-day screen published today';
@@ -100,11 +147,12 @@ class DailyDigest {
     if (!isFirstRun && newKeys.isEmpty) {
       parts.add('no new names since the last run');
     }
-    parts.add(_marketBreakdown);
+    parts.add(marketBreakdown);
     return parts.join(' · ');
   }
 
-  String get _marketBreakdown {
+  /// How many rows each file contributed, e.g. `8 ASX · 153 US`.
+  String get marketBreakdown {
     final counts = [
       for (final market in Market.values)
         if (countFor(market) > 0) '${countFor(market)} ${market.label}',

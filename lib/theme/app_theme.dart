@@ -24,6 +24,7 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
     required this.pageBackground,
     required this.textPrimary,
     required this.textSecondary,
+    required this.textName,
     required this.textTertiary,
     required this.divider,
     required this.chartGrid,
@@ -42,6 +43,16 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
   final Color pageBackground;
   final Color textPrimary;
   final Color textSecondary;
+
+  /// The security's name, wherever a ticker is listed.
+  ///
+  /// Its own role rather than [textSecondary]: a name is content — often the
+  /// only way to tell what a four-letter ticker is — while most secondary text
+  /// is chrome (labels, stamps, counts) that is meant to recede. At the sizes
+  /// the lists use, secondary grey read as washed out, so this sits much
+  /// closer to [textPrimary] and the name is set one weight up.
+  final Color textName;
+
   final Color textTertiary;
   final Color divider;
   final Color chartGrid;
@@ -67,6 +78,7 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
     pageBackground: Color(0xFFF4F6F8),
     textPrimary: Color(0xFF14181F),
     textSecondary: Color(0xFF616B77),
+    textName: Color(0xFF414A57),
     textTertiary: Color(0xFF8C95A1),
     divider: Color(0xFFEDEFF3),
     chartGrid: Color(0xFFEDEFF3),
@@ -86,6 +98,7 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
     pageBackground: Color(0xFF0F1216),
     textPrimary: Color(0xFFF2F4F7),
     textSecondary: Color(0xFFA5AEBA),
+    textName: Color(0xFFC6CEDA),
     textTertiary: Color(0xFF7A8494),
     divider: Color(0xFF242A33),
     chartGrid: Color(0xFF242A33),
@@ -106,6 +119,7 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
     Color? pageBackground,
     Color? textPrimary,
     Color? textSecondary,
+    Color? textName,
     Color? textTertiary,
     Color? divider,
     Color? chartGrid,
@@ -124,6 +138,7 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
       pageBackground: pageBackground ?? this.pageBackground,
       textPrimary: textPrimary ?? this.textPrimary,
       textSecondary: textSecondary ?? this.textSecondary,
+      textName: textName ?? this.textName,
       textTertiary: textTertiary ?? this.textTertiary,
       divider: divider ?? this.divider,
       chartGrid: chartGrid ?? this.chartGrid,
@@ -148,6 +163,7 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
       pageBackground: mix(pageBackground, other.pageBackground),
       textPrimary: mix(textPrimary, other.textPrimary),
       textSecondary: mix(textSecondary, other.textSecondary),
+      textName: mix(textName, other.textName),
       textTertiary: mix(textTertiary, other.textTertiary),
       divider: mix(divider, other.divider),
       chartGrid: mix(chartGrid, other.chartGrid),

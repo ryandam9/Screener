@@ -142,20 +142,16 @@ class DigestService {
       return digest;
     }
 
-    // One notification per ticker, as the screenshot the request came with:
-    // the ticker and its move in the title, the name underneath.
-    final alerts = (newcomers.isEmpty ? digest.rows : newcomers)
-        .take(maxAlerts)
-        .toList();
+    // One notification per ticker: the ticker and its name in the title, what
+    // it did underneath. Shared out between the files rather than taken off
+    // the top of one sorted list — see [DailyDigest.shareOut].
+    final alerts = digest.alerts(budget: maxAlerts);
     for (final row in alerts) {
       await _notifier.show(
         AppNotification(
           id: NotificationIds.forTicker(row.key),
-          title: '${row.ticker} is up '
-              '${Fmt.percent(row.pctChange, decimals: 1)}',
-          body:
-              '${row.shortName} joined the 7-day screen at '
-              '${Fmt.price(row.latestPrice)}',
+          title: '${row.ticker} — ${row.shortName}',
+          body: alertBody(row),
           payload: tapPayload,
           group: NotificationIds.sevenDayGroup,
         ),
@@ -163,6 +159,8 @@ class DigestService {
     }
 
     // A summary above them, which is what Android collapses the group into.
+    // It carries a line per ticker rather than one long sentence, so the
+    // expanded group reads as a list.
     if (alerts.length > 1) {
       await _notifier.show(
         AppNotification(
@@ -172,6 +170,8 @@ class DigestService {
           payload: tapPayload,
           group: NotificationIds.sevenDayGroup,
           isGroupSummary: true,
+          lines: [for (final row in alerts) summaryLine(row)],
+          summaryText: digest.marketBreakdown,
         ),
       );
     }
@@ -179,6 +179,37 @@ class DigestService {
     await _remember(digest, posted: true);
     return digest;
   }
+
+  /// What one ticker's notification says under its name.
+  ///
+  /// The ticker and its name are the title, so the body starts at the news:
+  /// two lines rather than one sentence, because the move is the news, the
+  /// price is what you check next, and the cut-off says why the ticker is in the file
+  /// at all. Prices carry the market's own currency — a bare `$` in front of
+  /// an ASX price reads as US dollars.
+  static String alertBody(StockRow row) {
+    final direction = row.pctChange >= 0 ? 'Increased' : 'Fell';
+    final move =
+        '$direction ${Fmt.percent(row.pctChange.abs(), decimals: 1)} '
+        'in the last week.';
+    final price = 'Current price ${row.market.money(row.latestPrice)}';
+
+    final cutOff = row.threshold;
+    if (cutOff == null) return '$move\n$price';
+    return '$move\n$price · 7-day screen cut-off ${_cutOff(cutOff)}';
+  }
+
+  /// One ticker's line in the grouped summary.
+  static String summaryLine(StockRow row) =>
+      '${row.ticker} ${Fmt.signedPercent(row.pctChange, decimals: 1)} · '
+      '${row.market.money(row.latestPrice)} · ${row.shortName}';
+
+  /// Thresholds are published as round numbers far more often than not, and
+  /// `20.0%` in a notification reads as false precision.
+  static String _cutOff(double value) => Fmt.percent(
+    value,
+    decimals: value == value.roundToDouble() ? 0 : 1,
+  );
 
   /// Refreshes, reports changed files, then reports new tickers.
   Future<DigestRun> run({bool force = false, bool refresh = true}) async {

@@ -1,3 +1,5 @@
+import '../utils/formatters.dart';
+
 /// The two datasets published to S3 by the screener pipeline.
 ///
 /// Each market is one SQLite file in the bucket. The table names inside the two
@@ -12,6 +14,7 @@ enum Market {
     longName: 'Australian Securities Exchange',
     objectKey: 'asx.db',
     instrumentNoun: 'ETFs',
+    currencySymbol: r'A$',
   ),
   us(
     id: 'us',
@@ -20,6 +23,7 @@ enum Market {
     longName: 'NASDAQ, NYSE and affiliates',
     objectKey: 'us.db',
     instrumentNoun: 'stocks',
+    currencySymbol: r'$',
   );
 
   const Market({
@@ -29,6 +33,7 @@ enum Market {
     required this.longName,
     required this.objectKey,
     required this.instrumentNoun,
+    required this.currencySymbol,
   });
 
   /// Stable key used in preferences and cache file names.
@@ -49,6 +54,15 @@ enum Market {
 
   /// What the rows represent, used in copy such as "107 stocks".
   final String instrumentNoun;
+
+  /// What prices in this file are quoted in.
+  ///
+  /// The files publish no currency of their own; both quote in the local one,
+  /// and a plain `$` in front of an ASX price reads as US dollars.
+  final String currencySymbol;
+
+  /// A price with this market's currency in front, e.g. `A$19.84`.
+  String money(double value) => '$currencySymbol${Fmt.price(value)}';
 
   static Market? fromId(String? id) {
     for (final market in values) {

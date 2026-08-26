@@ -13,6 +13,8 @@ class AppNotification {
     this.payload,
     this.group,
     this.isGroupSummary = false,
+    this.lines = const [],
+    this.summaryText,
   });
 
   final int id;
@@ -28,6 +30,17 @@ class AppNotification {
 
   /// The entry Android shows when the group is collapsed.
   final bool isGroupSummary;
+
+  /// One line per item, listed under the title when the notification is
+  /// expanded. A summary that names six tickers is unreadable as one run-on
+  /// sentence; a line each is what the shade is built for.
+  ///
+  /// Android only. Where the platform has no equivalent, [body] is shown, so
+  /// it has to stand on its own.
+  final List<String> lines;
+
+  /// The short right-hand note above the lines, e.g. `8 ASX · 153 US`.
+  final String? summaryText;
 }
 
 /// Posts notifications, and says whether it is allowed to.
@@ -156,9 +169,14 @@ class LocalNotifier implements Notifier {
           channelDescription: _channelDescription,
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
-          // The body names a company or several tickers, and is longer than
-          // one line either way.
-          styleInformation: BigTextStyleInformation(notification.body),
+          styleInformation: notification.lines.isEmpty
+              // The body names a company and its move, over two lines.
+              ? BigTextStyleInformation(notification.body)
+              : InboxStyleInformation(
+                  notification.lines,
+                  contentTitle: notification.title,
+                  summaryText: notification.summaryText,
+                ),
           groupKey: notification.group,
           setAsGroupSummary: notification.isGroupSummary,
         ),
