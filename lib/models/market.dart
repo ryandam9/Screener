@@ -15,6 +15,7 @@ enum Market {
     objectKey: 'asx.db',
     instrumentNoun: 'ETFs',
     currencySymbol: r'A$',
+    emoji: '🇦🇺',
   ),
   us(
     id: 'us',
@@ -24,6 +25,7 @@ enum Market {
     objectKey: 'us.db',
     instrumentNoun: 'stocks',
     currencySymbol: r'$',
+    emoji: '🇺🇸',
   );
 
   const Market({
@@ -34,6 +36,7 @@ enum Market {
     required this.objectKey,
     required this.instrumentNoun,
     required this.currencySymbol,
+    required this.emoji,
   });
 
   /// Stable key used in preferences and cache file names.
@@ -60,6 +63,12 @@ enum Market {
   /// The files publish no currency of their own; both quote in the local one,
   /// and a plain `$` in front of an ASX price reads as US dollars.
   final String currencySymbol;
+
+  /// Marks which file a notification is about, at a glance.
+  ///
+  /// Notifications have no room for a per-market icon of their own — the
+  /// small icon is the app's — so the flag in the text does that job.
+  final String emoji;
 
   /// A price with this market's currency in front, e.g. `A$19.84`.
   String money(double value) => '$currencySymbol${Fmt.price(value)}';

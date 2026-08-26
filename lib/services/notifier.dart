@@ -65,6 +65,10 @@ class NotificationIds {
   static const digest = 1;
   static const test = 2;
 
+  /// One summary per file, so the two screens sit in the shade side by side
+  /// rather than replacing one another.
+  static int digestFor(Market market) => 100 + market.index;
+
   /// One notification per refreshed file, replaced rather than stacked.
   static int forFile(Market market) => 10 + market.index;
 
@@ -80,8 +84,13 @@ class NotificationIds {
     return 1000 + hash;
   }
 
-  /// Android's group key for the 7-day alerts.
-  static const sevenDayGroup = 'seven_day_screen';
+  /// Android's group key for one file's 7-day alerts.
+  ///
+  /// A group per market rather than one for both: they are separate screens
+  /// over separate universes, and bundling them hides whichever file has
+  /// fewer names that day behind the other's.
+  static String sevenDayGroupFor(Market market) =>
+      'seven_day_screen_${market.id}';
 }
 
 /// The real notifier, backed by flutter_local_notifications.

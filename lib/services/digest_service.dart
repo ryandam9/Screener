@@ -52,10 +52,13 @@ class DigestService {
   /// Payload carried by a 7-day alert, so a tap opens the list it is about.
   static const tapPayload = 'digest:7d';
 
-  /// At most this many tickers get a notification of their own; the rest are
-  /// counted in the summary. A run that adds forty names should not put forty
-  /// notifications in the shade.
-  static const maxAlerts = 8;
+  /// At most this many tickers per file get a notification of their own; the
+  /// rest are counted in the summary. A run that adds forty names should not
+  /// put forty notifications in the shade.
+  ///
+  /// Per file, not in total: each market's alerts are their own group, so this
+  /// is what one collapsed group opens into.
+  static const maxAlertsPerMarket = 8;
 
   /// The day the last alert went out, as `yyyy-mm-dd`, or null.
   String? get lastSentDay => _prefs.getString(_lastSentKey);
@@ -97,7 +100,7 @@ class DigestService {
           await _notifier.show(
             AppNotification(
               id: NotificationIds.forFile(market),
-              title: '${market.objectKey} refreshed',
+              title: '${market.emoji} ${market.objectKey} refreshed',
               // No time in the body: the shade stamps every notification with
               // its arrival, and the clock format carries seconds and a zone
               // that read as noise here.
@@ -136,24 +139,48 @@ class DigestService {
       return digest;
     }
 
-    final newcomers = digest.newcomers;
-    if (newcomers.isEmpty && !force) {
+    if (digest.newcomers.isEmpty && !force) {
       await _remember(digest, posted: false);
       return digest;
     }
 
+    // One file at a time. They are separate screens over separate universes,
+    // so a morning that adds names to both is two pieces of news: each gets
+    // its own alerts under its own summary, and neither can crowd the other
+    // out of a shared budget.
+    var posted = false;
+    for (final market in Market.values) {
+      posted = await _announce(digest.onlyFor(market), force: force) || posted;
+    }
+
+    await _remember(digest, posted: posted);
+    return digest;
+  }
+
+  /// Posts one file's newcomers. Returns whether anything went out.
+  Future<bool> _announce(DailyDigest digest, {required bool force}) async {
+    final market = digest.market!;
+    if (digest.isEmpty) return false;
+
+    final newcomers = digest.newcomers;
+    if (newcomers.isEmpty && !force) return false;
+
     // One notification per ticker: the ticker and its name in the title, what
-    // it did underneath. Shared out between the files rather than taken off
-    // the top of one sorted list — see [DailyDigest.shareOut].
-    final alerts = digest.alerts(budget: maxAlerts);
+    // it did underneath.
+    final alerts = (newcomers.isEmpty ? digest.rows : newcomers)
+        .take(maxAlertsPerMarket)
+        .toList();
+    if (alerts.isEmpty) return false;
+
     for (final row in alerts) {
       await _notifier.show(
         AppNotification(
           id: NotificationIds.forTicker(row.key),
-          title: '${row.ticker} — ${row.shortName}',
+          title: '${row.pctChange >= 0 ? '📈' : '📉'} ${row.ticker} — '
+              '${row.shortName}',
           body: alertBody(row),
           payload: tapPayload,
-          group: NotificationIds.sevenDayGroup,
+          group: NotificationIds.sevenDayGroupFor(market),
         ),
       );
     }
@@ -164,20 +191,20 @@ class DigestService {
     if (alerts.length > 1) {
       await _notifier.show(
         AppNotification(
-          id: NotificationIds.digest,
-          title: digest.title,
+          id: NotificationIds.digestFor(market),
+          title: '${market.emoji} ${digest.title}',
           body: digest.body,
           payload: tapPayload,
-          group: NotificationIds.sevenDayGroup,
+          group: NotificationIds.sevenDayGroupFor(market),
           isGroupSummary: true,
           lines: [for (final row in alerts) summaryLine(row)],
-          summaryText: digest.marketBreakdown,
+          summaryText:
+              '${digest.rows.length} ${market.instrumentNoun} in the screen',
         ),
       );
     }
 
-    await _remember(digest, posted: true);
-    return digest;
+    return true;
   }
 
   /// What one ticker's notification says under its name.

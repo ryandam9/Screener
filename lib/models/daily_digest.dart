@@ -14,6 +14,7 @@ class DailyDigest {
     required this.newKeys,
     required this.droppedKeys,
     required this.isFirstRun,
+    this.market,
   });
 
   /// The day this digest describes, in local time.
@@ -31,6 +32,14 @@ class DailyDigest {
   /// True when there was no previous snapshot to compare against, so nothing
   /// can honestly be called new.
   final bool isFirstRun;
+
+  /// The one file this digest describes, or null when it covers both.
+  ///
+  /// The two files are separate screens over separate universes, and a run
+  /// that adds names to both has two pieces of news, not one. [onlyFor]
+  /// narrows a whole-run digest to a single market so each can be announced
+  /// on its own.
+  final Market? market;
 
   /// Builds the digest for [rows] against the tickers the last one carried.
   factory DailyDigest.build({
@@ -76,55 +85,46 @@ class DailyDigest {
       if (row.market == market) row,
   ];
 
-  /// The rows worth a notification of their own, at most [budget] of them.
-  List<StockRow> alerts({required int budget}) =>
-      shareOut(newcomers.isEmpty ? rows : newcomers, budget);
-
-  /// Picks [budget] rows from [rows], dealing one market at a time.
+  /// This digest narrowed to one file.
   ///
-  /// Taking the strongest [budget] outright is market-blind, and the two files
-  /// are not comparable: the US screen publishes hundreds of rows with moves
-  /// into the hundreds of percent, the ASX one publishes a handful in the
-  /// twenties. Sorted together, every slot goes to a US ticker and the ASX
-  /// newcomer is never announced. Dealing in turn gives each market its share,
-  /// and a market with fewer newcomers than its share leaves the remainder to
-  /// the other rather than holding slots empty.
-  static List<StockRow> shareOut(List<StockRow> rows, int budget) {
-    if (budget <= 0 || rows.isEmpty) return const [];
+  /// Everything a notification needs — the title, the leaders, the counts —
+  /// then describes that market alone, rather than a pooled list in which the
+  /// louder file always wins.
+  DailyDigest onlyFor(Market market) {
+    final mine = [
+      for (final row in rows)
+        if (row.market == market) row,
+    ];
+    final keys = {for (final row in mine) row.key};
+    // Dropped tickers have no row today to read a market off, so they are
+    // matched on the market prefix [StockRow.key] is built with.
+    final prefix = '${market.id}:';
 
-    final queues = <List<StockRow>>[
-      for (final market in Market.values)
-        [
-          for (final row in rows)
-            if (row.market == market) row,
-        ],
-    ]..removeWhere((queue) => queue.isEmpty);
-
-    final picked = <StockRow>[];
-    var cursor = 0;
-    while (picked.length < budget && queues.isNotEmpty) {
-      cursor %= queues.length;
-      picked.add(queues[cursor].removeAt(0));
-      if (queues[cursor].isEmpty) {
-        queues.removeAt(cursor);
-      } else {
-        cursor++;
-      }
-    }
-
-    // Back into one order, so the shade reads like the screen does.
-    picked.sort((a, b) => b.pctChange.compareTo(a.pctChange));
-    return picked;
+    return DailyDigest(
+      date: date,
+      rows: mine,
+      newKeys: newKeys.intersection(keys),
+      droppedKeys: {
+        for (final key in droppedKeys)
+          if (key.startsWith(prefix)) key,
+      },
+      isFirstRun: isFirstRun,
+      market: market,
+    );
   }
+
+  /// What this digest is about: one file's screen, or both.
+  String get _screen =>
+      market == null ? '7-day screen' : '${market!.label} 7-day screen';
 
   /// The notification's first line.
   String get title {
-    if (isEmpty) return 'No 7-day screen published today';
+    if (isEmpty) return 'No $_screen published today';
     if (isFirstRun || newKeys.isEmpty) {
-      return '${rows.length} in the 7-day screen';
+      return '${rows.length} in the $_screen';
     }
     final count = newKeys.length;
-    return '$count new in the 7-day screen';
+    return '$count new in the $_screen';
   }
 
   /// The notification's body: the names, then the shape of the day.
@@ -147,7 +147,9 @@ class DailyDigest {
     if (!isFirstRun && newKeys.isEmpty) {
       parts.add('no new names since the last run');
     }
-    parts.add(marketBreakdown);
+    // The title already names the file when the digest is scoped to one, so
+    // the breakdown would only repeat it.
+    if (market == null) parts.add(marketBreakdown);
     return parts.join(' · ');
   }
 
