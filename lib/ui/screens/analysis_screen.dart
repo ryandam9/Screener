@@ -354,7 +354,13 @@ class _AnalysisBody extends StatelessWidget {
             ),
           ),
         ],
-        const SectionHeader(title: 'Most traded'),
+        // The caption belongs here, over the column, rather than under every
+        // number in the panel below.
+        const SectionHeader(
+          title: 'Most traded',
+          caption: 'median volume',
+          padding: EdgeInsets.fromLTRB(16, 20, 16, 8),
+        ),
         Panel(
           child: Column(
             children: [
@@ -366,6 +372,10 @@ class _AnalysisBody extends StatelessWidget {
                     ticker: row.ticker,
                     initialWindow: row.window,
                   ),
+                  // Volume is why the row is here, but the move is why the
+                  // file is: a most-traded name says nothing on a growth
+                  // screen without it, and it is what every other list in the
+                  // app puts in this corner.
                   trailingBuilder: (context) => Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     mainAxisSize: MainAxisSize.min,
@@ -381,16 +391,8 @@ class _AnalysisBody extends StatelessWidget {
                           fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'median volume',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          color: colors.textTertiary,
-                        ),
-                      ),
+                      const SizedBox(height: 3),
+                      ChangeChip(pctChange: row.pctChange, dense: true),
                     ],
                   ),
                 ),
