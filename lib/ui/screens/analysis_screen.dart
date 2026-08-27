@@ -376,23 +376,36 @@ class _AnalysisBody extends StatelessWidget {
                   // file is: a most-traded name says nothing on a growth
                   // screen without it, and it is what every other list in the
                   // app puts in this corner.
-                  trailingBuilder: (context) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                  // The volume where a price would be, the move beside it:
+                  // one line, in the columns the rest of the app uses, so the
+                  // star and the link sit level with the numbers instead of
+                  // floating between two stacked lines.
+                  trailingBuilder: (context) => Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        Fmt.compact(row.medianVolume),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: colors.textPrimary,
-                          fontFeatures: const [FontFeature.tabularFigures()],
+                      SizedBox(
+                        width: StockTile.priceColumn(context),
+                        child: Text(
+                          Fmt.compact(row.medianVolume),
+                          textAlign: TextAlign.right,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w600,
+                            color: colors.textPrimary,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 3),
-                      ChangeChip(pctChange: row.pctChange, dense: true),
+                      const SizedBox(width: StockTile.columnGap),
+                      SizedBox(
+                        width: StockTile.changeColumn(context),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: ChangeChip(pctChange: row.pctChange),
+                        ),
+                      ),
                     ],
                   ),
                 ),
