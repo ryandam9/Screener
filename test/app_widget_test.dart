@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:screener/models/market.dart';
 import 'package:screener/ui/screens/stock_detail_screen.dart';
+import 'package:screener/ui/widgets/change_chip.dart';
 import 'package:screener/ui/widgets/refresh_stamp.dart';
+import 'package:screener/ui/widgets/stock_tile.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -185,6 +187,30 @@ void main() {
     await settle(tester);
     expect(find.text('Data sources'), findsOneWidget);
     expect(find.textContaining('us.db'), findsWidgets);
+  });
+
+  testWidgets('most traded names what they did, and labels the column once', (
+    tester,
+  ) async {
+    await launch(tester);
+    await tester.tap(find.text('Analysis'));
+    await settle(tester);
+    await tester.scrollUntilVisible(find.text('Most traded'), 200);
+    await settle(tester);
+
+    // The caption sits over the column, not under every number in it.
+    expect(find.text('median volume'), findsOneWidget);
+
+    // Volume is why a row is in this list; the move is why the file exists,
+    // and the panel used to leave it out entirely.
+    expect(
+      find.descendant(
+        of: find.byType(StockTile),
+        matching: find.byType(ChangeChip),
+      ),
+      findsWidgets,
+      reason: 'a most-traded row says what the ticker did',
+    );
   });
 
   testWidgets('the dashboard dates the run, not the download', (tester) async {

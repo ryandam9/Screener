@@ -7,12 +7,19 @@ class SectionHeader extends StatelessWidget {
   const SectionHeader({
     super.key,
     required this.title,
+    this.caption,
     this.actionLabel,
     this.onAction,
     this.padding = const EdgeInsets.fromLTRB(16, 20, 8, 8),
   });
 
   final String title;
+
+  /// A word for what the column under this heading holds, e.g. "median
+  /// volume". Sits over the values once, rather than being repeated on every
+  /// row of the panel below.
+  final String? caption;
+
   final String? actionLabel;
   final VoidCallback? onAction;
   final EdgeInsets padding;
@@ -35,6 +42,11 @@ class SectionHeader extends StatelessWidget {
               ),
             ),
           ),
+          if (caption != null)
+            Text(
+              caption!,
+              style: TextStyle(fontSize: 11.5, color: colors.textTertiary),
+            ),
           if (actionLabel != null)
             TextButton(
               onPressed: onAction,
