@@ -284,6 +284,82 @@ void main() {
       expect(find.textContaining('3 tickers'), findsOneWidget);
     });
 
+    testWidgets('stars a ticker no screen ever picked up', (tester) async {
+      final prefs = await launchApp(
+        tester,
+        cacheDir: cacheDir,
+        payloads: payloads,
+        size: const Size(1440, 900),
+        devicePixelRatio: 1.0,
+      );
+
+      await tester.tap(find.text('History'));
+      await settle(tester);
+
+      // ZZZQ is in no growth table, so this page is the only place it can be
+      // starred from at all.
+      final rows = tester.widgetList(find.text('ZZZQ')).length;
+      await tester.tap(find.byTooltip('Add ZZZQ to watchlist'));
+      await settle(tester);
+
+      expect(prefs.getStringList('watchlist'), ['asx:ZZZQ']);
+      expect(find.byTooltip('Remove ZZZQ from watchlist'), findsOneWidget);
+      expect(
+        find.text('ZZZQ'),
+        findsNWidgets(rows),
+        reason: 'the star must not also chart the row it sits in',
+      );
+    });
+
+    testWidgets('starring one ticker leaves the others starred', (
+      tester,
+    ) async {
+      final prefs = await launchApp(
+        tester,
+        cacheDir: cacheDir,
+        payloads: payloads,
+        size: const Size(1440, 900),
+        devicePixelRatio: 1.0,
+      );
+
+      await tester.tap(find.text('History'));
+      await settle(tester);
+
+      await tester.tap(find.byTooltip('Add ZZZQ to watchlist'));
+      await settle(tester);
+      await tester.tap(find.byTooltip('Add VBTC to watchlist'));
+      await settle(tester);
+
+      expect(prefs.getStringList('watchlist'), ['asx:VBTC', 'asx:ZZZQ']);
+      expect(find.byTooltip('Remove ZZZQ from watchlist'), findsOneWidget);
+      expect(find.byTooltip('Remove VBTC from watchlist'), findsOneWidget);
+    });
+
+    testWidgets('the chart page stars the ticker it is showing', (
+      tester,
+    ) async {
+      final prefs = await launchApp(
+        tester,
+        cacheDir: cacheDir,
+        payloads: payloads,
+      );
+
+      await tester.tap(find.text('More'));
+      await settle(tester);
+      await tester.scrollUntilVisible(find.text('Price history'), 200);
+      await settle(tester, frames: 4);
+      await tester.tap(find.text('Price history'));
+      await settle(tester);
+      await tester.tap(find.text('QETH').first);
+      await settle(tester);
+
+      // The list is a route behind now, so this is the chart page's own star.
+      await tester.tap(find.byTooltip('Add QETH to watchlist'));
+      await settle(tester);
+
+      expect(prefs.getStringList('watchlist'), ['asx:QETH']);
+    });
+
     testWidgets('charts the ticker that is selected', (tester) async {
       await launchApp(
         tester,

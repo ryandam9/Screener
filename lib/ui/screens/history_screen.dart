@@ -15,8 +15,10 @@ import '../widgets/google_finance_button.dart';
 import '../widgets/info_dialog.dart';
 import '../widgets/panels.dart';
 import '../widgets/price_chart.dart';
+import '../widgets/stock_tile.dart';
 import '../widgets/table_frame.dart';
 import '../widgets/ticker_avatar.dart';
+import '../widgets/watchlist_star.dart';
 
 /// How much of a ticker's history the chart shows.
 enum _Span {
@@ -366,6 +368,7 @@ class _TickerList extends StatelessWidget {
             itemBuilder: (context, index) {
               final row = rows[index];
               return _HistoryTile(
+                market: database.market,
                 row: row,
                 selected: row.ticker == selected?.ticker,
                 onTap: () => onSelect(row),
@@ -400,11 +403,13 @@ class _TickerList extends StatelessWidget {
 
 class _HistoryTile extends StatelessWidget {
   const _HistoryTile({
+    required this.market,
     required this.row,
     required this.selected,
     required this.onTap,
   });
 
+  final Market market;
   final HistoryTicker row;
   final bool selected;
   final VoidCallback onTap;
@@ -430,6 +435,7 @@ class _HistoryTile extends StatelessWidget {
                   Expanded(
                     child: Text(
                       row.ticker,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 14.5,
                         fontWeight: FontWeight.w700,
@@ -438,23 +444,47 @@ class _HistoryTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  Text(
-                    Fmt.price(row.lastPrice),
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: colors.textPrimary,
-                      fontFeatures: const [FontFeature.tabularFigures()],
+                  // The price and the change travel together, right up against
+                  // the star, and scale down rather than overflow: at 320dp
+                  // with the largest text they are wider than what is left of
+                  // the row once the avatar, the star and the link are placed.
+                  // Everywhere else there is slack, so nothing is scaled.
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            Fmt.price(row.lastPrice),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: colors.textPrimary,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ChangeChip(pctChange: row.pctChange, dense: true),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  ChangeChip(pctChange: row.pctChange, dense: true),
+                  WatchlistStar(market: market, ticker: row.ticker, dense: true),
+                  // The link's slot is held even when a row has no URL, so the
+                  // stars stay in one column down the list rather than sliding
+                  // right on the rows the file gave no exchange code.
                   if (row.googleFinanceUrl != null)
                     GoogleFinanceButton(
                       url: row.googleFinanceUrl,
                       ticker: row.ticker,
                       dense: true,
-                    ),
+                    )
+                  else
+                    const SizedBox(width: StockTile.actionWidth),
                 ],
               ),
               // The name when the file publishes one; the span of bars either
@@ -624,6 +654,13 @@ class _DetailState extends State<_Detail> {
                       ],
                     ),
                   ),
+                  // Starred from the chart as well as from the list: this is
+                  // the view you reach before deciding a ticker is worth
+                  // keeping, so the star has to be here too.
+                  WatchlistStar(
+                    market: widget.database.market,
+                    ticker: ticker.ticker,
+                  ),
                   if (ticker.googleFinanceUrl != null)
                     GoogleFinanceButton(
                       url: ticker.googleFinanceUrl,
@@ -635,15 +672,24 @@ class _DetailState extends State<_Detail> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    Fmt.price(shown.last.plotPrice),
-                    style: TextStyle(
-                      fontSize: 30,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.8,
-                      height: 1.05,
-                      color: colors.textPrimary,
-                      fontFeatures: const [FontFeature.tabularFigures()],
+                  // 30px of price beside the chip is wider than a 320dp phone
+                  // at the largest text sizes; the headline gives way there
+                  // rather than pushing the change off the screen.
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        Fmt.price(shown.last.plotPrice),
+                        style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.8,
+                          height: 1.05,
+                          color: colors.textPrimary,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
