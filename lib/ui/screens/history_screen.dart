@@ -53,7 +53,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
   final TextEditingController _search = TextEditingController();
   String _query = '';
   HistoryTicker? _selected;
-  bool _byChange = true;
   Market? _market;
 
   @override
@@ -69,19 +68,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
       if (appState.databaseOf(market)?.hasMarketHistory ?? false) market,
   ];
 
+  /// The tickers whose code or name matches the search, in the order the file
+  /// published them — strongest first.
   List<HistoryTicker> _filter(List<HistoryTicker> tickers) {
     final query = _query.trim().toLowerCase();
-    final rows = [
+    return [
       for (final ticker in tickers)
         if (query.isEmpty ||
             ticker.ticker.toLowerCase().contains(query) ||
             (ticker.name?.toLowerCase().contains(query) ?? false))
           ticker,
     ];
-    if (!_byChange) {
-      rows.sort((a, b) => a.ticker.compareTo(b.ticker));
-    }
-    return rows;
   }
 
   @override
@@ -109,11 +106,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
             market: market,
             search: _search,
             query: _query,
-            byChange: _byChange,
             selected: _selected,
             filter: _filter,
             onQuery: (value) => setState(() => _query = value),
-            onSort: (value) => setState(() => _byChange = value),
             onSelect: (ticker) => setState(() => _selected = ticker),
             onMarket: (value) => setState(() {
               _market = value;
@@ -144,11 +139,9 @@ class _Body extends StatelessWidget {
     required this.market,
     required this.search,
     required this.query,
-    required this.byChange,
     required this.selected,
     required this.filter,
     required this.onQuery,
-    required this.onSort,
     required this.onSelect,
     required this.onMarket,
   });
@@ -162,11 +155,9 @@ class _Body extends StatelessWidget {
 
   final TextEditingController search;
   final String query;
-  final bool byChange;
   final HistoryTicker? selected;
   final List<HistoryTicker> Function(List<HistoryTicker>) filter;
   final ValueChanged<String> onQuery;
-  final ValueChanged<bool> onSort;
   final ValueChanged<HistoryTicker> onSelect;
   final ValueChanged<Market> onMarket;
 
@@ -202,11 +193,9 @@ class _Body extends StatelessWidget {
               rows: rows,
               total: all.length,
               search: search,
-              byChange: byChange,
               selected: selected,
               framed: split,
               onQuery: onQuery,
-              onSort: onSort,
               onSelect: (ticker) {
                 if (split) {
                   onSelect(ticker);
@@ -287,11 +276,9 @@ class _TickerList extends StatelessWidget {
     required this.rows,
     required this.total,
     required this.search,
-    required this.byChange,
     required this.selected,
     required this.framed,
     required this.onQuery,
-    required this.onSort,
     required this.onSelect,
   });
 
@@ -302,11 +289,9 @@ class _TickerList extends StatelessWidget {
   final List<HistoryTicker> rows;
   final int total;
   final TextEditingController search;
-  final bool byChange;
   final HistoryTicker? selected;
   final bool framed;
   final ValueChanged<String> onQuery;
-  final ValueChanged<bool> onSort;
   final ValueChanged<HistoryTicker> onSelect;
 
   @override
@@ -328,28 +313,14 @@ class _TickerList extends StatelessWidget {
             ),
             const SizedBox(height: 10),
           ],
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: search,
-                  onChanged: onQuery,
-                  decoration: InputDecoration(
-                    isDense: true,
-                    hintText: 'Search ${database.market.label} tickers',
-                    prefixIcon: const Icon(Icons.search, size: 18),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              PeriodSelector<bool>(
-                values: const [true, false],
-                selected: byChange,
-                labelOf: (value) => value ? 'Change' : 'A–Z',
-                onChanged: onSort,
-                compact: true,
-              ),
-            ],
+          TextField(
+            controller: search,
+            onChanged: onQuery,
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: 'Search ${database.market.label} tickers',
+              prefixIcon: const Icon(Icons.search, size: 18),
+            ),
           ),
         ],
       ),

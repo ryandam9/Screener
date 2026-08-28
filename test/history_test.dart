@@ -409,6 +409,43 @@ void main() {
       );
     });
 
+    testWidgets('the list has no sort control and stays strongest first', (
+      tester,
+    ) async {
+      await launchApp(
+        tester,
+        cacheDir: cacheDir,
+        payloads: payloads,
+        size: const Size(1440, 900),
+        devicePixelRatio: 1.0,
+      );
+
+      await tester.tap(find.text('History'));
+      await settle(tester);
+
+      // Search is the only control over the list now.
+      expect(find.text('A\u2013Z'), findsNothing);
+      expect(find.text('Change'), findsNothing);
+      expect(find.byType(TextField), findsOneWidget);
+
+      // QETH +36.7%, VBTC +14.4%, ZZZQ -16%: the order the file publishes,
+      // which is what is left once there is nothing to re-sort by.
+      // `.first`: the chart pane beside the list repeats the ticker it is
+      // showing, and the list is the earlier of the two in the tree.
+      double rowY(String ticker) => tester
+          .getTopLeft(
+            find
+                .descendant(
+                  of: find.byType(ListView),
+                  matching: find.text(ticker),
+                )
+                .first,
+          )
+          .dy;
+      expect(rowY('QETH'), lessThan(rowY('VBTC')));
+      expect(rowY('VBTC'), lessThan(rowY('ZZZQ')));
+    });
+
     testWidgets('search narrows the list', (tester) async {
       await launchApp(
         tester,
