@@ -370,8 +370,10 @@ class PageInfos {
               'ticker no screen picked up shows its bar count instead.',
         ),
         InfoBullet(
-          lead: 'A–Z',
-          text: 'sorts by ticker when you are looking for one in particular.',
+          lead: 'The order',
+          text:
+              'is strongest first, as the file publishes it. Search by code '
+              'or name when you are looking for one ticker in particular.',
         ),
       ]),
       InfoHeading('The chart', icon: Icons.show_chart),
