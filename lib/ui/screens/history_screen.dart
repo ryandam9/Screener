@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/market_database.dart';
+import '../../models/facets.dart';
 import '../../models/history_ticker.dart';
 import '../../models/market.dart';
 import '../../models/price_bar.dart';
@@ -11,6 +12,7 @@ import '../../utils/formatters.dart';
 import '../info/page_info.dart';
 import '../responsive.dart';
 import '../widgets/change_chip.dart';
+import '../widgets/facet_filter.dart';
 import '../widgets/google_finance_button.dart';
 import '../widgets/info_dialog.dart';
 import '../widgets/panels.dart';
@@ -52,6 +54,7 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   final TextEditingController _search = TextEditingController();
   String _query = '';
+  FacetSelection _facets = const FacetSelection();
   HistoryTicker? _selected;
   Market? _market;
 
@@ -68,17 +71,37 @@ class _HistoryScreenState extends State<HistoryScreen> {
       if (appState.databaseOf(market)?.hasMarketHistory ?? false) market,
   ];
 
-  /// The tickers whose code or name matches the search, in the order the file
-  /// published them — strongest first.
+  /// The tickers matching the search and the chosen facets, in the order the
+  /// file published them — strongest first.
+  ///
+  /// Filtered in Dart rather than in SQL: the whole history is already read
+  /// and folded per ticker for the summaries, so this is a walk over a list
+  /// of a few hundred that is in memory either way.
   List<HistoryTicker> _filter(List<HistoryTicker> tickers) {
     final query = _query.trim().toLowerCase();
     return [
       for (final ticker in tickers)
-        if (query.isEmpty ||
-            ticker.ticker.toLowerCase().contains(query) ||
-            (ticker.name?.toLowerCase().contains(query) ?? false))
+        if ((query.isEmpty ||
+                ticker.ticker.toLowerCase().contains(query) ||
+                (ticker.name?.toLowerCase().contains(query) ?? false)) &&
+            _matchesFacets(ticker))
           ticker,
     ];
+  }
+
+  /// A ticker the file publishes but never labelled carries [kMiscLabel]
+  /// rather than nothing, so the 75 uncategorised ASX tickers stay reachable
+  /// through the chip of that name.
+  bool _matchesFacets(HistoryTicker ticker) {
+    if (_facets.categories.isNotEmpty &&
+        !_facets.categories.contains(ticker.category)) {
+      return false;
+    }
+    if (_facets.issuers.isNotEmpty &&
+        !_facets.issuers.contains(ticker.issuer)) {
+      return false;
+    }
+    return true;
   }
 
   @override
@@ -106,14 +129,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
             market: market,
             search: _search,
             query: _query,
+            facets: _facets,
             selected: _selected,
             filter: _filter,
             onQuery: (value) => setState(() => _query = value),
+            onFacets: (value) => setState(() => _facets = value),
             onSelect: (ticker) => setState(() => _selected = ticker),
             onMarket: (value) => setState(() {
               _market = value;
-              // The selection belongs to the market it came from.
+              // The selection and the facets both belong to the market they
+              // came from: another file labels its funds differently, if at
+              // all.
               _selected = null;
+              _facets = const FacetSelection();
             }),
           );
 
@@ -139,9 +167,11 @@ class _Body extends StatelessWidget {
     required this.market,
     required this.search,
     required this.query,
+    required this.facets,
     required this.selected,
     required this.filter,
     required this.onQuery,
+    required this.onFacets,
     required this.onSelect,
     required this.onMarket,
   });
@@ -155,9 +185,11 @@ class _Body extends StatelessWidget {
 
   final TextEditingController search;
   final String query;
+  final FacetSelection facets;
   final HistoryTicker? selected;
   final List<HistoryTicker> Function(List<HistoryTicker>) filter;
   final ValueChanged<String> onQuery;
+  final ValueChanged<FacetSelection> onFacets;
   final ValueChanged<HistoryTicker> onSelect;
   final ValueChanged<Market> onMarket;
 
@@ -192,10 +224,13 @@ class _Body extends StatelessWidget {
               onMarket: onMarket,
               rows: rows,
               total: all.length,
+              all: all,
               search: search,
+              facets: facets,
               selected: selected,
               framed: split,
               onQuery: onQuery,
+              onFacets: onFacets,
               onSelect: (ticker) {
                 if (split) {
                   onSelect(ticker);
@@ -275,10 +310,13 @@ class _TickerList extends StatelessWidget {
     required this.onMarket,
     required this.rows,
     required this.total,
+    required this.all,
     required this.search,
+    required this.facets,
     required this.selected,
     required this.framed,
     required this.onQuery,
+    required this.onFacets,
     required this.onSelect,
   });
 
@@ -288,15 +326,36 @@ class _TickerList extends StatelessWidget {
   final ValueChanged<Market> onMarket;
   final List<HistoryTicker> rows;
   final int total;
+
+  /// Every ticker the file publishes, filtered or not: the chips are built
+  /// from the whole set, so narrowing to one category does not then hide
+  /// every other category's chip.
+  final List<HistoryTicker> all;
+
   final TextEditingController search;
+  final FacetSelection facets;
   final HistoryTicker? selected;
   final bool framed;
   final ValueChanged<String> onQuery;
+  final ValueChanged<FacetSelection> onFacets;
   final ValueChanged<HistoryTicker> onSelect;
+
+  /// The distinct values of one label across the file, alphabetically, with
+  /// the catch-all last where the file has one.
+  List<String> _valuesOf(String? Function(HistoryTicker) of) {
+    final values = <String>{
+      for (final row in all)
+        if (of(row) case final value?) value,
+    };
+    final misc = values.remove(kMiscLabel);
+    return [...values.toList()..sort(), if (misc) kMiscLabel];
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final categories = _valuesOf((row) => row.category);
+    final issuers = _valuesOf((row) => row.issuer);
 
     final header = Padding(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
@@ -313,24 +372,57 @@ class _TickerList extends StatelessWidget {
             ),
             const SizedBox(height: 10),
           ],
-          TextField(
-            controller: search,
-            onChanged: onQuery,
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: 'Search ${database.market.label} tickers',
-              prefixIcon: const Icon(Icons.search, size: 18),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: search,
+                  onChanged: onQuery,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    hintText: 'Search ${database.market.label} tickers',
+                    prefixIcon: const Icon(Icons.search, size: 18),
+                  ),
+                ),
+              ),
+              // Beside the search box rather than in the app bar: the desktop
+              // shell embeds this page without one, and the control has to
+              // reach both layouts.
+              if (categories.isNotEmpty || issuers.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                IconButton(
+                  tooltip: 'Filter',
+                  icon: Badge(
+                    isLabelVisible: facets.isNotEmpty,
+                    label: facets.isEmpty ? null : Text('${facets.length}'),
+                    backgroundColor: colors.positive,
+                    child: const Icon(Icons.filter_list),
+                  ),
+                  onPressed: () async {
+                    final chosen = await showFacetFilterSheet(
+                      context,
+                      categories: categories,
+                      issuers: issuers,
+                      selection: facets,
+                    );
+                    if (chosen != null) onFacets(chosen);
+                  },
+                ),
+              ],
+            ],
           ),
         ],
       ),
     );
 
     final body = rows.isEmpty
-        ? const StatusView(
+        ? StatusView(
             icon: Icons.search_off,
             title: 'No ticker matches',
-            message: 'Try a shorter search.',
+            message: facets.isEmpty
+                ? 'Try a shorter search.'
+                : 'No ticker matches both the search and the chosen '
+                      'categories.',
           )
         : ListView.separated(
             itemCount: rows.length,
@@ -622,6 +714,20 @@ class _DetailState extends State<_Detail> {
                                 : colors.textName,
                           ),
                         ),
+                        // Only where the file labels the ticker, which is
+                        // most but not all of the ASX universe.
+                        if ([
+                          if (ticker.issuer case final issuer?) issuer,
+                          if (ticker.category case final category?)
+                            Fmt.titleCase(category),
+                        ].join(' · ') case final labels when labels.isNotEmpty)
+                          Text(
+                            labels,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: colors.textTertiary,
+                            ),
+                          ),
                       ],
                     ),
                   ),

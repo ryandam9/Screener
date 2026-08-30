@@ -1,3 +1,4 @@
+import 'facets.dart';
 import 'growth_window.dart';
 import 'market.dart';
 
@@ -42,10 +43,14 @@ class StockRow {
 
   /// Who runs the fund — "Betashares", "VanEck". Published for the ASX ETF
   /// file only; null everywhere else, including every US row.
+  ///
+  /// A row of a file that does publish the column but left it blank reads as
+  /// [kMiscLabel], so null means "this file has no such column" rather than
+  /// "this one row is unlabelled".
   final String? issuer;
 
   /// What the fund holds — "crypto", "precious metals", "fixed income".
-  /// Published alongside [issuer], and null on the same rows.
+  /// Published alongside [issuer], and [kMiscLabel] or null on the same terms.
   final String? category;
 
   final String? firstDate;
@@ -154,8 +159,8 @@ class StockRow {
       name: _string(map['name']) ?? _string(map['ticker']) ?? '',
       exchange: _string(map['exchange']) ?? '',
       assetType: _string(map['asset_type']) ?? '',
-      issuer: _string(map['issuer']),
-      category: _string(map['category']),
+      issuer: _label(map, 'issuer'),
+      category: _label(map, 'category'),
       firstDate: _string(map['first_date']),
       firstPrice: _double(map['first_price']),
       lastDate: _string(map['last_date']),
@@ -172,6 +177,16 @@ class StockRow {
       runId: _string(map['run_id']),
       googleFinanceUrl: _string(map['google_finance']),
     );
+  }
+
+  /// One optional label, distinguishing a column the file does not have from
+  /// a value it left blank.
+  ///
+  /// A row read from a table without the column has no key for it at all,
+  /// which is what separates the two cases.
+  static String? _label(Map<String, Object?> map, String column) {
+    if (!map.containsKey(column)) return null;
+    return _string(map[column]) ?? kMiscLabel;
   }
 
   static String? _string(Object? value) {
@@ -250,8 +265,8 @@ class ConsistentStock {
           StockRow._string(map['ticker']) ??
           '',
       exchange: StockRow._string(map['exchange']) ?? '',
-      issuer: StockRow._string(map['issuer']),
-      category: StockRow._string(map['category']),
+      issuer: StockRow._label(map, 'issuer'),
+      category: StockRow._label(map, 'category'),
       pctChangeShortestWindow: StockRow._double(
         map['pct_change_shortest_window'],
       ),

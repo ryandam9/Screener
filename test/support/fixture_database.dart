@@ -215,6 +215,10 @@ Future<String> createFixtureDatabase({
 
   /// The ticker directory, for files that publish one.
   Map<String, String> tickerNames = const {},
+
+  /// Issuer and category per ticker in the directory, for the tickers that
+  /// carry them. Only written when [includeFacetColumns] is set.
+  Map<String, (String issuer, String category)> tickerFacets = const {},
   String universeTable = 'asx_universe',
 }) async {
   final path = '${directory.path}/$fileName';
@@ -353,11 +357,14 @@ Future<String> createFixtureDatabase({
       '${includeFacetColumns ? ', issuer TEXT, category TEXT' : ''})',
     );
     for (final entry in tickerNames.entries) {
+      final facets = tickerFacets[entry.key];
       await db.insert(universeTable, {
         'ticker': entry.key,
         'name': entry.value,
         'exchange': 'ASX',
         'asset_type': 'etf',
+        if (includeFacetColumns) 'issuer': facets?.$1,
+        if (includeFacetColumns) 'category': facets?.$2,
       });
     }
   }

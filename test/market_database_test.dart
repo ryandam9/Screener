@@ -372,18 +372,51 @@ void main() {
 
     expect(asx.hasCategories, isTrue);
     expect(asx.hasIssuers, isTrue);
-    // Alphabetical, and the uncategorised row contributes nothing.
+    // Alphabetical, with the catch-all last: VAS carries no category, so the
+    // list ends with the chip that stands for it.
     expect(await asx.categories(GrowthWindow.sevenDays), [
       'crypto',
       'industrial metals',
       'precious metals',
+      'Misc',
     ]);
+    // Every row names an issuer, so that facet has no catch-all at all.
     expect(await asx.issuers(GrowthWindow.sevenDays), [
       'Betashares',
       'Global X',
       'VanEck',
       'Vanguard',
     ]);
+  });
+
+  test('the catch-all category selects the rows the file left blank', () async {
+    final asx = await openAsxFixture();
+    addTearDown(asx.close);
+
+    final misc = await asx.stocks(
+      GrowthWindow.sevenDays,
+      const StockQuery(categories: {'Misc'}),
+    );
+    expect([for (final r in misc) r.ticker], ['VAS']);
+    expect(
+      misc.single.category,
+      'Misc',
+      reason: 'the row reads back under the label it was filtered by',
+    );
+
+    // And it unions with a published category like any other chip.
+    final either = await asx.stocks(
+      GrowthWindow.sevenDays,
+      const StockQuery(categories: {'crypto', 'Misc'}),
+    );
+    expect([for (final r in either) r.ticker], ['QETH', 'VAS']);
+    expect(
+      await asx.count(
+        GrowthWindow.sevenDays,
+        const StockQuery(categories: {'crypto', 'Misc'}),
+      ),
+      2,
+    );
   });
 
   test('filters by one category and by a union of them', () async {
@@ -449,7 +482,11 @@ void main() {
         const StockQuery(categories: {'crypto'}, issuers: {'Betashares'}),
       );
       expect([for (final r in rows) r.ticker], ['MRNA', 'AMLX', 'SCTX']);
-      expect(rows.first.category, isNull);
+      expect(
+        rows.first.category,
+        isNull,
+        reason: 'no column at all reads as null, never as the catch-all label',
+      );
       expect(rows.first.issuer, isNull);
     },
   );

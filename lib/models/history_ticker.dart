@@ -10,6 +10,8 @@ class HistoryTicker {
     required this.ticker,
     required this.name,
     required this.exchange,
+    required this.issuer,
+    required this.category,
     required this.bars,
     required this.firstDate,
     required this.lastDate,
@@ -27,6 +29,12 @@ class HistoryTicker {
 
   /// The exchange code, e.g. `ASX`, when the file says.
   final String? exchange;
+
+  /// Who runs the fund and what it holds, from the directory table — which
+  /// labels the whole universe, not only what a screen picked up. Null for a
+  /// file that publishes no such column, and for the tickers it left blank.
+  final String? issuer;
+  final String? category;
 
   /// How many bars the history holds for this ticker.
   final int bars;
@@ -68,6 +76,8 @@ class HistoryTicker {
     List<PriceBar> bars, {
     String? name,
     String? exchange,
+    String? issuer,
+    String? category,
   }) {
     if (bars.isEmpty) return null;
     var low = bars.first.plotPrice;
@@ -80,6 +90,8 @@ class HistoryTicker {
       ticker: ticker,
       name: name,
       exchange: exchange,
+      issuer: issuer,
+      category: category,
       bars: bars.length,
       firstDate: bars.first.date,
       lastDate: bars.last.date,

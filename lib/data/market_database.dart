@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 
+import '../models/facets.dart';
 import '../models/growth_window.dart';
 import '../models/market.dart';
 import '../models/history_ticker.dart';
@@ -267,6 +268,19 @@ class MarketDatabase {
   Map<String, String>? _names;
   Map<String, String>? _exchanges;
 
+  /// Ticker -> issuer and category, for the files that label them.
+  /// See [tickerCategories].
+  ///
+  /// Only the tickers carrying a value appear; a ticker the file left blank is
+  /// absent, and [historyTickers] fills it in as [kMiscLabel] where the file
+  /// publishes the column at all. See [_labelledColumns].
+  Map<String, String>? _issuers;
+  Map<String, String>? _categories;
+
+  /// Which label columns any source in this file publishes — the directory
+  /// table or the growth tables. Filled by [_loadDirectory].
+  Set<String> _labelledColumns = const {};
+
   /// The run stamp and the data date, read once. See [publishedAt].
   DateTime? _publishedAt;
   bool _publishedAtLoaded = false;
@@ -432,8 +446,16 @@ class MarketDatabase {
       ('issuer', query.issuers),
     ]) {
       if (values.isEmpty || !columns.contains(column)) continue;
-      clauses.add('$column IN (${List.filled(values.length, '?').join(', ')})');
-      args.addAll(values);
+      // The "Misc" chip stands for the rows the file left blank, so it has to
+      // reach them through the column rather than through a value.
+      final published = values.where((value) => value != kMiscLabel).toList();
+      final terms = [
+        if (published.isNotEmpty)
+          '$column IN (${List.filled(published.length, '?').join(', ')})',
+        if (values.contains(kMiscLabel)) _blankLabel(column),
+      ];
+      clauses.add('(${terms.join(' OR ')})');
+      args.addAll(published);
     }
     if (query.minPctChange != null) {
       clauses.add('pct_change >= ?');
@@ -525,20 +547,33 @@ class MarketDatabase {
   Future<List<String>> issuers(GrowthWindow window) =>
       _distinct(window, 'issuer');
 
-  /// Distinct non-empty values of one optional column, alphabetically.
+  /// Matches the rows a file published without a value for [column].
   ///
   /// [column] is only ever a literal from this class, never a caller's string.
+  static String _blankLabel(String column) =>
+      "($column IS NULL OR TRIM($column) = '')";
+
+  /// Distinct values of one optional column, alphabetically, with [kMiscLabel]
+  /// last when the table holds rows that were left blank.
   Future<List<String>> _distinct(GrowthWindow window, String column) async {
     final table = _tableFor(window);
     if (table == null || !_columnsFor(window).contains(column)) return const [];
     final rows = await _db.rawQuery(
       'SELECT DISTINCT $column AS value FROM "$table" '
-      "WHERE $column IS NOT NULL AND TRIM($column) <> '' ORDER BY $column",
+      'WHERE NOT ${_blankLabel(column)} ORDER BY $column',
     );
-    return [
+    final values = [
       for (final row in rows)
         if (row['value'] case final Object value) value.toString(),
     ];
+
+    final blanks = await _db.rawQuery(
+      'SELECT 1 FROM "$table" WHERE ${_blankLabel(column)} LIMIT 1',
+    );
+    // Appended rather than sorted in: it is the catch-all, and reads as one
+    // at the end of the row of chips.
+    if (blanks.isNotEmpty) values.add(kMiscLabel);
+    return values;
   }
 
   Future<RunInfo?> runInfo(GrowthWindow window) async {
@@ -688,60 +723,102 @@ class MarketDatabase {
     return _exchanges!;
   }
 
+  /// Ticker -> the category the fund holds, for every ticker the directory
+  /// labels — not just the ones a screen picked up.
+  ///
+  /// Empty for a file that publishes no such column. This is what lets the
+  /// price history page, which lists the whole universe, filter by category.
+  Future<Map<String, String>> tickerCategories() async {
+    await _loadDirectory();
+    return _categories!;
+  }
+
+  /// Ticker -> the issuer that runs the fund. See [tickerCategories].
+  Future<Map<String, String>> tickerIssuers() async {
+    await _loadDirectory();
+    return _issuers!;
+  }
+
+  /// [kMiscLabel] where this file publishes [column] at all, null otherwise —
+  /// so a file with no such column shows no label rather than a wrong one.
+  String? _blankAs(String column) =>
+      _labelledColumns.contains(column) ? kMiscLabel : null;
+
   Future<void> _loadDirectory() async {
     if (_names != null) return;
 
     final names = <String, String>{};
     final exchanges = <String, String>{};
+    final issuers = <String, String>{};
+    final categories = <String, String>{};
+    final labelled = <String>{};
 
-    void record(Object? ticker, Object? name, Object? exchange) {
-      final key = ticker?.toString().trim();
+    // First writer wins per ticker, so the directory table below is read
+    // before the growth tables fill in whatever it did not cover.
+    void record(Map<String, Object?> row) {
+      final key = row['ticker']?.toString().trim();
       if (key == null || key.isEmpty) return;
-      final label = name?.toString().trim();
-      if (label != null && label.isNotEmpty) names.putIfAbsent(key, () => label);
-      final code = exchange?.toString().trim();
-      if (code != null && code.isNotEmpty) {
-        exchanges.putIfAbsent(key, () => code);
+      for (final (column, into) in [
+        ('name', names),
+        ('exchange', exchanges),
+        ('issuer', issuers),
+        ('category', categories),
+      ]) {
+        final value = row[column]?.toString().trim();
+        if (value != null && value.isNotEmpty) {
+          into.putIfAbsent(key, () => value);
+        }
       }
     }
 
     final directory = _directoryTable;
     if (directory != null) {
-      final columns = await _db.rawQuery('PRAGMA table_info("$directory")');
-      final present = {
-        for (final row in columns)
-          if (row['name'] case final String value) value,
-      };
+      final present = await _columnNames(_db, directory);
       final column = present.firstWhere(
         _nameColumns.contains,
         orElse: () => '',
       );
       if (column.isNotEmpty) {
-        final hasExchange = present.contains('exchange');
+        // Every column but the name one is optional: the directory table has
+        // gained columns twice already.
+        final extras = [
+          for (final name in ['exchange', 'issuer', 'category'])
+            if (present.contains(name)) name,
+        ];
+        labelled.addAll(extras.where(_labelColumns.contains));
         final rows = await _db.rawQuery(
           'SELECT ticker, "$column" AS name'
-          '${hasExchange ? ', exchange' : ''} FROM "$directory"',
+          '${extras.map((name) => ', $name').join()} FROM "$directory"',
         );
-        for (final row in rows) {
-          record(row['ticker'], row['name'], row['exchange']);
-        }
+        rows.forEach(record);
       }
     }
 
     // The growth tables name and place what they carry, which is better than
     // nothing for a file published before the directory table existed.
-    for (final table in _tables.values) {
+    for (final entry in _tables.entries) {
+      final columns = _columnsFor(entry.key);
+      final extras = [
+        for (final name in _labelColumns)
+          if (columns.contains(name)) name,
+      ];
+      labelled.addAll(extras);
       final rows = await _db.rawQuery(
-        'SELECT DISTINCT ticker, name, exchange FROM "$table"',
+        'SELECT DISTINCT ticker, name, exchange'
+        '${extras.map((name) => ', $name').join()} FROM "${entry.value}"',
       );
-      for (final row in rows) {
-        record(row['ticker'], row['name'], row['exchange']);
-      }
+      rows.forEach(record);
     }
 
     _names = names;
     _exchanges = exchanges;
+    _issuers = issuers;
+    _categories = categories;
+    _labelledColumns = labelled;
   }
+
+  /// The optional label columns, in the order a reader meets them.
+  static const _labelColumns = ['issuer', 'category'];
 
   /// Every ticker in the published history, summarised, strongest first.
   ///
@@ -760,6 +837,8 @@ class MarketDatabase {
     );
     final names = await tickerNames();
     final exchanges = await tickerExchanges();
+    final issuers = await tickerIssuers();
+    final categories = await tickerCategories();
 
     final summaries = <HistoryTicker>[];
     final bars = <PriceBar>[];
@@ -773,6 +852,10 @@ class MarketDatabase {
         bars,
         name: names[ticker],
         exchange: exchanges[ticker],
+        // A ticker the file publishes but never labelled reads as "Misc", so
+        // the whole universe stays reachable through the filter.
+        issuer: issuers[ticker] ?? _blankAs('issuer'),
+        category: categories[ticker] ?? _blankAs('category'),
       );
       if (summary != null) summaries.add(summary);
       bars.clear();

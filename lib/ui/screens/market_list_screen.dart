@@ -11,6 +11,7 @@ import '../../state/watchlist_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../widgets/change_chip.dart';
+import '../widgets/facet_filter.dart';
 import '../responsive.dart';
 import '../widgets/panels.dart';
 import '../widgets/screen_reason.dart';
@@ -501,7 +502,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                       ),
                     ],
                     if (categories.isNotEmpty)
-                      _FacetSection(
+                      FacetSection(
                         title: 'Category',
                         values: categories,
                         selected: selectedCategories,
@@ -515,7 +516,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                         }),
                       ),
                     if (issuers.isNotEmpty)
-                      _FacetSection(
+                      FacetSection(
                         title: 'Issuer',
                         values: issuers,
                         selected: selectedIssuers,
@@ -588,72 +589,6 @@ class _MarketListScreenState extends State<MarketListScreen>
           },
         );
       },
-    );
-  }
-}
-
-/// One multi-select facet in the filter sheet — the categories a fund holds,
-/// or the issuers that run them.
-///
-/// Multi-select rather than a single choice because the cuts worth making are
-/// unions: precious *and* industrial metals, or metals *and* crypto. Nothing
-/// selected means no restriction, which the leading "All" chip both says and
-/// undoes.
-class _FacetSection extends StatelessWidget {
-  const _FacetSection({
-    required this.title,
-    required this.values,
-    required this.selected,
-    required this.onChanged,
-    this.labelOf,
-  });
-
-  final String title;
-  final List<String> values;
-  final Set<String> selected;
-
-  /// Called with the value and whether it is now on.
-  final void Function(String value, bool selected) onChanged;
-
-  /// Turns a published value into its chip label. Categories arrive in lower
-  /// case; issuers are already spelled the way the fund spells itself.
-  final String Function(String value)? labelOf;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SectionHeader(
-          title: title,
-          caption: selected.isEmpty ? null : '${selected.length} selected',
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ChoiceChip(
-                label: const Text('All'),
-                selected: selected.isEmpty,
-                onSelected: (_) {
-                  for (final value in selected.toList()) {
-                    onChanged(value, false);
-                  }
-                },
-              ),
-              for (final value in values)
-                FilterChip(
-                  label: Text(labelOf?.call(value) ?? value),
-                  selected: selected.contains(value),
-                  onSelected: (on) => onChanged(value, on),
-                ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

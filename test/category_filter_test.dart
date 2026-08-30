@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:screener/models/market.dart';
+import 'package:screener/ui/widgets/facet_filter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -144,6 +145,97 @@ void main() {
     await tester.dragFrom(const Offset(160, 500), const Offset(0, -300));
     await settle(tester, frames: 4);
     expect(find.text('Apply'), findsOneWidget);
+  });
+
+  /// The price history page, reached from More.
+  Future<void> openHistory(WidgetTester tester) async {
+    await tester.tap(find.text('More').last);
+    await settle(tester);
+    await tester.scrollUntilVisible(find.text('Price history'), 200);
+    await settle(tester, frames: 4);
+    await tester.tap(find.text('Price history'));
+    await settle(tester);
+  }
+
+  testWidgets('the price history page filters the whole universe', (
+    tester,
+  ) async {
+    await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
+    await openHistory(tester);
+
+    // Everything the file has bars for, screened or not.
+    for (final ticker in ['QETH', 'VBTC', 'ZZZQ']) {
+      expect(find.text(ticker), findsWidgets, reason: 'unfiltered list');
+    }
+
+    await openFilters(tester);
+    await tester.tap(find.widgetWithText(FilterChip, 'Crypto'));
+    await settle(tester);
+    await tester.tap(find.text('Apply'));
+    await settle(tester);
+
+    // ZZZQ never reached a growth table, so its category can only have come
+    // from the directory — which is the point of filtering here.
+    expect(find.text('QETH'), findsWidgets);
+    expect(find.text('VBTC'), findsWidgets);
+    expect(find.text('ZZZQ'), findsNothing);
+    expect(find.textContaining('of 3 tickers'), findsOneWidget);
+  });
+
+  testWidgets('the history filter combines with the search box', (
+    tester,
+  ) async {
+    await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
+    await openHistory(tester);
+
+    await openFilters(tester);
+    await tester.tap(find.widgetWithText(FilterChip, 'Crypto'));
+    await settle(tester);
+    await tester.tap(find.text('Apply'));
+    await settle(tester);
+
+    await tester.enterText(find.byType(TextField).first, 'VBTC');
+    await settle(tester);
+    expect(find.text('VBTC'), findsWidgets);
+    expect(find.text('QETH'), findsNothing);
+
+    // A search that leaves nothing says the filter is part of the reason.
+    await tester.enterText(find.byType(TextField).first, 'ZZZQ');
+    await settle(tester);
+    expect(find.textContaining('the chosen categories'), findsOneWidget);
+  });
+
+  testWidgets('the catch-all chip keeps the tickers nothing else claims', (
+    tester,
+  ) async {
+    await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
+    await openHistory(tester);
+
+    await openFilters(tester);
+    // ZZZQ carries neither label, so both facets grow a catch-all.
+    expect(find.widgetWithText(FilterChip, 'Misc'), findsNWidgets(2));
+
+    // Last in the row, after every published category.
+    final category = find.ancestor(
+      of: find.text('Category'),
+      matching: find.byType(FacetSection),
+    );
+    await tester.tap(
+      find.descendant(
+        of: category,
+        matching: find.widgetWithText(FilterChip, 'Misc'),
+      ),
+    );
+    await settle(tester);
+    await tester.tap(find.text('Apply'));
+    await settle(tester);
+
+    // The one ticker the directory never labelled, and only that one.
+    expect(find.text('ZZZQ'), findsWidgets);
+    for (final ticker in ['QETH', 'VBTC']) {
+      expect(find.text(ticker), findsNothing);
+    }
+    expect(find.textContaining('1 of 3 tickers'), findsOneWidget);
   });
 
   testWidgets('a category filter does not survive the market switch', (

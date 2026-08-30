@@ -23,6 +23,7 @@ navigation chrome and the dashboard differ.
 | **Watchlist** | Starred tickers from both markets, swipe to remove. |
 | **Analysis** | Run-level statistics: instrument count, median/strongest/weakest change, a distribution histogram, a per-exchange breakdown, and the most traded instruments. |
 | **Reports** | Every published run with its row count, `data_as_of` and `run_id`, and a CSV export per window; below each market, the run metadata behind that file and its screen funnel. Desktop shows it in the sidebar; the handset reaches it from More. |
+| **Price history** | Every ticker the run collected, not just what passed a screen, with a chart of its published bars. Search plus category and issuer filters where the file labels its tickers. Desktop shows it in the sidebar; the handset reaches it from More. |
 | **More / Settings** | Per-file sync status and size, re-download and cache controls, theme, and row density. |
 
 ## Data
@@ -63,6 +64,13 @@ google_finance
 and what it holds (`crypto`, `precious metals`, `fixed income`). `us.db`
 publishes neither, so the app discovers the columns at open time and only
 offers the category and issuer filters where the file supports them.
+
+`asx_universe` carries them too, which is what lets **Price history** filter
+the whole market rather than only the tickers a screen picked up: 381 of the
+456 tickers with published bars are labelled. The other 75 are not dropped —
+a row the file publishes but leaves blank reads as **Misc**, and both filters
+grow a `Misc` chip, last in the row, that selects exactly those. A file with
+no such column at all shows no label and no chip.
 
 Alongside those, each file publishes **weekly price history** in a table named
 with the same prefix and no window suffix — `us_stocks_growth` and

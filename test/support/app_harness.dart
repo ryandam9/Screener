@@ -163,6 +163,22 @@ Future<Map<String, List<int>>> buildFixturePayloads(
     tablePrefix: 'asx_etf_growth',
     includeConsistentTable: false,
     includeFacetColumns: asxCategories,
+    // The directory table, which labels the whole universe rather than only
+    // what a screen picked up — including ZZZQ, which no screen ever did.
+    tickerNames: asxCategories
+        ? const {
+            'QETH': 'Betashares Ethereum ETF',
+            'VBTC': 'VanEck Bitcoin ETF',
+            'ZZZQ': 'Zeta Physical Gold Trust',
+          }
+        : const {},
+    // ZZZQ is deliberately left out: the directory names it but labels it
+    // with neither, which is the case the "Misc" chip exists for — 75 of the
+    // published ASX tickers are in exactly that position.
+    tickerFacets: const {
+      'QETH': ('Betashares', 'crypto'),
+      'VBTC': ('VanEck', 'crypto'),
+    },
     weeklyBars: asxBars,
     // Only the ASX file carries these tables, mirroring production: the app
     // has to show them where they exist and say so where they do not.
@@ -327,11 +343,7 @@ DbSyncService fixtureSyncService({
       final bytes = payloads[name];
       if (bytes == null) return http.Response('not found', 404);
       final tag = version?.call() ?? '1';
-      return http.Response.bytes(
-        bytes,
-        200,
-        headers: {'etag': '"$name-$tag"'},
-      );
+      return http.Response.bytes(bytes, 200, headers: {'etag': '"$name-$tag"'});
     }),
   );
 }
