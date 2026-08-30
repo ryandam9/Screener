@@ -113,6 +113,12 @@ class TickerChip extends StatelessWidget {
       ),
       child: Text(
         ticker,
+        // A ticker on two lines is not a ticker. NSE symbols run to ten
+        // characters, which is what the column is sized for; anything longer
+        // than that gives up a character rather than the row's height.
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontSize: 11.5,
           fontWeight: FontWeight.w700,

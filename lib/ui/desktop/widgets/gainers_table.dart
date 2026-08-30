@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../models/stock_row.dart';
@@ -32,13 +34,39 @@ class GainersTable extends StatelessWidget {
   // values they actually hold ("139.22", "+75.33", "+117.9%") plus a little
   // slack, not to their headings.
   static const _rank = 28.0;
-  static const _ticker = 92.0;
+
+  /// Wide enough for the longest symbol the files carry: NSE runs to ten
+  /// characters, and `LAMBODHARA` measures 102px in the chip. At 92 it wrapped
+  /// to a second line and took the whole row's height with it.
+  static const _ticker = 112.0;
   static const _market = 54.0;
   static const _price = 74.0;
   static const _change = 80.0;
   static const _gain = 76.0;
   static const _star = 28.0;
   static const _link = 28.0;
+  static const _padding = 18.0;
+
+  /// How wide the company name is allowed to get.
+  ///
+  /// Nine names in ten fit on one line inside this, chip included (p90 is
+  /// 287px in the published files, p95 321px). Past it a wider window buys
+  /// almost nothing, so the surplus goes to the gutter before the numbers
+  /// instead of sitting in a hole between the name and the market beside it.
+  static const _nameCap = 380.0;
+
+  /// Everything except the name and the gutter.
+  static const _fixed =
+      _padding * 2 +
+      _rank +
+      _ticker +
+      12 +
+      _market +
+      _price +
+      _change +
+      _gain +
+      _star +
+      _link;
 
   @override
   Widget build(BuildContext context) {
@@ -67,18 +95,37 @@ class GainersTable extends StatelessWidget {
       ),
     );
 
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final nameWidth = math.max(
+          0.0,
+          math.min(_nameCap, constraints.maxWidth - _fixed),
+        );
+        return _table(context, colors, heading, nameWidth);
+      },
+    );
+  }
+
+  Widget _table(
+    BuildContext context,
+    ScreenerColors colors,
+    Widget Function(String, double, {bool end}) heading,
+    double nameWidth,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
+          padding: const EdgeInsets.fromLTRB(_padding, 0, _padding, 10),
           child: Row(
             children: [
               heading('#', _rank),
               heading('Ticker', _ticker),
-              const Expanded(child: SizedBox()),
+              SizedBox(width: nameWidth),
               const SizedBox(width: 12),
               heading('Market', _market),
+              // The gutter, mirrored in the row below.
+              const Expanded(child: SizedBox()),
               heading('Price', _price, end: true),
               heading('Change', _change, end: true),
               heading('% Gain', _gain, end: true),
@@ -91,6 +138,7 @@ class GainersTable extends StatelessWidget {
           _GainerRow(
             rank: i + 1,
             row: rows[i],
+            nameWidth: nameWidth,
             selected:
                 rows[i].ticker == selected?.ticker &&
                 rows[i].market == selected?.market,
@@ -113,12 +161,16 @@ class _GainerRow extends StatelessWidget {
   const _GainerRow({
     required this.rank,
     required this.row,
+    required this.nameWidth,
     required this.selected,
     required this.onTap,
   });
 
   final int rank;
   final StockRow row;
+
+  /// Set by the table so every row's columns line up. See [GainersTable].
+  final double nameWidth;
   final bool selected;
   final VoidCallback onTap;
 
@@ -155,7 +207,10 @@ class _GainerRow extends StatelessWidget {
           row.ticker,
           selected: selected,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        padding: const EdgeInsets.symmetric(
+          horizontal: GainersTable._padding,
+          vertical: 10,
+        ),
         child: Row(
           children: [
             SizedBox(
@@ -172,7 +227,8 @@ class _GainerRow extends StatelessWidget {
                 child: TickerChip(ticker: row.ticker),
               ),
             ),
-            Expanded(
+            SizedBox(
+              width: nameWidth,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -211,6 +267,12 @@ class _GainerRow extends StatelessWidget {
                 style: TextStyle(fontSize: 12.5, color: colors.textSecondary),
               ),
             ),
+            // A wide window has more room than the columns need, and it has to
+            // go somewhere. Split between the name column and here, rather
+            // than all of it into the name column: that put the whole surplus
+            // in one hole between the company name and the market beside it,
+            // while the names themselves still wrapped.
+            const Expanded(child: SizedBox()),
             numeric(Fmt.price(row.latestPrice), GainersTable._price),
             numeric(
               Fmt.signedPrice(row.priceChange),
