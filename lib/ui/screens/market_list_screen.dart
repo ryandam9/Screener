@@ -10,6 +10,7 @@ import '../../state/settings_controller.dart';
 import '../../state/watchlist_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
+import '../widgets/category_chip.dart';
 import '../widgets/change_chip.dart';
 import '../widgets/facet_filter.dart';
 import '../responsive.dart';
@@ -868,16 +869,28 @@ class _ConsistentList extends StatelessWidget {
                           const SizedBox(height: 1),
                           // Wrapped, as in the other lists: the name is the
                           // point of the row.
-                          Text(
-                            row.shortName,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              height: 1.25,
-                              fontWeight: FontWeight.w500,
-                              color: colors.textName,
-                            ),
+                          // See _NameLine in stock_tile.dart for why this
+                          // wraps rather than flexing.
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 3,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                row.shortName,
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  height: 1.25,
+                                  fontWeight: FontWeight.w500,
+                                  color: colors.textName,
+                                ),
+                              ),
+                              if (CategoryChip.maybe(row.category)
+                                  case final chip?)
+                                chip,
+                            ],
                           ),
                         ],
                       ),

@@ -11,6 +11,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../info/page_info.dart';
 import '../responsive.dart';
+import '../widgets/category_chip.dart';
 import '../widgets/change_chip.dart';
 import '../widgets/facet_filter.dart';
 import '../widgets/google_finance_button.dart';
@@ -554,24 +555,37 @@ class _HistoryTile extends StatelessWidget {
               // way, which is what says how much history there is to read.
               Padding(
                 padding: const EdgeInsets.only(left: 46, top: 2),
-                child: Text(
-                  row.name == null
-                      ? '${row.bars} bars to ${Fmt.shortDate(row.lastDate)}'
-                      : row.name!,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: 1.25,
-                    // Only a real name is content; the bar count in its place
-                    // is chrome and stays secondary.
-                    fontWeight: row.name == null
-                        ? FontWeight.w400
-                        : FontWeight.w500,
-                    color: row.name == null
-                        ? colors.textSecondary
-                        : colors.textName,
-                  ),
+                // Wrapped, not a Row: see _NameLine in stock_tile.dart for
+                // why a Flexible name cannot save a row from a chip that is
+                // wider than the line.
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 3,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      row.name == null
+                          ? '${row.bars} bars to ${Fmt.shortDate(row.lastDate)}'
+                          : row.name!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.25,
+                        // Only a real name is content; the bar count in its
+                        // place is chrome and stays secondary.
+                        fontWeight: row.name == null
+                            ? FontWeight.w400
+                            : FontWeight.w500,
+                        color: row.name == null
+                            ? colors.textSecondary
+                            : colors.textName,
+                      ),
+                    ),
+                    if (CategoryChip.maybe(row.category, dense: true)
+                        case final chip?)
+                      chip,
+                  ],
                 ),
               ),
             ],
@@ -716,16 +730,30 @@ class _DetailState extends State<_Detail> {
                         ),
                         // Only where the file labels the ticker, which is
                         // most but not all of the ASX universe.
-                        if ([
-                          if (ticker.issuer case final issuer?) issuer,
-                          if (ticker.category case final category?)
-                            Fmt.titleCase(category),
-                        ].join(' · ') case final labels when labels.isNotEmpty)
-                          Text(
-                            labels,
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: colors.textTertiary,
+                        if (ticker.issuer != null || ticker.category != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 3),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (ticker.issuer case final issuer?)
+                                  Flexible(
+                                    child: Text(
+                                      issuer,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        color: colors.textTertiary,
+                                      ),
+                                    ),
+                                  ),
+                                if (CategoryChip.maybe(ticker.category)
+                                    case final chip?) ...[
+                                  if (ticker.issuer != null)
+                                    const SizedBox(width: 6),
+                                  chip,
+                                ],
+                              ],
                             ),
                           ),
                       ],

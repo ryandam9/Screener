@@ -11,6 +11,7 @@ import '../../state/watchlist_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../screens/stock_detail_screen.dart';
+import '../widgets/category_chip.dart';
 import '../widgets/panels.dart';
 import '../widgets/price_chart.dart';
 import 'widgets/desktop_cards.dart';
@@ -871,16 +872,28 @@ class _MoverRow extends StatelessWidget {
             TickerChip(ticker: row.ticker),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                row.shortName,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  height: 1.25,
-                  fontWeight: FontWeight.w500,
-                  color: colors.textName,
-                ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Flexible(
+                    child: Text(
+                      row.shortName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        height: 1.25,
+                        fontWeight: FontWeight.w500,
+                        color: colors.textName,
+                      ),
+                    ),
+                  ),
+                  if (CategoryChip.maybe(row.category, dense: true)
+                      case final chip?) ...[
+                    const SizedBox(width: 6),
+                    chip,
+                  ],
+                ],
               ),
             ),
             const SizedBox(width: 8),

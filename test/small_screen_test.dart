@@ -30,7 +30,10 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     cacheDir = await Directory.systemTemp.createTemp('screener_small_cache');
     serveDir = await Directory.systemTemp.createTemp('screener_small_serve');
-    payloads = await buildFixturePayloads(serveDir);
+    // Labelled, so the category chips are laid out at every width the sweep
+    // visits — they ride with the company name, which is the part of a row
+    // that runs out of space first.
+    payloads = await buildFixturePayloads(serveDir, asxCategories: true);
   });
 
   tearDown(() async {

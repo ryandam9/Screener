@@ -157,6 +157,38 @@ void main() {
     await settle(tester);
   }
 
+  testWidgets('the category chips do not overflow a 320dp row', (tester) async {
+    // Overflows throw during the paint that follows them, so walking the ASX
+    // list at the narrowest supported width, with the largest text, is the
+    // assertion. The chip rides with the company name, which is the first
+    // thing a row runs out of room for.
+    await launchApp(
+      tester,
+      cacheDir: cacheDir,
+      payloads: payloads,
+      size: const Size(512, 1024),
+      devicePixelRatio: 1.6,
+    );
+    await openMarkets(tester, 'ASX');
+
+    // The row carrying the longest label the pipeline publishes, at the width
+    // where it has least room.
+    expect(find.text('Industrial Metals'), findsWidgets);
+
+    // Every tab that lists rows, and the list scrolled through.
+    for (final tab in ['All', 'Movers', 'Consistent', 'Starred']) {
+      final label = find.descendant(
+        of: find.byType(TabBar),
+        matching: find.text(tab),
+      );
+      if (label.evaluate().isEmpty) continue;
+      await tester.tap(label);
+      await settle(tester);
+      await tester.dragFrom(const Offset(160, 400), const Offset(0, -300));
+      await settle(tester, frames: 4);
+    }
+  });
+
   testWidgets('the price history page filters the whole universe', (
     tester,
   ) async {

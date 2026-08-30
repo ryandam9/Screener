@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../models/stock_row.dart';
 import '../../../theme/app_theme.dart';
 import '../../../utils/formatters.dart';
+import '../../widgets/category_chip.dart';
 import '../../widgets/google_finance_button.dart';
 import '../../widgets/watchlist_star.dart';
 import 'desktop_cards.dart';
@@ -166,16 +167,34 @@ class _GainerRow extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: Text(
-                row.shortName,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13,
-                  height: 1.25,
-                  fontWeight: FontWeight.w500,
-                  color: colors.textName,
-                ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Flexible(
+                    child: Text(
+                      row.shortName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.25,
+                        fontWeight: FontWeight.w500,
+                        color: colors.textName,
+                      ),
+                    ),
+                  ),
+                  // Inside the name's column, not one of its own. This panel
+                  // is about 700px on a 1440 window, and a fixed column wide
+                  // enough for "Industrial Metals" took 124px from every row
+                  // — cutting "Moderna, Inc." in half on the US rows, which
+                  // have no category to show for it. Here only a labelled row
+                  // pays, and it pays with a name the ticker already names.
+                  if (CategoryChip.maybe(row.category, dense: true)
+                      case final chip?) ...[
+                    const SizedBox(width: 8),
+                    chip,
+                  ],
+                ],
               ),
             ),
             const SizedBox(width: 12),

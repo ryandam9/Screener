@@ -15,6 +15,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../../utils/trend.dart';
 import '../responsive.dart';
+import '../widgets/category_chip.dart';
 import '../widgets/change_chip.dart';
 import '../widgets/google_finance_button.dart';
 import '../widgets/panels.dart';
@@ -457,16 +458,25 @@ class _OverviewTab extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 2),
-              Text(
-                [
-                  row.exchange,
-                  _prettyAssetType(row.assetType),
-                  // Published for the ASX ETFs only, so the line is built
-                  // from what the row actually has.
-                  if (row.category case final category?)
-                    Fmt.titleCase(category),
-                ].join(' · '),
-                style: TextStyle(fontSize: 12, color: colors.textTertiary),
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      '${row.exchange} · ${_prettyAssetType(row.assetType)}',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colors.textTertiary,
+                      ),
+                    ),
+                  ),
+                  // Published for the ASX ETFs only, so the line carries the
+                  // chip only where the row is labelled.
+                  if (CategoryChip.maybe(row.category) case final chip?) ...[
+                    const SizedBox(width: 8),
+                    chip,
+                  ],
+                ],
               ),
               const SizedBox(height: 16),
               Row(
@@ -817,9 +827,9 @@ class _MetricsTab extends StatelessWidget {
                 _divider(colors),
                 MetricRow(label: 'Issuer', value: issuer),
               ],
-              if (row.category case final category?) ...[
+              if (CategoryChip.maybe(row.category) case final chip?) ...[
                 _divider(colors),
-                MetricRow(label: 'Category', value: Fmt.titleCase(category)),
+                MetricRow(label: 'Category', value: '', trailing: chip),
               ],
               _divider(colors),
               MetricRow(

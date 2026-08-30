@@ -110,12 +110,17 @@ class MetricRow extends StatelessWidget {
     this.valueColor,
     this.monospaceValue = true,
     this.dense = false,
+    this.trailing,
   });
 
   final String label;
   final String value;
   final Color? valueColor;
   final bool monospaceValue;
+
+  /// Shown right-aligned in place of [value], for a row whose value is a chip
+  /// rather than a number.
+  final Widget? trailing;
 
   /// Tighter type and padding, for rows shown two-up in a narrow column.
   final bool dense;
@@ -153,18 +158,20 @@ class MetricRow extends StatelessWidget {
             // Values are never truncated — a run id wraps onto a second line
             // rather than ending in an ellipsis that cannot be read or copied.
             Expanded(
-              child: Text(
-                value,
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  fontSize: dense ? 12.5 : 13.5,
-                  fontWeight: FontWeight.w500,
-                  color: valueColor ?? colors.textPrimary,
-                  fontFeatures: monospaceValue
-                      ? const [FontFeature.tabularFigures()]
-                      : null,
-                ),
-              ),
+              child: trailing == null
+                  ? Text(
+                      value,
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontSize: dense ? 12.5 : 13.5,
+                        fontWeight: FontWeight.w500,
+                        color: valueColor ?? colors.textPrimary,
+                        fontFeatures: monospaceValue
+                            ? const [FontFeature.tabularFigures()]
+                            : null,
+                      ),
+                    )
+                  : Align(alignment: Alignment.centerRight, child: trailing),
             ),
           ],
         ),

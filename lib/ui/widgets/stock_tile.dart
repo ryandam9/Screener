@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../models/stock_row.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
+import 'category_chip.dart';
 import 'change_chip.dart';
 import 'google_finance_button.dart';
 import 'ticker_avatar.dart';
@@ -169,18 +170,24 @@ class StockTile extends StatelessWidget {
     // moves to its own full-width line rather than being trimmed to fit.
     final nameBelow = space < StockTile.comfortableNameWidth;
 
-    final name = Text(
-      row.shortName,
+    final name = _NameLine(
+      name: row.shortName,
       // Three lines is generous for one line's worth of name in Inter, and
       // it is what keeps long names whole at large text sizes.
       maxLines: dense ? 2 : 3,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        fontSize: dense ? 11.5 : 12.5,
-        height: 1.25,
-        fontWeight: FontWeight.w500,
-        color: colors.textName,
-      ),
+      fontSize: dense ? 11.5 : 12.5,
+      color: colors.textName,
+      // The chip travels with the name rather than with the ticker, so it
+      // lands on whichever line the name did and never competes with the
+      // market badge for the ticker's row.
+      //
+      // Smaller once the name has been pushed to its own line: there the chip
+      // takes its width before the name gets any, and at 320dp a full-size
+      // "Industrial Metals" leaves the name three cramped lines.
+      chip: CategoryChip.maybe(row.category, dense: dense || nameBelow),
+      // Under this there is not enough left for a name beside a chip, and the
+      // name is the thing a reader needs.
+      showChip: space >= StockTile.comfortableNameWidth || nameBelow,
     );
 
     return Padding(
@@ -386,16 +393,13 @@ class GainerTile extends StatelessWidget {
     // See StockTile: a name squeezed beside the numbers is cut mid-word, so
     // below a comfortable width it takes a line of its own.
     final nameBelow = space < StockTile.comfortableNameWidth;
-    final name = Text(
-      row.shortName,
+    final name = _NameLine(
+      name: row.shortName,
       maxLines: 3,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        fontSize: 12.5,
-        height: 1.25,
-        fontWeight: FontWeight.w500,
-        color: colors.textName,
-      ),
+      fontSize: 12.5,
+      color: colors.textName,
+      chip: CategoryChip.maybe(row.category, dense: nameBelow),
+      showChip: space >= StockTile.comfortableNameWidth || nameBelow,
     );
 
     return Padding(
@@ -497,6 +501,64 @@ class GainerTile extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// A company name with the instrument's category chip beside it.
+///
+/// One widget for both tiles, and for both places the name can land: beside
+/// the numbers when the row is wide, or on a line of its own when it is not.
+///
+/// A [Wrap] rather than a [Row]. A Row lays its inflexible children out
+/// first and gives a `Flexible` only what is left, so when the chip alone is
+/// wider than the line — 320dp at 1.3x text, with a label like "Industrial
+/// Metals" — the leftover is negative and the row overflows however flexible
+/// the name is. Wrapping drops the chip to the next line instead: a few
+/// pixels of extra height, and nothing is ever clipped.
+class _NameLine extends StatelessWidget {
+  const _NameLine({
+    required this.name,
+    required this.maxLines,
+    required this.fontSize,
+    required this.color,
+    required this.chip,
+    required this.showChip,
+  });
+
+  final String name;
+  final int maxLines;
+  final double fontSize;
+  final Color color;
+
+  /// Null for every row of a file that publishes no category, which is most
+  /// of them: only the ASX ETFs are labelled.
+  final Widget? chip;
+
+  /// False where the row is too tight to give the chip room without eating
+  /// the name.
+  final bool showChip;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Text(
+      name,
+      maxLines: maxLines,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: fontSize,
+        height: 1.25,
+        fontWeight: FontWeight.w500,
+        color: color,
+      ),
+    );
+    if (chip == null || !showChip) return text;
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 3,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [text, chip!],
     );
   }
 }
