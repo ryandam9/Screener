@@ -437,7 +437,11 @@ Future<SharedPreferences> launchApp(
       ),
     ),
   );
-  await settle(tester);
+  // Longer than the default settle: this is every published file being
+  // downloaded, written and opened before the first assertion. Three files
+  // left the default with no headroom, and tests failed under load rather
+  // than on their own.
+  await settle(tester, frames: 50);
   return prefs;
 }
 
