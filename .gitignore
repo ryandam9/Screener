@@ -49,3 +49,6 @@ app.*.map.json
 
 # Local copies of the published databases used by the real-data tests
 .cache/
+
+# Golden-diff artefacts written by `flutter test` when a golden mismatches
+test/failures/
