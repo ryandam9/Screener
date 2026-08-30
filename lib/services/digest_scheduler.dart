@@ -106,7 +106,7 @@ void digestCallbackDispatcher() {
 
     final sync = DbSyncService(preferences: preferences);
     try {
-      // Fetches both files, says which changed, then says which tickers are
+      // Fetches every file, says which changed, then says which tickers are
       // new in the 7-day screen.
       await DigestService(
         preferences: preferences,

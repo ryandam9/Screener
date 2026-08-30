@@ -65,7 +65,7 @@ class NotificationIds {
   static const digest = 1;
   static const test = 2;
 
-  /// One summary per file, so the two screens sit in the shade side by side
+  /// One summary per file, so the screens sit in the shade side by side
   /// rather than replacing one another.
   static int digestFor(Market market) => 100 + market.index;
 

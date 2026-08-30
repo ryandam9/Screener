@@ -108,7 +108,7 @@ class PageInfos {
         ),
         InfoBullet(
           lead: 'Watchlist',
-          text: 'the tickers you have starred, across both markets.',
+          text: 'the tickers you have starred, across every market.',
         ),
       ]),
       InfoDivider(),
@@ -233,12 +233,23 @@ class PageInfos {
     icon: Icons.star_border_rounded,
     blocks: [
       InfoParagraph(
-        'Instruments you have starred, from both markets in one list. Star '
+        'Instruments you have starred, from every market in one list. Star '
         'from any list row or from the detail screen’s header.',
       ),
       InfoBullets([
         InfoBullet(text: 'Swipe a row to remove it.'),
         InfoBullet(text: 'Tap a row to open its detail screen.'),
+        InfoBullet(
+          text:
+              'A starred ticker is tinted wherever it is listed — every '
+              'window, the consistent growers, the price history — so you '
+              'can pick it out while scanning.',
+        ),
+        InfoBullet(
+          text:
+              'A star stays until you take it off. Nothing a run publishes '
+              'removes one.',
+        ),
         InfoBullet(
           text:
               'The list is stored on this device only — it is not part of '
@@ -401,7 +412,7 @@ class PageInfos {
         InfoBullet(
           lead: 'Re-download',
           text:
-              'fetches both files unconditionally. A normal refresh sends the '
+              'fetches every file unconditionally. A normal refresh sends the '
               'stored ETag and skips the download when nothing has changed.',
         ),
         InfoBullet(
@@ -418,7 +429,7 @@ class PageInfos {
       InfoDivider(),
       InfoHeading('Refresh and alerts', icon: Icons.notifications_none),
       InfoParagraph(
-        'Both files are fetched at 9:00 and again at 11:00, and each one that '
+        'Every file is fetched at 9:00 and again at 11:00, and each one that '
         'actually changed is announced. Then the 7-day screen is compared '
         'with the last time it was checked: every ticker that joined gets a '
         'notification of its own, naming the company and its move.',
@@ -445,7 +456,7 @@ class PageInfos {
         ),
         InfoBullet(
           lead: 'Check now',
-          text: 'fetches both files and posts what is in the screen today.',
+          text: 'fetches every file and posts what is in the screen today.',
         ),
       ]),
       InfoDivider(),

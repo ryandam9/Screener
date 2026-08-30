@@ -38,7 +38,7 @@ class DesktopDashboardData {
 
   final Map<Market, MarketSummary> summaries;
 
-  /// The strongest rows of the window, both markets ranked together.
+  /// The strongest rows of the window, every market ranked together.
   final List<StockRow> topGainers;
 
   /// The same ranking, per market. One market's screen regularly outruns the
@@ -49,19 +49,19 @@ class DesktopDashboardData {
   final List<StockRow> movers;
   final List<RunInfo> runs;
 
-  /// Watchlisted rows present in the selected window, both markets.
+  /// Watchlisted rows present in the selected window, every market.
   final List<StockRow> watchlistRows;
 
-  /// Number of (market, window) tables the two files publish.
+  /// Number of (market, window) tables the published files carry.
   final int analysesCount;
 
-  /// Total rows across every window of both files.
+  /// Total rows across every window of every file.
   ///
   /// Not a distinct instrument count: a ticker present in five windows
   /// contributes five rows, which is why the card labels this "Rows".
   final int rowsAnalysed;
 
-  /// Mean percentage change in the selected window, across both markets.
+  /// Mean percentage change in the selected window, across every market.
   final double? averageReturn;
 
   /// Weekly growth curve per market, from the published price history.
@@ -373,7 +373,11 @@ class _TopBar extends StatelessWidget {
               ),
               const SizedBox(height: 1),
               Text(
-                'US and ASX growth screens',
+                // Named rather than counted: the reader wants to know which
+                // screens are in front of them, and the list is short enough
+                // to say. It grows with the enum.
+                '${[for (final market in Market.values) market.label].join(', ')} '
+                'growth screens',
                 style: TextStyle(fontSize: 12, color: colors.textSecondary),
               ),
             ],
@@ -638,7 +642,7 @@ class _DashboardBody extends StatelessWidget {
                   children: [
                     DesktopPanel(
                       title: 'Top Gainers (${window.longLabel})',
-                      // Ranked across both markets by default, which is why
+                      // Ranked across every market by default, which is why
                       // one market can fill the table on its own; the filter
                       // is how you see the other one's best rows.
                       leadingAction: PeriodSelector<Market?>(

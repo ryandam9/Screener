@@ -247,12 +247,16 @@ void main() {
     final traded = find.byType(StockTile).first;
     final tradedInset = chipInset(traded);
 
-    final starY = tester.getCenter(
-      find.descendant(of: traded, matching: find.byType(WatchlistStar)),
-    ).dy;
-    final chipY = tester.getCenter(
-      find.descendant(of: traded, matching: find.byType(ChangeChip)),
-    ).dy;
+    final starY = tester
+        .getCenter(
+          find.descendant(of: traded, matching: find.byType(WatchlistStar)),
+        )
+        .dy;
+    final chipY = tester
+        .getCenter(
+          find.descendant(of: traded, matching: find.byType(ChangeChip)),
+        )
+        .dy;
 
     await tester.tap(find.text('Markets').last);
     await settle(tester);
@@ -330,7 +334,10 @@ void main() {
     await tester.tap(find.text('More'));
     await settle(tester);
     await tester.tap(find.text('Re-download'));
-    await settle(tester);
+    // Longer than the default: this is every published file being fetched in
+    // turn, and the assertions below are about what the stamps say once all
+    // of them are done.
+    await settle(tester, frames: 60);
     await tester.tap(find.text('Dashboard'));
     await settle(tester);
 
@@ -367,7 +374,10 @@ void main() {
     await tester.tap(find.text('More'));
     await settle(tester);
     await tester.tap(find.text('Re-download'));
-    await settle(tester);
+    // Longer than the default: this is every published file being fetched in
+    // turn, and the assertions below are about what the stamps say once all
+    // of them are done.
+    await settle(tester, frames: 60);
 
     await tester.tap(find.text('Dashboard'));
     await settle(tester);

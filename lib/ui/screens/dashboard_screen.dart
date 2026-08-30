@@ -18,7 +18,7 @@ import 'stock_detail_screen.dart';
 import '../info/page_info.dart';
 import '../widgets/info_dialog.dart';
 
-/// Everything the dashboard renders, gathered in one pass over both markets.
+/// Everything the dashboard renders, gathered in one pass over every market.
 class _DashboardData {
   const _DashboardData({
     required this.summaries,
@@ -229,27 +229,7 @@ class _DashboardBody extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          // IntrinsicHeight gives the Row a definite height, so the two cards
-          // can stretch to match the taller one. Without it, `stretch` inside
-          // the scrolling column asks for infinite height.
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final market in Market.values) ...[
-                  Expanded(
-                    child: _MarketCard(
-                      market: market,
-                      summary: data.summaries[market],
-                      window: window,
-                      state: context.watch<AppState>().stateOf(market),
-                    ),
-                  ),
-                  if (market != Market.values.last) const SizedBox(width: 12),
-                ],
-              ],
-            ),
-          ),
+          child: _MarketCards(summaries: data.summaries, window: window),
         ),
         SectionHeader(
           title: 'Top Gainers (${window.longLabel})',
@@ -297,7 +277,84 @@ class _DashboardBody extends StatelessWidget {
   }
 }
 
-/// The ASX / US card at the top of the dashboard.
+/// The market cards at the top of the dashboard, in as many columns as fit.
+///
+/// One row across was right for two files. A third makes each card 108dp on a
+/// 360dp phone, which is narrower than the headline percentage — "+117.91%"
+/// wrapped onto a second line, and onto a third at the largest text sizes. So
+/// the strip breaks into a grid instead: two up on a phone, all of them across
+/// wherever there is room.
+class _MarketCards extends StatelessWidget {
+  const _MarketCards({required this.summaries, required this.window});
+
+  final Map<Market, MarketSummary> summaries;
+  final GrowthWindow window;
+
+  /// Below this a card cannot hold its own headline. Scaled with the reader's
+  /// text size, since that is what the number's width follows.
+  static const double _minCardWidth = 132;
+  static const double _gap = 12;
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    final markets = Market.values;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final minimum = MediaQuery.textScalerOf(context).scale(_minCardWidth);
+        final columns = ((constraints.maxWidth + _gap) / (minimum + _gap))
+            .floor()
+            .clamp(1, markets.length);
+
+        final rows = <Widget>[];
+        for (var start = 0; start < markets.length; start += columns) {
+          final chunk = markets.skip(start).take(columns).toList();
+          rows.add(
+            // IntrinsicHeight gives the row a definite height, so its cards
+            // can stretch to match the tallest. Without it, `stretch` inside
+            // the scrolling column asks for infinite height.
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < columns; i++) ...[
+                    if (i != 0) const SizedBox(width: _gap),
+                    // A short last row keeps the column width of the rows
+                    // above it: a lone card stretched across the screen would
+                    // read as a different kind of card altogether.
+                    Expanded(
+                      child: i < chunk.length
+                          ? _MarketCard(
+                              market: chunk[i],
+                              summary: summaries[chunk[i]],
+                              window: window,
+                              state: appState.stateOf(chunk[i]),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < rows.length; i++) ...[
+              if (i != 0) const SizedBox(height: _gap),
+              rows[i],
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// One market's card at the top of the dashboard.
 ///
 /// The published data has no index level, so the headline number is the median
 /// percentage change of the window and the sparkline is that median across

@@ -78,7 +78,7 @@ class DigestService {
       '${value.month.toString().padLeft(2, '0')}-'
       '${value.day.toString().padLeft(2, '0')}';
 
-  /// Downloads both files and posts a notification for each one that changed.
+  /// Downloads every file and posts a notification for each one that changed.
   ///
   /// The conditional request means an unchanged file costs nothing and says
   /// nothing: a notification every couple of hours reporting no change would

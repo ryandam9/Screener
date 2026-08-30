@@ -129,7 +129,7 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// Opens caches first, then refreshes both markets in parallel.
+  /// Opens caches first, then refreshes every market in parallel.
   Future<void> initialise() async {
     if (_initialised) return;
     _initialised = true;

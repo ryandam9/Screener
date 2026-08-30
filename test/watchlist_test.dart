@@ -1,7 +1,10 @@
 import 'dart:io';
 
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:screener/models/market.dart';
+import 'package:screener/theme/app_theme.dart';
 import 'package:screener/ui/screens/stock_detail_screen.dart';
 import 'package:screener/ui/widgets/stock_tile.dart';
 import 'package:screener/ui/widgets/watchlist_star.dart';
@@ -40,6 +43,74 @@ void main() {
     matching: find.byType(WatchlistStar),
   );
 
+  /// Stars [ticker] from its dashboard row, scrolling to it first.
+  ///
+  /// The rows below the market cards are off the bottom of a phone once there
+  /// are three files to summarise, and a tap that lands outside the viewport
+  /// does nothing at all rather than failing.
+  Future<void> tapStar(WidgetTester tester, String ticker) async {
+    await tester.ensureVisible(starFor(ticker));
+    await settle(tester, frames: 4);
+    await tester.tap(starFor(ticker));
+    await settle(tester);
+  }
+
+  /// The colour painted behind the row that lists [ticker].
+  ///
+  /// A row that grows into the detail screen paints its background as the
+  /// closed colour of its `OpenContainer`; the rest are plain Materials.
+  Color? rowColour(WidgetTester tester, String ticker) {
+    final text = find.text(ticker).first;
+    final container = find.ancestor(
+      of: text,
+      matching: find.byType(OpenContainer<void>),
+    );
+    if (container.evaluate().isNotEmpty) {
+      return tester.widget<OpenContainer<void>>(container.first).closedColor;
+    }
+    final material = find.ancestor(of: text, matching: find.byType(Material));
+    return tester.widget<Material>(material.first).color;
+  }
+
+  /// The tint a starred row carries, in whichever theme is showing.
+  Color starredSurface(WidgetTester tester) => Theme.of(
+    tester.element(find.byType(GainerTile).first),
+  ).extension<ScreenerColors>()!.starredSurface;
+
+  /// Opens the market list on [market], via the sheet behind the title.
+  Future<void> openMarkets(WidgetTester tester, String market) async {
+    await tester.tap(find.text('Markets').last);
+    await settle(tester);
+    await tester.tap(find.byIcon(Icons.arrow_drop_down));
+    await settle(tester);
+    await tester.tap(
+      find.descendant(
+        of: find.byType(SegmentedButton<Market>),
+        matching: find.text(market),
+      ),
+    );
+    await settle(tester);
+    if (find.byType(SegmentedButton<Market>).evaluate().isNotEmpty) {
+      await tester.tapAt(const Offset(5, 5));
+      await settle(tester);
+    }
+  }
+
+  /// Switches the market list to the window named [longLabel].
+  Future<void> selectWindow(WidgetTester tester, String longLabel) async {
+    await tester.tap(find.byIcon(Icons.arrow_drop_down));
+    await settle(tester);
+    await tester.tap(find.text('$longLabel analysis'));
+    await settle(tester);
+  }
+
+  Future<void> openTab(WidgetTester tester, String label) async {
+    await tester.tap(
+      find.descendant(of: find.byType(TabBar), matching: find.text(label)),
+    );
+    await settle(tester);
+  }
+
   testWidgets('a list row stars without opening the row', (tester) async {
     final prefs = await launchApp(
       tester,
@@ -47,8 +118,7 @@ void main() {
       payloads: payloads,
     );
 
-    await tester.tap(starFor('MRNA'));
-    await settle(tester);
+    await tapStar(tester, 'MRNA');
 
     expect(
       find.byType(StockDetailScreen),
@@ -61,8 +131,7 @@ void main() {
   testWidgets('a star from a list row reaches the watchlist', (tester) async {
     await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
 
-    await tester.tap(starFor('MRNA'));
-    await settle(tester);
+    await tapStar(tester, 'MRNA');
 
     await tester.tap(find.text('Watchlist').last);
     await settle(tester);
@@ -77,12 +146,10 @@ void main() {
       payloads: payloads,
     );
 
-    await tester.tap(starFor('MRNA'));
-    await settle(tester);
+    await tapStar(tester, 'MRNA');
     expect(prefs.getStringList('watchlist'), ['us:MRNA']);
 
-    await tester.tap(starFor('MRNA'));
-    await settle(tester);
+    await tapStar(tester, 'MRNA');
     expect(prefs.getStringList('watchlist'), isEmpty);
   });
 
@@ -92,8 +159,7 @@ void main() {
       cacheDir: cacheDir,
       payloads: payloads,
     );
-    await tester.tap(starFor('MRNA'));
-    await settle(tester);
+    await tapStar(tester, 'MRNA');
 
     // Rebuilding the whole app is as close as a widget test gets to a cold
     // start: the controller reads the same store again from scratch.
@@ -115,10 +181,124 @@ void main() {
       payloads: payloads,
     );
 
-    await tester.tap(starFor('MRNA'));
-    await tester.tap(starFor('QETH'));
-    await settle(tester);
+    await tapStar(tester, 'MRNA');
+    await tapStar(tester, 'QETH');
 
     expect(prefs.getStringList('watchlist'), ['asx:QETH', 'us:MRNA']);
+  });
+
+  testWidgets('a starred ticker is marked in every list it shows up in', (
+    tester,
+  ) async {
+    await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
+
+    // Nothing is starred yet, so the two dashboard rows look alike.
+    expect(rowColour(tester, 'MRNA'), rowColour(tester, 'AMLX'));
+
+    await tapStar(tester, 'MRNA');
+    final tint = starredSurface(tester);
+
+    expect(
+      rowColour(tester, 'MRNA'),
+      tint,
+      reason: 'the row it was starred from',
+    );
+    expect(
+      rowColour(tester, 'AMLX'),
+      isNot(tint),
+      reason: 'only the starred ticker is marked',
+    );
+
+    // The 7-day US list: a different screen, built from a different query,
+    // which was never told about the star.
+    await openMarkets(tester, 'US');
+    expect(rowColour(tester, 'MRNA'), tint, reason: '7 day list');
+    expect(rowColour(tester, 'AMLX'), isNot(tint), reason: '7 day list');
+
+    // And the monthly one, where MRNA is the only fixture row.
+    await selectWindow(tester, '1 Month');
+    expect(rowColour(tester, 'MRNA'), tint, reason: '1 month list');
+  });
+
+  testWidgets('the consistent growers list stars and marks a ticker', (
+    tester,
+  ) async {
+    final prefs = await launchApp(
+      tester,
+      cacheDir: cacheDir,
+      payloads: payloads,
+    );
+    final tint = starredSurface(tester);
+
+    await openMarkets(tester, 'US');
+    await openTab(tester, 'Consistent');
+    expect(
+      find.text('MRNA'),
+      findsWidgets,
+      reason: 'the fixture consistent row',
+    );
+    expect(rowColour(tester, 'MRNA'), isNot(tint));
+
+    // Starrable from here too, not only from the windowed lists.
+    await tester.tap(
+      find
+          .descendant(
+            of: find.byType(ListView),
+            matching: find.byType(WatchlistStar),
+          )
+          .first,
+    );
+    await settle(tester);
+
+    expect(prefs.getStringList('watchlist'), ['us:MRNA']);
+    expect(rowColour(tester, 'MRNA'), tint);
+  });
+
+  testWidgets('the price history page marks a starred ticker', (tester) async {
+    await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
+    await tapStar(tester, 'QETH');
+    final tint = starredSurface(tester);
+
+    await tester.tap(find.text('More').last);
+    await settle(tester);
+    await tester.scrollUntilVisible(find.text('Price history'), 200);
+    await settle(tester, frames: 4);
+    await tester.tap(find.text('Price history'));
+    await settle(tester);
+
+    expect(rowColour(tester, 'QETH'), tint);
+    expect(rowColour(tester, 'VBTC'), isNot(tint));
+  });
+
+  testWidgets('clearing the watchlist from settings asks first', (
+    tester,
+  ) async {
+    final prefs = await launchApp(
+      tester,
+      cacheDir: cacheDir,
+      payloads: payloads,
+    );
+    await tapStar(tester, 'MRNA');
+
+    await tester.tap(find.text('More').last);
+    await settle(tester);
+    await tester.scrollUntilVisible(find.text('Starred tickers'), 200);
+    await settle(tester, frames: 4);
+
+    await tester.tap(find.widgetWithText(TextButton, 'Clear'));
+    await settle(tester);
+    expect(find.text('Clear watchlist?'), findsOneWidget);
+
+    // Backing out leaves the star where it was: a star stays until it is
+    // taken off deliberately.
+    await tester.tap(find.text('Cancel'));
+    await settle(tester);
+    expect(prefs.getStringList('watchlist'), ['us:MRNA']);
+
+    await tester.tap(find.widgetWithText(TextButton, 'Clear'));
+    await settle(tester);
+    await tester.tap(find.widgetWithText(FilledButton, 'Clear'));
+    await settle(tester);
+    expect(prefs.getStringList('watchlist'), isEmpty);
   });
 }

@@ -472,7 +472,7 @@ class _NavItem extends StatelessWidget {
 ///
 /// The mockup shows a market-open countdown here. Nothing in the published
 /// databases describes trading sessions, so this reports what the app does
-/// know — whether both files are current and how fresh the screener run is —
+/// know — whether every file is current and how fresh the screener run is —
 /// above a live local clock.
 class _DataStatusCard extends StatefulWidget {
   const _DataStatusCard();

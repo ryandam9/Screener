@@ -4,9 +4,9 @@ A Flutter app that reads the growth-screener SQLite databases published to
 `s3://hive-in-the-cloud` and renders them on device. One codebase serves a
 handset layout and a desktop layout, chosen from the window width.
 
-The two files — `us.db` (US stocks) and `asx.db` (ASX ETFs) — are downloaded
-over HTTPS, cached locally, and queried with `sqflite`. Everything except the
-refresh works offline.
+The files — `us.db` (US stocks), `asx.db` (ASX ETFs) and `nse.db` (NSE India
+stocks) — are downloaded over HTTPS, cached locally, and queried with
+`sqflite`. Everything except the refresh works offline.
 
 ## Screens
 
@@ -20,7 +20,7 @@ navigation chrome and the dashboard differ.
 | **Dashboard** | Handset: a card per market, the strongest movers, and recent runs. Desktop: four summary cards, a Top Gainers table with the full column set, a weekly price chart for the selected security, plus Recent Analyses and Top Movers panels. |
 | **Markets** | The full instrument list with sortable columns, search, and filters for exchange, category, issuer and minimum change. Tabs: All Stocks, Top Movers, Consistent, Watchlist. |
 | **Stock detail** | Price, change, and the window's endpoints; a weekly price chart for the selected window; the full published metric set; every window compared; and the Google Finance links carried in the data. |
-| **Watchlist** | Starred tickers from both markets, swipe to remove. |
+| **Watchlist** | Starred tickers from every market, swipe to remove. A starred ticker is tinted wherever else it is listed. |
 | **Analysis** | Run-level statistics: instrument count, median/strongest/weakest change, a distribution histogram, a per-exchange breakdown, and the most traded instruments. |
 | **Reports** | Every published run with its row count, `data_as_of` and `run_id`, and a CSV export per window; below each market, the run metadata behind that file and its screen funnel. Desktop shows it in the sidebar; the handset reaches it from More. |
 | **Price history** | Every ticker the run collected, not just what passed a screen, with a chart of its published bars. Search plus category and issuer filters where the file labels its tickers. Desktop shows it in the sidebar; the handset reaches it from More. |
@@ -33,6 +33,7 @@ navigation chrome and the dashboard differ.
 ```
 https://hive-in-the-cloud.s3.ap-southeast-2.amazonaws.com/us.db
 https://hive-in-the-cloud.s3.ap-southeast-2.amazonaws.com/asx.db
+https://hive-in-the-cloud.s3.ap-southeast-2.amazonaws.com/nse.db
 ```
 
 The bucket lives in `ap-southeast-2`. The regional host matters: the generic
@@ -42,14 +43,16 @@ lives in `DbSyncService` and can be overridden at runtime.
 ### Schema
 
 Each file holds one table per look-back window, plus `consistent_growth_stocks`.
-The table *prefix differs between the two files*, so nothing is hard-coded —
+The table *prefix differs between the files*, so nothing is hard-coded —
 `MarketDatabase.open` reads `sqlite_master` and maps physical tables to windows
-by suffix:
+by suffix, and identifies the rest by their columns rather than their names.
+That is what lets a new file be added by adding one value to the `Market` enum:
 
 | File | Tables |
 | --- | --- |
 | `us.db` | `us_stocks_growth_{7_days,1_month,3_months,6_months,1_year}` |
 | `asx.db` | `asx_etf_growth_{7_days,1_month,3_months,6_months,1_year}` |
+| `nse.db` | `nse_stocks_growth_{...}`, whichever windows the run publishes |
 
 Every growth table carries the same columns:
 
@@ -61,9 +64,9 @@ google_finance
 ```
 
 `asx.db` adds `issuer` and `category` after `asset_type` — who runs the fund
-and what it holds (`crypto`, `precious metals`, `fixed income`). `us.db`
-publishes neither, so the app discovers the columns at open time and only
-offers the category and issuer filters where the file supports them.
+and what it holds (`crypto`, `precious metals`, `fixed income`). `us.db` and
+`nse.db` publish neither, so the app discovers the columns at open time and
+only offers the category and issuer filters where the file supports them.
 
 `asx_universe` carries them too, which is what lets **Price history** filter
 the whole market rather than only the tickers a screen picked up: 381 of the

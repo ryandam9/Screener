@@ -19,6 +19,7 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
     required this.neutralSurface,
     required this.warning,
     required this.warningSurface,
+    required this.starredSurface,
     required this.card,
     required this.cardBorder,
     required this.pageBackground,
@@ -38,6 +39,16 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
   final Color neutralSurface;
   final Color warning;
   final Color warningSurface;
+
+  /// Background of a list row whose ticker is on the watchlist.
+  ///
+  /// A wash rather than a tint: it sits under every row of a starred ticker in
+  /// every list, so it has to be readable behind a whole row of text and still
+  /// disappear when you are not looking for it. Warm, to belong to the same
+  /// family as the star that put it there — [warningSurface] itself is spoken
+  /// for by stale-data banners and is too strong to repeat down a list.
+  final Color starredSurface;
+
   final Color card;
   final Color cardBorder;
   final Color pageBackground;
@@ -73,6 +84,7 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
     neutralSurface: Color(0xFFEFF1F4),
     warning: Color(0xFF96660C),
     warningSurface: Color(0xFFFBF0DC),
+    starredSurface: Color(0xFFFDF5E4),
     card: Color(0xFFFFFFFF),
     cardBorder: Color(0xFFE7E9EE),
     pageBackground: Color(0xFFF4F6F8),
@@ -93,6 +105,7 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
     neutralSurface: Color(0xFF232830),
     warning: Color(0xFFE9B44C),
     warningSurface: Color(0xFF33280F),
+    starredSurface: Color(0xFF262009),
     card: Color(0xFF181C22),
     cardBorder: Color(0xFF272D36),
     pageBackground: Color(0xFF0F1216),
@@ -114,6 +127,7 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
     Color? neutralSurface,
     Color? warning,
     Color? warningSurface,
+    Color? starredSurface,
     Color? card,
     Color? cardBorder,
     Color? pageBackground,
@@ -133,6 +147,7 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
       neutralSurface: neutralSurface ?? this.neutralSurface,
       warning: warning ?? this.warning,
       warningSurface: warningSurface ?? this.warningSurface,
+      starredSurface: starredSurface ?? this.starredSurface,
       card: card ?? this.card,
       cardBorder: cardBorder ?? this.cardBorder,
       pageBackground: pageBackground ?? this.pageBackground,
@@ -158,6 +173,7 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
       neutralSurface: mix(neutralSurface, other.neutralSurface),
       warning: mix(warning, other.warning),
       warningSurface: mix(warningSurface, other.warningSurface),
+      starredSurface: mix(starredSurface, other.starredSurface),
       card: mix(card, other.card),
       cardBorder: mix(cardBorder, other.cardBorder),
       pageBackground: mix(pageBackground, other.pageBackground),

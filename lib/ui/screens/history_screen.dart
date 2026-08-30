@@ -21,6 +21,7 @@ import '../widgets/price_chart.dart';
 import '../widgets/stock_tile.dart';
 import '../widgets/table_frame.dart';
 import '../widgets/ticker_avatar.dart';
+import '../widgets/watchlist_highlight.dart';
 import '../widgets/watchlist_star.dart';
 
 /// How much of a ticker's history the chart shows.
@@ -483,7 +484,9 @@ class _HistoryTile extends StatelessWidget {
     final colors = context.colors;
 
     return Material(
-      color: selected ? colors.positiveSurface : Colors.transparent,
+      color:
+          starredRowColor(context, market, row.ticker, selected: selected) ??
+          Colors.transparent,
       child: InkWell(
         onTap: onTap,
         child: Padding(
@@ -537,7 +540,11 @@ class _HistoryTile extends StatelessWidget {
                       ),
                     ),
                   ),
-                  WatchlistStar(market: market, ticker: row.ticker, dense: true),
+                  WatchlistStar(
+                    market: market,
+                    ticker: row.ticker,
+                    dense: true,
+                  ),
                   // The link's slot is held even when a row has no URL, so the
                   // stars stay in one column down the list rather than sliding
                   // right on the rows the file gave no exchange code.

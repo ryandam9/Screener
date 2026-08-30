@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/market.dart';
 import '../../state/watchlist_controller.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/formatters.dart';
 
 /// Stars a ticker from wherever it is listed.
 ///
@@ -59,4 +60,36 @@ class WatchlistStar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Asks before emptying the watchlist, and empties it if told to.
+///
+/// A star is meant to stay put until it is taken off, so the one control that
+/// removes the whole list has to ask first — wherever it is offered. It used
+/// to ask on the watchlist screen and not on the settings screen, where a
+/// stray tap on "Clear" took every starred ticker with no way back.
+Future<void> confirmClearWatchlist(
+  BuildContext context,
+  WatchlistController watchlist,
+) async {
+  if (watchlist.isEmpty) return;
+  final count = watchlist.length;
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Clear watchlist?'),
+      content: Text('This removes all ${Fmt.integer(count)} starred tickers.'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Clear'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed ?? false) await watchlist.clear();
 }

@@ -7,14 +7,14 @@ import '../../models/stock_row.dart';
 import '../../state/app_state.dart';
 import '../../state/watchlist_controller.dart';
 import '../../theme/app_theme.dart';
-import '../../utils/formatters.dart';
 import '../widgets/panels.dart';
 import '../widgets/stock_tile.dart';
+import '../widgets/watchlist_star.dart';
 import 'stock_detail_screen.dart';
 import '../info/page_info.dart';
 import '../widgets/info_dialog.dart';
 
-/// Starred tickers from both markets, with their current window figures.
+/// Starred tickers from every market, with their current window figures.
 class WatchlistScreen extends StatelessWidget {
   const WatchlistScreen({super.key, this.onSelect, this.selected});
 
@@ -59,7 +59,7 @@ class WatchlistScreen extends StatelessWidget {
             IconButton(
               tooltip: 'Clear watchlist',
               icon: const Icon(Icons.delete_outline),
-              onPressed: () => _confirmClear(context, watchlist),
+              onPressed: () => confirmClearWatchlist(context, watchlist),
             ),
           const InfoButton(info: PageInfos.watchlist),
           const SizedBox(width: 4),
@@ -155,31 +155,5 @@ class WatchlistScreen extends StatelessWidget {
               },
             ),
     );
-  }
-
-  Future<void> _confirmClear(
-    BuildContext context,
-    WatchlistController watchlist,
-  ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Clear watchlist?'),
-        content: Text(
-          'This removes all ${Fmt.integer(watchlist.length)} starred tickers.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed ?? false) await watchlist.clear();
   }
 }

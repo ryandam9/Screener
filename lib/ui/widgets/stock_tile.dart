@@ -10,6 +10,7 @@ import 'category_chip.dart';
 import 'change_chip.dart';
 import 'google_finance_button.dart';
 import 'ticker_avatar.dart';
+import 'watchlist_highlight.dart';
 import 'watchlist_star.dart';
 
 /// A row in the market list: monogram, ticker + name, price, change chip.
@@ -124,13 +125,23 @@ class StockTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    // Starred rows are tinted wherever they are listed; see starredRowColor.
+    final background = starredRowColor(
+      context,
+      row.market,
+      row.ticker,
+      selected: selected,
+    );
     final open = opensTo;
     if (open != null) {
       return OpenContainer<void>(
         tappable: true,
         closedElevation: 0,
         openElevation: 0,
-        closedColor: colors.card,
+        // The tint has to be the container's own colour rather than something
+        // painted inside it: OpenContainer fades the closed colour into the
+        // opening screen, and a ColoredBox within would flash white here.
+        closedColor: background ?? colors.card,
         openColor: colors.pageBackground,
         middleColor: colors.card,
         transitionDuration: const Duration(milliseconds: 380),
@@ -140,7 +151,7 @@ class StockTile extends StatelessWidget {
       );
     }
     return Material(
-      color: selected ? colors.positiveSurface : Colors.transparent,
+      color: background ?? Colors.transparent,
       child: InkWell(onTap: onTap, child: _content(context)),
     );
   }
@@ -345,13 +356,20 @@ class GainerTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    // See StockTile.build.
+    final background = starredRowColor(
+      context,
+      row.market,
+      row.ticker,
+      selected: selected,
+    );
     final open = opensTo;
     if (open != null) {
       return OpenContainer<void>(
         tappable: true,
         closedElevation: 0,
         openElevation: 0,
-        closedColor: colors.card,
+        closedColor: background ?? colors.card,
         openColor: colors.pageBackground,
         middleColor: colors.card,
         transitionDuration: const Duration(milliseconds: 380),
@@ -361,7 +379,7 @@ class GainerTile extends StatelessWidget {
       );
     }
     return Material(
-      color: selected ? colors.positiveSurface : Colors.transparent,
+      color: background ?? Colors.transparent,
       child: InkWell(onTap: onTap, child: _content(context)),
     );
   }

@@ -210,7 +210,7 @@ void main() {
 
     // The bar used to be one cluster of controls centred over an empty strip.
     expect(find.text('Dashboard'), findsWidgets);
-    expect(find.text('US and ASX growth screens'), findsOneWidget);
+    expect(find.text('ASX, US, NSE growth screens'), findsOneWidget);
 
     final field = find.byType(TextField).first;
     final box = tester.getRect(field);
@@ -261,7 +261,10 @@ void main() {
     await settle(tester);
 
     expect(find.descendant(of: table, matching: find.text('QETH')), findsOne);
-    expect(find.descendant(of: table, matching: find.text('MRNA')), findsNothing);
+    expect(
+      find.descendant(of: table, matching: find.text('MRNA')),
+      findsNothing,
+    );
 
     // And the chart under the table follows the rows that are left.
     expect(find.textContaining('QETH ·'), findsOneWidget);
@@ -350,10 +353,7 @@ void main() {
     await settle(tester);
     expect(
       tester.getBottomRight(find.text('Change')).dx,
-      closeTo(
-        tester.getBottomRight(find.byType(ChangeChip).first).dx,
-        0.5,
-      ),
+      closeTo(tester.getBottomRight(find.byType(ChangeChip).first).dx, 0.5),
       reason: '"Change" does not sit over the change chips',
     );
   }
@@ -455,10 +455,13 @@ void main() {
   testWidgets('the desktop dashboard stamps each market card', (tester) async {
     await launchDesktop(tester);
 
-    expect(find.byType(RefreshStamp), findsNWidgets(2));
+    expect(find.byType(RefreshStamp), findsNWidgets(Market.values.length));
     // The run's stamp, not the download's: the fixture's run is dated in the
     // past, while the download happened seconds ago.
-    expect(find.textContaining('Refreshed'), findsNWidgets(2));
+    expect(
+      find.textContaining('Refreshed'),
+      findsNWidgets(Market.values.length),
+    );
     expect(find.textContaining('Refreshed Today'), findsNothing);
   });
 

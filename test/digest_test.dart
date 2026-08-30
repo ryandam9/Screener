@@ -110,9 +110,7 @@ void main() {
 
     test('caps the names and counts the rest', () {
       final digest = DailyDigest.build(
-        rows: [
-          for (var i = 0; i < 7; i++) row('T$i', 50 - i.toDouble()),
-        ],
+        rows: [for (var i = 0; i < 7; i++) row('T$i', 50 - i.toDouble())],
         previousKeys: const {'us:GONE'},
         date: today,
       );
@@ -252,6 +250,7 @@ void main() {
       await prefs.setStringList('digest_snapshot_7d', [
         'us:MRNA',
         'asx:QETH',
+        'nse:TATAMOTORS',
       ]);
 
       final digest = (await service().run()).digest!;
@@ -311,10 +310,19 @@ void main() {
         ['📈 QETH — Betashares Ethereum ETF'],
         reason: 'the ASX newcomer gets its own alert, under its own group',
       );
-      expect(inGroup(Market.us), hasLength(3), reason: 'two tickers, one summary');
+      expect(
+        inGroup(Market.us),
+        hasLength(3),
+        reason: 'two tickers, one summary',
+      );
+      expect(
+        [for (final n in inGroup(Market.nse)) n.title],
+        ['📈 TATAMOTORS — Tata Motors Limited'],
+        reason: 'and the NSE newcomer under its own',
+      );
       expect(
         notifier.posted.map((n) => n.group).toSet(),
-        hasLength(2),
+        hasLength(Market.values.length),
         reason: 'one group per file, never a shared one',
       );
     });
@@ -376,11 +384,19 @@ void main() {
       // A new publish changes the ETag.
       version = '2';
       final changed = await service().refresh();
-      expect(changed, hasLength(2), reason: 'both files were republished');
-      expect(notifier.posted, hasLength(2));
+      expect(
+        changed,
+        hasLength(Market.values.length),
+        reason: 'every file was republished',
+      );
+      expect(notifier.posted, hasLength(Market.values.length));
       expect(
         notifier.posted.map((n) => n.title),
-        containsAll(['🇦🇺 asx.db refreshed', '🇺🇸 us.db refreshed']),
+        containsAll([
+          '🇦🇺 asx.db refreshed',
+          '🇺🇸 us.db refreshed',
+          '🇮🇳 nse.db refreshed',
+        ]),
       );
       expect(notifier.posted.first.body, contains('downloaded'));
     });
@@ -447,7 +463,10 @@ void main() {
       }
     });
 
-    Future<void> openSettings(WidgetTester tester, FakeNotifier notifier) async {
+    Future<void> openSettings(
+      WidgetTester tester,
+      FakeNotifier notifier,
+    ) async {
       await launchApp(
         tester,
         cacheDir: cacheDir,
@@ -472,7 +491,9 @@ void main() {
       );
       expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
 
-      await tester.tap(find.descendant(of: toggle, matching: find.byType(Switch)));
+      await tester.tap(
+        find.descendant(of: toggle, matching: find.byType(Switch)),
+      );
       await settle(tester);
 
       expect(notifier.permissionRequests, 1);
@@ -489,7 +510,9 @@ void main() {
         of: find.text('Refresh and alerts'),
         matching: find.byType(SwitchListTile),
       );
-      await tester.tap(find.descendant(of: toggle, matching: find.byType(Switch)));
+      await tester.tap(
+        find.descendant(of: toggle, matching: find.byType(Switch)),
+      );
       await settle(tester);
 
       expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
