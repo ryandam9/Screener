@@ -16,6 +16,8 @@ StockRow _row({
     name: name,
     exchange: 'NASDAQ',
     assetType: 'common_stock',
+    issuer: null,
+    category: null,
     firstDate: '2026-08-14',
     firstPrice: 63.89,
     lastDate: '2026-08-21',

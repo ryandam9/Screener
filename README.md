@@ -18,7 +18,7 @@ navigation chrome and the dashboard differ.
 | Screen | What it shows |
 | --- | --- |
 | **Dashboard** | Handset: a card per market, the strongest movers, and recent runs. Desktop: four summary cards, a Top Gainers table with the full column set, a weekly price chart for the selected security, plus Recent Analyses and Top Movers panels. |
-| **Markets** | The full instrument list with sortable columns, search, and filters for exchange and minimum change. Tabs: All Stocks, Top Movers, Consistent, Watchlist. |
+| **Markets** | The full instrument list with sortable columns, search, and filters for exchange, category, issuer and minimum change. Tabs: All Stocks, Top Movers, Consistent, Watchlist. |
 | **Stock detail** | Price, change, and the window's endpoints; a weekly price chart for the selected window; the full published metric set; every window compared; and the Google Finance links carried in the data. |
 | **Watchlist** | Starred tickers from both markets, swipe to remove. |
 | **Analysis** | Run-level statistics: instrument count, median/strongest/weakest change, a distribution histogram, a per-exchange breakdown, and the most traded instruments. |
@@ -58,6 +58,11 @@ latest_price, pct_change, observations, days_covered, coverage,
 observation_ratio, median_volume, price_basis, data_as_of, run_id,
 google_finance
 ```
+
+`asx.db` adds `issuer` and `category` after `asset_type` — who runs the fund
+and what it holds (`crypto`, `precious metals`, `fixed income`). `us.db`
+publishes neither, so the app discovers the columns at open time and only
+offers the category and issuer filters where the file supports them.
 
 Alongside those, each file publishes **weekly price history** in a table named
 with the same prefix and no window suffix — `us_stocks_growth` and

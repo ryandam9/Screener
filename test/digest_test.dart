@@ -36,6 +36,8 @@ void main() {
     name: name ?? '$ticker Inc.',
     exchange: market == Market.us ? 'NASDAQ' : 'ASX',
     assetType: 'common_stock',
+    issuer: null,
+    category: null,
     firstDate: '2026-08-14',
     firstPrice: 100,
     lastDate: '2026-08-21',

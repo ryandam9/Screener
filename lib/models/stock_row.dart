@@ -14,6 +14,8 @@ class StockRow {
     required this.name,
     required this.exchange,
     required this.assetType,
+    required this.issuer,
+    required this.category,
     required this.firstDate,
     required this.firstPrice,
     required this.lastDate,
@@ -37,6 +39,15 @@ class StockRow {
   final String name;
   final String exchange;
   final String assetType;
+
+  /// Who runs the fund — "Betashares", "VanEck". Published for the ASX ETF
+  /// file only; null everywhere else, including every US row.
+  final String? issuer;
+
+  /// What the fund holds — "crypto", "precious metals", "fixed income".
+  /// Published alongside [issuer], and null on the same rows.
+  final String? category;
+
   final String? firstDate;
   final double firstPrice;
   final String? lastDate;
@@ -143,6 +154,8 @@ class StockRow {
       name: _string(map['name']) ?? _string(map['ticker']) ?? '',
       exchange: _string(map['exchange']) ?? '',
       assetType: _string(map['asset_type']) ?? '',
+      issuer: _string(map['issuer']),
+      category: _string(map['category']),
       firstDate: _string(map['first_date']),
       firstPrice: _double(map['first_price']),
       lastDate: _string(map['last_date']),
@@ -196,6 +209,8 @@ class ConsistentStock {
     required this.ticker,
     required this.name,
     required this.exchange,
+    required this.issuer,
+    required this.category,
     required this.pctChangeShortestWindow,
     required this.thresholdShortestWindow,
     required this.dataAsOf,
@@ -205,6 +220,11 @@ class ConsistentStock {
   final String ticker;
   final String name;
   final String exchange;
+
+  /// See [StockRow.issuer] and [StockRow.category].
+  final String? issuer;
+  final String? category;
+
   final double pctChangeShortestWindow;
 
   /// The cut-off the shortest window's screen applied. See [StockRow.threshold].
@@ -230,6 +250,8 @@ class ConsistentStock {
           StockRow._string(map['ticker']) ??
           '',
       exchange: StockRow._string(map['exchange']) ?? '',
+      issuer: StockRow._string(map['issuer']),
+      category: StockRow._string(map['category']),
       pctChangeShortestWindow: StockRow._double(
         map['pct_change_shortest_window'],
       ),

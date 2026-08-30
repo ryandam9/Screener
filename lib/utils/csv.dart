@@ -2,11 +2,17 @@ import '../models/stock_row.dart';
 
 /// The published column order, reproduced exactly so an export round-trips
 /// back into the same schema.
+///
+/// `issuer` and `category` are published by the ASX file only; they are
+/// written for both markets and left empty where the file has none, so one
+/// header serves every export.
 const List<String> kStockCsvHeader = [
   'ticker',
   'name',
   'exchange',
   'asset_type',
+  'issuer',
+  'category',
   'first_date',
   'first_price',
   'last_date',
@@ -48,6 +54,8 @@ String stockRowsToCsv(Iterable<StockRow> rows) {
         row.name,
         row.exchange,
         row.assetType,
+        row.issuer ?? '',
+        row.category ?? '',
         row.firstDate ?? '',
         row.firstPrice,
         row.lastDate ?? '',

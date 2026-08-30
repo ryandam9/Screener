@@ -104,6 +104,18 @@ class Fmt {
     return _long.format(value);
   }
 
+  /// `precious metals` -> `Precious Metals`, `common_stock` -> `Common Stock`.
+  ///
+  /// The pipeline publishes categories, issuers and asset types in whatever
+  /// case its source used; every screen shows them capitalised.
+  static String titleCase(String raw) {
+    final words = raw
+        .split(RegExp(r'[_\s]+'))
+        .where((word) => word.isNotEmpty)
+        .map((word) => '${word[0].toUpperCase()}${word.substring(1)}');
+    return words.isEmpty ? raw : words.join(' ');
+  }
+
   /// Coverage and observation ratios are published as 0..1.
   static String coverage(double value) {
     if (value <= 0) return '—';

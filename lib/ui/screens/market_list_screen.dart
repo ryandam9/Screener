@@ -83,6 +83,8 @@ class _MarketListScreenState extends State<MarketListScreen>
   bool _descending = true;
   String _search = '';
   String? _exchange;
+  Set<String> _categories = const {};
+  Set<String> _issuers = const {};
   double? _minPctChange;
   bool _searching = false;
 
@@ -123,6 +125,8 @@ class _MarketListScreenState extends State<MarketListScreen>
   StockQuery _query({int? limit}) => StockQuery(
     search: _search.isEmpty ? null : _search,
     exchange: _exchange,
+    categories: _categories,
+    issuers: _issuers,
     minPctChange: _minPctChange,
     sort: _sort,
     descending: _descending,
@@ -207,7 +211,11 @@ class _MarketListScreenState extends State<MarketListScreen>
           IconButton(
             tooltip: 'Filter',
             icon: Badge(
-              isLabelVisible: _exchange != null || (_minPctChange ?? 0) > 0,
+              isLabelVisible:
+                  _exchange != null ||
+                  _categories.isNotEmpty ||
+                  _issuers.isNotEmpty ||
+                  (_minPctChange ?? 0) > 0,
               backgroundColor: colors.positive,
               child: const Icon(Icons.filter_list),
             ),
@@ -369,6 +377,8 @@ class _MarketListScreenState extends State<MarketListScreen>
                       setState(() {
                         _market = selection.first;
                         _exchange = null;
+                        _categories = const {};
+                        _issuers = const {};
                       });
                       appState.selectMarket(selection.first);
                       Navigator.of(sheetContext).pop();
@@ -406,9 +416,15 @@ class _MarketListScreenState extends State<MarketListScreen>
     GrowthWindow window,
   ) async {
     final exchanges = await database.exchanges(window);
+    // Empty for a file that publishes no such column, which leaves the
+    // section out rather than showing an "All"-only row.
+    final categories = await database.categories(window);
+    final issuers = await database.issuers(window);
     if (!context.mounted) return;
 
     var exchange = _exchange;
+    final selectedCategories = _categories.toSet();
+    final selectedIssuers = _issuers.toSet();
     var minPct = _minPctChange ?? 0;
     var sort = _sort;
     var descending = _descending;
@@ -484,6 +500,33 @@ class _MarketListScreenState extends State<MarketListScreen>
                         ),
                       ),
                     ],
+                    if (categories.isNotEmpty)
+                      _FacetSection(
+                        title: 'Category',
+                        values: categories,
+                        selected: selectedCategories,
+                        labelOf: Fmt.titleCase,
+                        onChanged: (value, on) => setSheetState(() {
+                          if (on) {
+                            selectedCategories.add(value);
+                          } else {
+                            selectedCategories.remove(value);
+                          }
+                        }),
+                      ),
+                    if (issuers.isNotEmpty)
+                      _FacetSection(
+                        title: 'Issuer',
+                        values: issuers,
+                        selected: selectedIssuers,
+                        onChanged: (value, on) => setSheetState(() {
+                          if (on) {
+                            selectedIssuers.add(value);
+                          } else {
+                            selectedIssuers.remove(value);
+                          }
+                        }),
+                      ),
                     SectionHeader(
                       title:
                           'Minimum change: ${minPct <= 0 ? 'any' : Fmt.signedPercent(minPct, decimals: 0)}',
@@ -507,6 +550,8 @@ class _MarketListScreenState extends State<MarketListScreen>
                               onPressed: () {
                                 setState(() {
                                   _exchange = null;
+                                  _categories = const {};
+                                  _issuers = const {};
                                   _minPctChange = null;
                                   _sort = StockSort.pctChange;
                                   _descending = true;
@@ -522,6 +567,8 @@ class _MarketListScreenState extends State<MarketListScreen>
                               onPressed: () {
                                 setState(() {
                                   _exchange = exchange;
+                                  _categories = selectedCategories;
+                                  _issuers = selectedIssuers;
                                   _minPctChange = minPct <= 0 ? null : minPct;
                                   _sort = sort;
                                   _descending = descending;
@@ -541,6 +588,72 @@ class _MarketListScreenState extends State<MarketListScreen>
           },
         );
       },
+    );
+  }
+}
+
+/// One multi-select facet in the filter sheet — the categories a fund holds,
+/// or the issuers that run them.
+///
+/// Multi-select rather than a single choice because the cuts worth making are
+/// unions: precious *and* industrial metals, or metals *and* crypto. Nothing
+/// selected means no restriction, which the leading "All" chip both says and
+/// undoes.
+class _FacetSection extends StatelessWidget {
+  const _FacetSection({
+    required this.title,
+    required this.values,
+    required this.selected,
+    required this.onChanged,
+    this.labelOf,
+  });
+
+  final String title;
+  final List<String> values;
+  final Set<String> selected;
+
+  /// Called with the value and whether it is now on.
+  final void Function(String value, bool selected) onChanged;
+
+  /// Turns a published value into its chip label. Categories arrive in lower
+  /// case; issuers are already spelled the way the fund spells itself.
+  final String Function(String value)? labelOf;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionHeader(
+          title: title,
+          caption: selected.isEmpty ? null : '${selected.length} selected',
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ChoiceChip(
+                label: const Text('All'),
+                selected: selected.isEmpty,
+                onSelected: (_) {
+                  for (final value in selected.toList()) {
+                    onChanged(value, false);
+                  }
+                },
+              ),
+              for (final value in values)
+                FilterChip(
+                  label: Text(labelOf?.call(value) ?? value),
+                  selected: selected.contains(value),
+                  onSelected: (on) => onChanged(value, on),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

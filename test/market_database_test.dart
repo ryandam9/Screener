@@ -131,6 +131,75 @@ void main() {
     expect(asx.hasConsistentTable, isFalse);
   });
 
+  /// The ASX file as it is published now: ETFs labelled with the issuer that
+  /// runs them and the category they hold, and one row the pipeline left
+  /// uncategorised.
+  Future<MarketDatabase> openAsxFixture() async {
+    final path = await createFixtureDatabase(
+      directory: tempDir,
+      fileName: 'asx_facets.db',
+      tablePrefix: 'asx_etf_growth',
+      includeConsistentTable: false,
+      includeFacetColumns: true,
+      rowsBySuffix: {
+        '_7_days': const [
+          FixtureRow(
+            ticker: 'QETH',
+            name: 'Betashares Ethereum ETF',
+            exchange: 'ASX',
+            assetType: 'etf',
+            issuer: 'Betashares',
+            category: 'crypto',
+            firstDate: '2026-08-14',
+            firstPrice: 18.53,
+            lastDate: '2026-08-21',
+            latestPrice: 22.42,
+            pctChange: 20.99,
+          ),
+          FixtureRow(
+            ticker: 'GDX',
+            name: 'VanEck Gold Miners ETF',
+            exchange: 'ASX',
+            assetType: 'etf',
+            issuer: 'VanEck',
+            category: 'precious metals',
+            firstDate: '2026-08-14',
+            firstPrice: 80.10,
+            lastDate: '2026-08-21',
+            latestPrice: 94.52,
+            pctChange: 18.00,
+          ),
+          FixtureRow(
+            ticker: 'ATOM',
+            name: 'Global X Copper Miners ETF',
+            exchange: 'ASX',
+            assetType: 'etf',
+            issuer: 'Global X',
+            category: 'industrial metals',
+            firstDate: '2026-08-14',
+            firstPrice: 10.00,
+            lastDate: '2026-08-21',
+            latestPrice: 11.50,
+            pctChange: 15.00,
+          ),
+          FixtureRow(
+            ticker: 'VAS',
+            name: 'Vanguard Australian Shares Index ETF',
+            exchange: 'ASX',
+            assetType: 'etf',
+            issuer: 'Vanguard',
+            firstDate: '2026-08-14',
+            firstPrice: 100.00,
+            lastDate: '2026-08-21',
+            latestPrice: 111.00,
+            pctChange: 11.00,
+          ),
+        ],
+      },
+    );
+    return MarketDatabase.open(Market.asx, path);
+  }
+
   test('rejects a database with no growth tables', () async {
     final path = await createFixtureDatabase(
       directory: tempDir,
@@ -296,6 +365,94 @@ void main() {
     );
     expect(bottom, closeTo(1 / 3, 0.001));
   });
+
+  test('lists the categories and issuers a file publishes', () async {
+    final asx = await openAsxFixture();
+    addTearDown(asx.close);
+
+    expect(asx.hasCategories, isTrue);
+    expect(asx.hasIssuers, isTrue);
+    // Alphabetical, and the uncategorised row contributes nothing.
+    expect(await asx.categories(GrowthWindow.sevenDays), [
+      'crypto',
+      'industrial metals',
+      'precious metals',
+    ]);
+    expect(await asx.issuers(GrowthWindow.sevenDays), [
+      'Betashares',
+      'Global X',
+      'VanEck',
+      'Vanguard',
+    ]);
+  });
+
+  test('filters by one category and by a union of them', () async {
+    final asx = await openAsxFixture();
+    addTearDown(asx.close);
+
+    final crypto = await asx.stocks(
+      GrowthWindow.sevenDays,
+      const StockQuery(categories: {'crypto'}),
+    );
+    expect([for (final r in crypto) r.ticker], ['QETH']);
+
+    // "metals or crypto": the reason the filter takes a set at all.
+    final metalsOrCrypto = await asx.stocks(
+      GrowthWindow.sevenDays,
+      const StockQuery(
+        categories: {'crypto', 'precious metals', 'industrial metals'},
+      ),
+    );
+    expect([for (final r in metalsOrCrypto) r.ticker], ['QETH', 'GDX', 'ATOM']);
+    expect(
+      await asx.count(
+        GrowthWindow.sevenDays,
+        const StockQuery(
+          categories: {'crypto', 'precious metals', 'industrial metals'},
+        ),
+      ),
+      3,
+    );
+  });
+
+  test('combines an issuer filter with a category one', () async {
+    final asx = await openAsxFixture();
+    addTearDown(asx.close);
+
+    final both = await asx.stocks(
+      GrowthWindow.sevenDays,
+      const StockQuery(
+        categories: {'precious metals', 'industrial metals'},
+        issuers: {'VanEck'},
+      ),
+    );
+    expect([for (final r in both) r.ticker], ['GDX']);
+    expect(both.single.issuer, 'VanEck');
+    expect(both.single.category, 'precious metals');
+  });
+
+  test(
+    'a file without the columns offers no facets and ignores them',
+    () async {
+      final us = await openUsFixture();
+      addTearDown(us.close);
+
+      expect(us.hasCategories, isFalse);
+      expect(us.hasIssuers, isFalse);
+      expect(await us.categories(GrowthWindow.sevenDays), isEmpty);
+      expect(await us.issuers(GrowthWindow.sevenDays), isEmpty);
+
+      // A filter carried over from the ASX list must not take the US query down
+      // with a "no such column" error.
+      final rows = await us.stocks(
+        GrowthWindow.sevenDays,
+        const StockQuery(categories: {'crypto'}, issuers: {'Betashares'}),
+      );
+      expect([for (final r in rows) r.ticker], ['MRNA', 'AMLX', 'SCTX']);
+      expect(rows.first.category, isNull);
+      expect(rows.first.issuer, isNull);
+    },
+  );
 
   test('exchange breakdown and distinct exchanges', () async {
     final us = await openUsFixture();

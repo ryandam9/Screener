@@ -56,6 +56,8 @@ class StockQuery {
   const StockQuery({
     this.search,
     this.exchange,
+    this.categories = const {},
+    this.issuers = const {},
     this.minPctChange,
     this.sort = StockSort.pctChange,
     this.descending = true,
@@ -66,6 +68,18 @@ class StockQuery {
 
   final String? search;
   final String? exchange;
+
+  /// Keeps rows whose `category` is one of these — "crypto", "precious
+  /// metals". Empty means every category, including rows that have none.
+  ///
+  /// A set rather than a single value because the interesting cuts are
+  /// unions: precious *and* industrial metals, or metals *and* crypto.
+  final Set<String> categories;
+
+  /// Keeps rows whose `issuer` is one of these, on the same terms as
+  /// [categories].
+  final Set<String> issuers;
+
   final double? minPctChange;
   final StockSort sort;
   final bool descending;
@@ -78,6 +92,8 @@ class StockQuery {
   StockQuery copyWith({
     String? search,
     String? exchange,
+    Set<String>? categories,
+    Set<String>? issuers,
     double? minPctChange,
     StockSort? sort,
     bool? descending,
@@ -91,6 +107,8 @@ class StockQuery {
     return StockQuery(
       search: clearSearch ? null : (search ?? this.search),
       exchange: clearExchange ? null : (exchange ?? this.exchange),
+      categories: categories ?? this.categories,
+      issuers: issuers ?? this.issuers,
       minPctChange: clearMinPctChange
           ? null
           : (minPctChange ?? this.minPctChange),
@@ -105,6 +123,8 @@ class StockQuery {
   bool get hasFilters =>
       (search != null && search!.isNotEmpty) ||
       exchange != null ||
+      categories.isNotEmpty ||
+      issuers.isNotEmpty ||
       (minPctChange != null && minPctChange! > 0);
 }
 
@@ -197,6 +217,7 @@ class MarketDatabase {
     required this.path,
     required Database database,
     required Map<GrowthWindow, String> tables,
+    required Map<GrowthWindow, Set<String>> tableColumns,
     required String? consistentTable,
     required String? seriesTable,
     required String? historyTable,
@@ -205,6 +226,7 @@ class MarketDatabase {
     required String? funnelTable,
   }) : _db = database,
        _tables = tables,
+       _tableColumns = tableColumns,
        _consistentTable = consistentTable,
        _seriesTable = seriesTable,
        _historyTable = historyTable,
@@ -216,6 +238,13 @@ class MarketDatabase {
   final String path;
   final Database _db;
   final Map<GrowthWindow, String> _tables;
+
+  /// Columns each window's table actually has. The two published files no
+  /// longer share a schema — the ASX one carries `issuer` and `category`, the
+  /// US one does not — so anything that names an optional column checks here
+  /// before putting it in a WHERE clause.
+  final Map<GrowthWindow, Set<String>> _tableColumns;
+
   final String? _consistentTable;
   final String? _seriesTable;
   final String? _historyTable;
@@ -263,6 +292,19 @@ class MarketDatabase {
   /// True when the file records how the universe narrowed at each stage.
   bool get hasScreenFunnel => _funnelTable != null;
 
+  /// True when the growth tables label each row with the fund's category.
+  /// Only the ASX file does, and only since the columns were added.
+  bool get hasCategories => _hasGrowthColumn('category');
+
+  /// True when the growth tables name the fund's issuer. See [hasCategories].
+  bool get hasIssuers => _hasGrowthColumn('issuer');
+
+  bool _hasGrowthColumn(String column) =>
+      _tableColumns.values.any((columns) => columns.contains(column));
+
+  Set<String> _columnsFor(GrowthWindow window) =>
+      _tableColumns[window] ?? const {};
+
   static Future<MarketDatabase> open(Market market, String path) async {
     final database = await databaseFactory.openDatabase(
       path,
@@ -274,6 +316,7 @@ class MarketDatabase {
     );
 
     final tables = <GrowthWindow, String>{};
+    final tableColumns = <GrowthWindow, Set<String>>{};
     String? consistent;
     final candidates = <String>[];
     for (final row in rows) {
@@ -282,6 +325,7 @@ class MarketDatabase {
       final window = GrowthWindow.fromTableName(name);
       if (window != null) {
         tables[window] = name;
+        tableColumns[window] = await _columnNames(database, name);
       } else if (name.toLowerCase().contains('consistent')) {
         consistent = name;
       } else {
@@ -297,11 +341,7 @@ class MarketDatabase {
     String? metadata;
     String? funnel;
     for (final name in candidates) {
-      final columns = await database.rawQuery('PRAGMA table_info("$name")');
-      final names = {
-        for (final column in columns)
-          if (column['name'] case final String value) value,
-      };
+      final names = await _columnNames(database, name);
 
       // The screener's own series carries the growth columns; the whole-market
       // history table published alongside it does not. Without that test the
@@ -344,6 +384,7 @@ class MarketDatabase {
       path: path,
       database: database,
       tables: tables,
+      tableColumns: tableColumns,
       consistentTable: consistent,
       seriesTable: series,
       historyTable: history,
@@ -353,10 +394,25 @@ class MarketDatabase {
     );
   }
 
+  static Future<Set<String>> _columnNames(
+    Database database,
+    String table,
+  ) async {
+    final columns = await database.rawQuery('PRAGMA table_info("$table")');
+    return {
+      for (final column in columns)
+        if (column['name'] case final String value) value,
+    };
+  }
+
   String? _tableFor(GrowthWindow window) => _tables[window];
 
   /// Builds the shared WHERE clause for a query.
-  (String, List<Object?>) _where(StockQuery query) {
+  ///
+  /// [columns] is the table's own column list: a filter naming a column the
+  /// file does not publish is dropped rather than raising, so a query carried
+  /// over from the ASX file still runs against the US one.
+  (String, List<Object?>) _where(StockQuery query, Set<String> columns) {
     final clauses = <String>[];
     final args = <Object?>[];
 
@@ -370,6 +426,14 @@ class MarketDatabase {
     if (query.exchange != null) {
       clauses.add('exchange = ?');
       args.add(query.exchange);
+    }
+    for (final (column, values) in [
+      ('category', query.categories),
+      ('issuer', query.issuers),
+    ]) {
+      if (values.isEmpty || !columns.contains(column)) continue;
+      clauses.add('$column IN (${List.filled(values.length, '?').join(', ')})');
+      args.addAll(values);
     }
     if (query.minPctChange != null) {
       clauses.add('pct_change >= ?');
@@ -393,7 +457,7 @@ class MarketDatabase {
     final table = _tableFor(window);
     if (table == null) return const [];
 
-    final (where, args) = _where(query);
+    final (where, args) = _where(query, _columnsFor(window));
     final direction = query.descending ? 'DESC' : 'ASC';
     final buffer = StringBuffer('SELECT * FROM "$table" $where ')
       ..write('ORDER BY ${query.sort.column} $direction, ticker ASC');
@@ -415,7 +479,7 @@ class MarketDatabase {
   ]) async {
     final table = _tableFor(window);
     if (table == null) return 0;
-    final (where, args) = _where(query);
+    final (where, args) = _where(query, _columnsFor(window));
     final rows = await _db.rawQuery(
       'SELECT COUNT(*) AS n FROM "$table" $where',
       args,
@@ -447,6 +511,33 @@ class MarketDatabase {
     return [
       for (final row in rows)
         if (row['exchange'] != null) row['exchange'].toString(),
+    ];
+  }
+
+  /// The distinct categories in one window's table, alphabetically.
+  ///
+  /// Empty when the file predates the column, which is what the filter sheet
+  /// keys off to leave the section out entirely.
+  Future<List<String>> categories(GrowthWindow window) =>
+      _distinct(window, 'category');
+
+  /// The distinct issuers in one window's table. See [categories].
+  Future<List<String>> issuers(GrowthWindow window) =>
+      _distinct(window, 'issuer');
+
+  /// Distinct non-empty values of one optional column, alphabetically.
+  ///
+  /// [column] is only ever a literal from this class, never a caller's string.
+  Future<List<String>> _distinct(GrowthWindow window, String column) async {
+    final table = _tableFor(window);
+    if (table == null || !_columnsFor(window).contains(column)) return const [];
+    final rows = await _db.rawQuery(
+      'SELECT DISTINCT $column AS value FROM "$table" '
+      "WHERE $column IS NOT NULL AND TRIM($column) <> '' ORDER BY $column",
+    );
+    return [
+      for (final row in rows)
+        if (row['value'] case final Object value) value.toString(),
     ];
   }
 

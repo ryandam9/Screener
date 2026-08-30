@@ -20,6 +20,8 @@ StockRow row({
     name: 'Moderna, Inc. - Common Stock',
     exchange: 'NASDAQ',
     assetType: 'common_stock',
+    issuer: null,
+    category: null,
     firstDate: firstDate,
     firstPrice: firstPrice,
     lastDate: lastDate,

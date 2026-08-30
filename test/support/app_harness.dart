@@ -40,6 +40,12 @@ Future<Map<String, List<int>>> buildFixturePayloads(
   /// Publishes run metadata and a funnel in `us.db` too. In production only
   /// `asx.db` carries them, which is what the default reproduces.
   bool metadataForUs = false,
+
+  /// Labels the ASX ETFs with an issuer and a category, and screens two more
+  /// of them so the categories are worth filtering between.
+  ///
+  /// Opt-in because the extra rows move every count the other tests assert.
+  bool asxCategories = false,
 }) async {
   // Six Fridays of history, enough for the charts to have a real shape.
   const usBars = [
@@ -156,6 +162,7 @@ Future<Map<String, List<int>>> buildFixturePayloads(
     fileName: 'asx.db',
     tablePrefix: 'asx_etf_growth',
     includeConsistentTable: false,
+    includeFacetColumns: asxCategories,
     weeklyBars: asxBars,
     // Only the ASX file carries these tables, mirroring production: the app
     // has to show them where they exist and say so where they do not.
@@ -227,13 +234,15 @@ Future<Map<String, List<int>>> buildFixturePayloads(
         count: 16,
       ),
     ],
-    rowsBySuffix: const {
+    rowsBySuffix: {
       '_7_days': [
         FixtureRow(
           ticker: 'QETH',
           name: 'Betashares Ethereum ETF',
           exchange: 'ASX',
           assetType: 'etf',
+          issuer: asxCategories ? 'Betashares' : null,
+          category: asxCategories ? 'crypto' : null,
           firstDate: '2026-08-14',
           firstPrice: 18.53,
           lastDate: '2026-08-21',
@@ -241,8 +250,38 @@ Future<Map<String, List<int>>> buildFixturePayloads(
           pctChange: 20.99,
           medianVolume: 7518,
         ),
+        if (asxCategories) ...const [
+          FixtureRow(
+            ticker: 'GDX',
+            name: 'VanEck Gold Miners ETF',
+            exchange: 'ASX',
+            assetType: 'etf',
+            issuer: 'VanEck',
+            category: 'precious metals',
+            firstDate: '2026-08-14',
+            firstPrice: 80.10,
+            lastDate: '2026-08-21',
+            latestPrice: 94.52,
+            pctChange: 18.00,
+            medianVolume: 41200,
+          ),
+          FixtureRow(
+            ticker: 'ATOM',
+            name: 'Global X Copper Miners ETF',
+            exchange: 'ASX',
+            assetType: 'etf',
+            issuer: 'Global X',
+            category: 'industrial metals',
+            firstDate: '2026-08-14',
+            firstPrice: 10.00,
+            lastDate: '2026-08-21',
+            latestPrice: 11.50,
+            pctChange: 15.00,
+            medianVolume: 18900,
+          ),
+        ],
       ],
-      '_1_month': [
+      '_1_month': const [
         FixtureRow(
           ticker: 'QETH',
           name: 'Betashares Ethereum ETF',

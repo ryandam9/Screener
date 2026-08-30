@@ -458,7 +458,14 @@ class _OverviewTab extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                '${row.exchange} · ${_prettyAssetType(row.assetType)}',
+                [
+                  row.exchange,
+                  _prettyAssetType(row.assetType),
+                  // Published for the ASX ETFs only, so the line is built
+                  // from what the row actually has.
+                  if (row.category case final category?)
+                    Fmt.titleCase(category),
+                ].join(' · '),
                 style: TextStyle(fontSize: 12, color: colors.textTertiary),
               ),
               const SizedBox(height: 16),
@@ -806,6 +813,14 @@ class _MetricsTab extends StatelessWidget {
                 label: 'Asset Type',
                 value: _prettyAssetType(row.assetType),
               ),
+              if (row.issuer case final issuer?) ...[
+                _divider(colors),
+                MetricRow(label: 'Issuer', value: issuer),
+              ],
+              if (row.category case final category?) ...[
+                _divider(colors),
+                MetricRow(label: 'Category', value: Fmt.titleCase(category)),
+              ],
               _divider(colors),
               MetricRow(
                 label: 'Screener first price',
@@ -1175,11 +1190,7 @@ class _MiniStat extends StatelessWidget {
 String _prettyAssetType(String raw) {
   if (raw.isEmpty) return 'Unknown';
   if (raw.toLowerCase() == 'etf') return 'ETF';
-  return raw
-      .split(RegExp(r'[_\s]+'))
-      .where((word) => word.isNotEmpty)
-      .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
-      .join(' ');
+  return Fmt.titleCase(raw);
 }
 
 /// The detail screen's four sections, as pills in the header toolbar.

@@ -3,6 +3,13 @@ import 'dart:io';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 /// Column list of the published growth tables, in schema order.
+///
+/// `issuer` and `category` sit between `asset_type` and `first_date` in the
+/// ASX file and are absent from the US one; [createFixtureDatabase] takes a
+/// flag for which shape to write, because coping with both is exactly what
+/// the discovery code has to do.
+const _facetColumns = '"issuer" TEXT, "category" TEXT, ';
+
 const _growthColumns =
     '"ticker" TEXT, "name" TEXT, "exchange" TEXT, "asset_type" TEXT, '
     '"first_date" TEXT, "first_price" FLOAT, "last_date" TEXT, '
@@ -40,6 +47,8 @@ class FixtureRow {
     required this.pctChange,
     this.threshold = 10.0,
     this.assetType = 'common_stock',
+    this.issuer,
+    this.category,
     this.observations = 6,
     this.daysCovered = 7,
     this.coverage = 1.0,
@@ -54,6 +63,11 @@ class FixtureRow {
   final String name;
   final String exchange;
   final String assetType;
+
+  /// Published by the ASX file only. See [_facetColumns].
+  final String? issuer;
+  final String? category;
+
   final String firstDate;
   final double firstPrice;
   final String lastDate;
@@ -185,6 +199,10 @@ Future<String> createFixtureDatabase({
   required String tablePrefix,
   required Map<String, List<FixtureRow>> rowsBySuffix,
   bool includeConsistentTable = true,
+
+  /// Writes the `issuer` and `category` columns the ASX file carries.
+  bool includeFacetColumns = false,
+
   List<FixtureBar> weeklyBars = const [],
   FixtureRun? run,
   List<FixtureStage> funnel = const [],
@@ -206,13 +224,18 @@ Future<String> createFixtureDatabase({
   final db = await databaseFactoryFfi.openDatabase(path);
   for (final entry in rowsBySuffix.entries) {
     final table = '$tablePrefix${entry.key}';
-    await db.execute('CREATE TABLE "$table" ($_growthColumns)');
+    await db.execute(
+      'CREATE TABLE "$table" '
+      '(${includeFacetColumns ? _facetColumns : ''}$_growthColumns)',
+    );
     for (final row in entry.value) {
       await db.insert(table, {
         'ticker': row.ticker,
         'name': row.name,
         'exchange': row.exchange,
         'asset_type': row.assetType,
+        if (includeFacetColumns) 'issuer': row.issuer,
+        if (includeFacetColumns) 'category': row.category,
         'first_date': row.firstDate,
         'first_price': row.firstPrice,
         'last_date': row.lastDate,
@@ -326,7 +349,8 @@ Future<String> createFixtureDatabase({
     //   JOIN asx_universe u USING (ticker)
     await db.execute(
       'CREATE TABLE "$universeTable" ('
-      '  ticker TEXT, name TEXT, exchange TEXT, asset_type TEXT)',
+      '  ticker TEXT, name TEXT, exchange TEXT, asset_type TEXT'
+      '${includeFacetColumns ? ', issuer TEXT, category TEXT' : ''})',
     );
     for (final entry in tickerNames.entries) {
       await db.insert(universeTable, {
@@ -342,6 +366,7 @@ Future<String> createFixtureDatabase({
     await db.execute(
       'CREATE TABLE consistent_growth_stocks('
       '  ticker TEXT, name TEXT, exchange TEXT,'
+      '${includeFacetColumns ? '  issuer TEXT, category TEXT,' : ''}'
       '  pct_change_shortest_window REAL, threshold_shortest_window REAL,'
       '  data_as_of TEXT, run_id TEXT)',
     );

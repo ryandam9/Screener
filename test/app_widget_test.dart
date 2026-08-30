@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 import 'package:screener/models/market.dart';
 import 'package:screener/ui/screens/stock_detail_screen.dart';
 import 'package:screener/ui/widgets/change_chip.dart';
@@ -276,8 +277,8 @@ void main() {
     // One stamp per market card, because the two runs are independent.
     expect(find.byType(RefreshStamp), findsNWidgets(Market.values.length));
 
-    // The fixture's run is stamped 22 August 2026; the download happened in
-    // this test, seconds ago. A label saying "Today" would be dating the
+    // The fixture's run is stamped 22 August 2026 UTC; the download happened
+    // in this test, seconds ago. A label saying "Today" would be dating the
     // download — the thing the reader cannot use.
     expect(find.textContaining('Refreshed'), findsWidgets);
     expect(find.textContaining('Refreshed Today'), findsNothing);
@@ -291,7 +292,12 @@ void main() {
           ),
         )
         .first;
-    expect(tooltip.message, contains('Run finished Aug 22, 2026'));
+    // Read back in the host's zone, which is where the stamp is rendered: the
+    // run id is UTC, and east of Greenwich it lands on the following day.
+    final runDay = DateFormat(
+      'MMM d, yyyy',
+    ).format(DateTime.utc(2026, 8, 22, 22, 44, 30).toLocal());
+    expect(tooltip.message, contains('Run finished $runDay'));
   });
 
   testWidgets('the tooltip separates the run from the download', (
