@@ -477,6 +477,12 @@ void main() {
       await settle(tester);
       await tester.scrollUntilVisible(find.text('Refresh and alerts'), 200);
       await settle(tester, frames: 4);
+      // scrollUntilVisible stops as soon as the row exists, which can leave it
+      // hard against the bottom edge — and a third data source pushed this
+      // section far enough down that it lands there. A tap on the switch would
+      // then miss, and miss silently. Centre it before touching it.
+      await tester.ensureVisible(find.text('Refresh and alerts'));
+      await settle(tester, frames: 4);
     }
 
     testWidgets('turning it on asks for permission and remembers', (
