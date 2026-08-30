@@ -6,17 +6,14 @@ import 'home_shell.dart';
 
 /// The sections reachable from the navigation, in sidebar order.
 ///
-/// The handset layout shows the first four plus Settings in its bottom bar;
+/// The handset layout shows the first three plus Settings in its bottom bar;
 /// the desktop sidebar shows all of them.
 enum AppSection {
   dashboard('Dashboard', Icons.dashboard_outlined, Icons.dashboard),
   markets('Markets', Icons.public_outlined, Icons.public),
   watchlist('Watchlist', Icons.star_border_rounded, Icons.star_rounded),
-  // Deliberately not three variations on a rising line: the brand mark is
-  // already `trending_up`, and a rail of squiggles is unreadable at 24px.
-  // Analysis counts and compares, so it gets bars; History is a price series,
-  // so it gets candlesticks.
-  analysis('Analysis', Icons.analytics_outlined, Icons.analytics),
+  // Deliberately not a variation on the brand mark, which is already
+  // `trending_up`: History is a price series, so it gets candlesticks.
   history('History', Icons.candlestick_chart_outlined, Icons.candlestick_chart),
   reports('Reports', Icons.description_outlined, Icons.description),
   settings('Settings', Icons.settings_outlined, Icons.settings);

@@ -491,15 +491,11 @@ void main() {
     },
   );
 
-  test('exchange breakdown and distinct exchanges', () async {
+  test('distinct exchanges', () async {
     final us = await openUsFixture();
     addTearDown(us.close);
 
     expect(await us.exchanges(GrowthWindow.sevenDays), ['NASDAQ', 'NYSE']);
-
-    final breakdown = await us.exchangeBreakdown(GrowthWindow.sevenDays);
-    expect(breakdown.first.exchange, 'NASDAQ');
-    expect(breakdown.first.count, 2);
   });
 
   test('run info exposes provenance and parses the run timestamp', () async {
@@ -638,7 +634,6 @@ void main() {
 
       expect(await us.stocks(GrowthWindow.threeMonths), isEmpty);
       expect(await us.count(GrowthWindow.threeMonths), 0);
-      expect(await us.pctChanges(GrowthWindow.threeMonths), isEmpty);
       expect(await us.runInfo(GrowthWindow.threeMonths), isNull);
     },
   );

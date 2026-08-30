@@ -69,7 +69,7 @@ void main() {
       'Dashboard',
       'Markets',
       'Watchlist',
-      'Analysis',
+      'History',
       'Reports',
       'Settings',
     ]) {
@@ -130,10 +130,6 @@ void main() {
     await settle(tester);
     expect(find.textContaining('asx.db'), findsWidgets);
     expect(find.text('CSV'), findsWidgets);
-
-    await tester.tap(find.text('Analysis'));
-    await settle(tester);
-    expect(find.text('Run overview'), findsOneWidget);
 
     await tester.tap(find.text('Dashboard'));
     await settle(tester);
@@ -408,7 +404,7 @@ void main() {
   ) async {
     await launchDesktop(tester);
 
-    for (final section in ['Settings', 'Analysis', 'Reports']) {
+    for (final section in ['Settings', 'Reports']) {
       await tester.tap(find.text(section).first);
       await settle(tester);
 

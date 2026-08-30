@@ -13,7 +13,6 @@ import '../../state/digest_router.dart';
 import '../../state/settings_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
-import '../screens/analysis_screen.dart';
 import '../screens/app_shell.dart';
 import '../screens/history_screen.dart';
 import '../screens/market_list_screen.dart';
@@ -135,7 +134,6 @@ class _DesktopShellState extends State<DesktopShell> {
           onSelect: (row) => setState(() => _selected = row),
         ),
       ),
-      AppSection.analysis => const AnalysisScreen(),
       AppSection.history => const HistoryScreen(embedded: false),
       AppSection.reports => const ReportsScreen(),
       AppSection.settings => const MoreScreen(),
