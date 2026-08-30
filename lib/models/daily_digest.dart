@@ -4,7 +4,7 @@ import '../utils/formatters.dart';
 
 /// What the day's run published in the 7-day window, and what changed.
 ///
-/// The pipeline republishes both files every morning; the interesting part of
+/// The pipeline republishes every file each morning; the interesting part of
 /// a new run is not the whole list but the names that were not in yesterday's,
 /// so the digest carries both and the notification leads with the newcomers.
 class DailyDigest {
@@ -20,7 +20,7 @@ class DailyDigest {
   /// The day this digest describes, in local time.
   final DateTime date;
 
-  /// Every row published in the 7-day window, both markets, strongest first.
+  /// Every row published in the 7-day window, every market, strongest first.
   final List<StockRow> rows;
 
   /// Rows present today that were not in the previous digest, by [StockRow.key].
@@ -33,12 +33,12 @@ class DailyDigest {
   /// can honestly be called new.
   final bool isFirstRun;
 
-  /// The one file this digest describes, or null when it covers both.
+  /// The one file this digest describes, or null when it covers them all.
   ///
-  /// The two files are separate screens over separate universes, and a run
-  /// that adds names to both has two pieces of news, not one. [onlyFor]
-  /// narrows a whole-run digest to a single market so each can be announced
-  /// on its own.
+  /// The files are separate screens over separate universes, and a run that
+  /// adds names to more than one of them has that many pieces of news, not
+  /// one. [onlyFor] narrows a whole-run digest to a single market so each can
+  /// be announced on its own.
   final Market? market;
 
   /// Builds the digest for [rows] against the tickers the last one carried.
@@ -113,7 +113,7 @@ class DailyDigest {
     );
   }
 
-  /// What this digest is about: one file's screen, or both.
+  /// What this digest is about: one file's screen, or all of them.
   String get _screen =>
       market == null ? '7-day screen' : '${market!.label} 7-day screen';
 

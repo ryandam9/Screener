@@ -158,7 +158,7 @@ class _StatCardFrame extends StatelessWidget {
   }
 }
 
-/// ASX / US card: median change for the window, over a sparkline of the median
+/// One market's card: median change for the window, over a sparkline of the median
 /// across every window the file publishes.
 class MarketSummaryCard extends StatelessWidget {
   const MarketSummaryCard({

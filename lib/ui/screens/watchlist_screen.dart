@@ -14,7 +14,7 @@ import 'stock_detail_screen.dart';
 import '../info/page_info.dart';
 import '../widgets/info_dialog.dart';
 
-/// Starred tickers from both markets, with their current window figures.
+/// Starred tickers from every market, with their current window figures.
 class WatchlistScreen extends StatelessWidget {
   const WatchlistScreen({super.key, this.onSelect, this.selected});
 

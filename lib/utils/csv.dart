@@ -4,7 +4,7 @@ import '../models/stock_row.dart';
 /// back into the same schema.
 ///
 /// `issuer` and `category` are published by the ASX file only; they are
-/// written for both markets and left empty where the file has none, so one
+/// written for every market and left empty where the file has none, so one
 /// header serves every export.
 const List<String> kStockCsvHeader = [
   'ticker',

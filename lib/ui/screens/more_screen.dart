@@ -180,8 +180,13 @@ class MoreScreen extends StatelessWidget {
               subtitle: Text(
                 watchlist.isEmpty
                     ? 'Nothing starred yet'
-                    : '${watchlist.countFor(Market.asx)} ASX · '
-                          '${watchlist.countFor(Market.us)} US',
+                    // Only the files that have something starred, so a market
+                    // you do not follow does not sit here reading "0".
+                    : [
+                        for (final market in Market.values)
+                          if (watchlist.countFor(market) > 0)
+                            '${watchlist.countFor(market)} ${market.label}',
+                      ].join(' · '),
               ),
               trailing: watchlist.isEmpty
                   ? null
@@ -304,7 +309,7 @@ class MoreScreen extends StatelessWidget {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Clear cached databases?'),
         content: const Text(
-          'Both files are deleted and downloaded again. The app will not work '
+          'Every file is deleted and downloaded again. The app will not work '
           'offline until the download finishes.',
         ),
         actions: [
@@ -502,7 +507,7 @@ class _DigestPanelState extends State<_DigestPanel> {
                 value: enabled,
                 title: const Text('Refresh and alerts'),
                 subtitle: const Text(
-                  'Fetch both files on a schedule, and notify when a ticker '
+                  'Fetch every file on a schedule, and notify when a ticker '
                   'joins the 7-day screen',
                 ),
                 onChanged: (value) => _setEnabled(value),
@@ -515,7 +520,7 @@ class _DigestPanelState extends State<_DigestPanel> {
                 title: Text('Refreshes at ${_scheduleLabel(context)}'),
                 subtitle: Text(
                   DigestScheduler.isSupported
-                      ? 'The app is woken to fetch both files and check the '
+                      ? 'The app is woken to fetch every file and check the '
                             'screen, whether or not it is open'
                       : 'This desktop cannot be woken on a schedule; the '
                             'check runs when the app is next opened',
@@ -533,7 +538,7 @@ class _DigestPanelState extends State<_DigestPanel> {
                     : const Icon(Icons.notifications_active_outlined),
                 title: const Text('Check now'),
                 subtitle: const Text(
-                  'Fetches both files and posts what is new',
+                  'Fetches every file and posts what is new',
                 ),
                 onTap: _busy ? null : _sendNow,
               ),

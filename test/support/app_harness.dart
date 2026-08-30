@@ -29,8 +29,8 @@ Future<void> settle(WidgetTester tester, {int frames = 30}) async {
   }
 }
 
-/// Builds `us.db` and `asx.db` fixtures and returns their bytes, ready to be
-/// served to the sync service.
+/// Builds the `us.db`, `asx.db` and `nse.db` fixtures and returns their bytes,
+/// ready to be served to the sync service.
 ///
 /// Call from `setUp`, which runs outside the fake-async zone, so ordinary
 /// async I/O completes.
@@ -316,9 +316,61 @@ Future<Map<String, List<int>>> buildFixturePayloads(
     },
   );
 
+  // The NSE file, published later than the other two and the plainest of the
+  // three: stocks with no issuer or category, and no whole-market history.
+  // Its rows sit below the US and ASX movers on purpose, so a third market
+  // joins the fixtures without reshuffling any ranking the tests assert.
+  final nsePath = await createFixtureDatabase(
+    directory: serveDir,
+    fileName: 'nse.db',
+    tablePrefix: 'nse_stocks_growth',
+    includeConsistentTable: false,
+    weeklyBars: const [
+      FixtureBar(date: '2026-08-07', ticker: 'TATAMOTORS', close: 920.10),
+      FixtureBar(date: '2026-08-14', ticker: 'TATAMOTORS', close: 948.75),
+      FixtureBar(date: '2026-08-21', ticker: 'TATAMOTORS', close: 1043.60),
+    ],
+    run: const FixtureRun(
+      runId: '20260823T061500Z-91b2c0da',
+      exchange: 'NSE',
+      instrumentType: 'common_stock',
+    ),
+    rowsBySuffix: const {
+      '_7_days': [
+        FixtureRow(
+          ticker: 'TATAMOTORS',
+          name: 'Tata Motors Limited',
+          exchange: 'NSE',
+          firstDate: '2026-08-14',
+          firstPrice: 948.75,
+          lastDate: '2026-08-21',
+          latestPrice: 1043.60,
+          pctChange: 10.00,
+          medianVolume: 12400000,
+        ),
+      ],
+      '_1_month': [
+        FixtureRow(
+          ticker: 'TATAMOTORS',
+          name: 'Tata Motors Limited',
+          exchange: 'NSE',
+          firstDate: '2026-07-21',
+          firstPrice: 902.40,
+          lastDate: '2026-08-21',
+          latestPrice: 1043.60,
+          pctChange: 15.65,
+          observations: 21,
+          daysCovered: 31,
+          medianVolume: 9800000,
+        ),
+      ],
+    },
+  );
+
   return {
     'us.db': await File(usPath).readAsBytes(),
     'asx.db': await File(asxPath).readAsBytes(),
+    'nse.db': await File(nsePath).readAsBytes(),
   };
 }
 

@@ -1,8 +1,12 @@
 # Screener
 
 A Flutter app that reads the growth-screener SQLite files the pipeline
-publishes to `s3://hive-in-the-cloud/{us.db,asx.db}`. Ships to Android and
-Linux desktop.
+publishes to `s3://hive-in-the-cloud/{us.db,asx.db,nse.db}`. Ships to Android
+and Linux desktop.
+
+A market is one value of the `Market` enum and one file in the bucket; the
+database layer discovers tables by shape, so a new file needs no schema work.
+Add markets at the end of the enum — notification ids come off the index.
 
 ## Shipping a change
 

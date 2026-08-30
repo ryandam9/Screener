@@ -43,6 +43,18 @@ void main() {
     matching: find.byType(WatchlistStar),
   );
 
+  /// Stars [ticker] from its dashboard row, scrolling to it first.
+  ///
+  /// The rows below the market cards are off the bottom of a phone once there
+  /// are three files to summarise, and a tap that lands outside the viewport
+  /// does nothing at all rather than failing.
+  Future<void> tapStar(WidgetTester tester, String ticker) async {
+    await tester.ensureVisible(starFor(ticker));
+    await settle(tester, frames: 4);
+    await tester.tap(starFor(ticker));
+    await settle(tester);
+  }
+
   /// The colour painted behind the row that lists [ticker].
   ///
   /// A row that grows into the detail screen paints its background as the
@@ -106,8 +118,7 @@ void main() {
       payloads: payloads,
     );
 
-    await tester.tap(starFor('MRNA'));
-    await settle(tester);
+    await tapStar(tester, 'MRNA');
 
     expect(
       find.byType(StockDetailScreen),
@@ -120,8 +131,7 @@ void main() {
   testWidgets('a star from a list row reaches the watchlist', (tester) async {
     await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
 
-    await tester.tap(starFor('MRNA'));
-    await settle(tester);
+    await tapStar(tester, 'MRNA');
 
     await tester.tap(find.text('Watchlist').last);
     await settle(tester);
@@ -136,12 +146,10 @@ void main() {
       payloads: payloads,
     );
 
-    await tester.tap(starFor('MRNA'));
-    await settle(tester);
+    await tapStar(tester, 'MRNA');
     expect(prefs.getStringList('watchlist'), ['us:MRNA']);
 
-    await tester.tap(starFor('MRNA'));
-    await settle(tester);
+    await tapStar(tester, 'MRNA');
     expect(prefs.getStringList('watchlist'), isEmpty);
   });
 
@@ -151,8 +159,7 @@ void main() {
       cacheDir: cacheDir,
       payloads: payloads,
     );
-    await tester.tap(starFor('MRNA'));
-    await settle(tester);
+    await tapStar(tester, 'MRNA');
 
     // Rebuilding the whole app is as close as a widget test gets to a cold
     // start: the controller reads the same store again from scratch.
@@ -174,9 +181,8 @@ void main() {
       payloads: payloads,
     );
 
-    await tester.tap(starFor('MRNA'));
-    await tester.tap(starFor('QETH'));
-    await settle(tester);
+    await tapStar(tester, 'MRNA');
+    await tapStar(tester, 'QETH');
 
     expect(prefs.getStringList('watchlist'), ['asx:QETH', 'us:MRNA']);
   });
@@ -189,8 +195,7 @@ void main() {
     // Nothing is starred yet, so the two dashboard rows look alike.
     expect(rowColour(tester, 'MRNA'), rowColour(tester, 'AMLX'));
 
-    await tester.tap(starFor('MRNA'));
-    await settle(tester);
+    await tapStar(tester, 'MRNA');
     final tint = starredSurface(tester);
 
     expect(
@@ -251,8 +256,7 @@ void main() {
 
   testWidgets('the price history page marks a starred ticker', (tester) async {
     await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
-    await tester.tap(starFor('QETH'));
-    await settle(tester);
+    await tapStar(tester, 'QETH');
     final tint = starredSurface(tester);
 
     await tester.tap(find.text('More').last);
@@ -274,8 +278,7 @@ void main() {
       cacheDir: cacheDir,
       payloads: payloads,
     );
-    await tester.tap(starFor('MRNA'));
-    await settle(tester);
+    await tapStar(tester, 'MRNA');
 
     await tester.tap(find.text('More').last);
     await settle(tester);

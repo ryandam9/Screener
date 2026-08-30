@@ -99,11 +99,11 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
                   child: SegmentedButton<Market>(
                     segments: [
+                      // The label alone: three segments carrying "NSE stocks"
+                      // as well are wider than a 320dp phone, and the noun is
+                      // repeated in the cards directly below.
                       for (final value in Market.values)
-                        ButtonSegment(
-                          value: value,
-                          label: Text('${value.label} ${value.instrumentNoun}'),
-                        ),
+                        ButtonSegment(value: value, label: Text(value.label)),
                     ],
                     selected: {market},
                     showSelectedIcon: false,

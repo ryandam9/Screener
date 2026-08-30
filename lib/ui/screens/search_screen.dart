@@ -14,7 +14,7 @@ import 'stock_detail_screen.dart';
 import '../info/page_info.dart';
 import '../widgets/info_dialog.dart';
 
-/// Search across both markets at once.
+/// Search across every market at once.
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
@@ -103,7 +103,7 @@ class _SearchScreenState extends State<SearchScreen> {
       body: _term.isEmpty
           ? StatusView(
               icon: Icons.search,
-              title: 'Search both markets',
+              title: 'Search every market',
               message:
                   'Matches on ticker and company name in the '
                   '${appState.selectedWindow.longLabel.toLowerCase()} window.',

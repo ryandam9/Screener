@@ -1,11 +1,15 @@
 import '../utils/formatters.dart';
 
-/// The two datasets published to S3 by the screener pipeline.
+/// The datasets published to S3 by the screener pipeline.
 ///
-/// Each market is one SQLite file in the bucket. The table names inside the two
-/// files differ (`us_stocks_growth_*` vs `asx_etf_growth_*`), so nothing here
-/// assumes a table layout — see [MarketDatabase] which discovers tables at
-/// open time.
+/// Each market is one SQLite file in the bucket. The table names inside the
+/// files differ (`us_stocks_growth_*`, `asx_etf_growth_*`,
+/// `nse_stocks_growth_*`), so nothing here assumes a table layout — see
+/// [MarketDatabase], which discovers tables at open time by their shape.
+///
+/// Add a market at the end of this list, never in the middle: notification
+/// ids are derived from the enum index (see [NotificationIds.digestFor]), so
+/// inserting one would re-point the alerts already sitting in a user's shade.
 enum Market {
   asx(
     id: 'asx',
@@ -26,6 +30,16 @@ enum Market {
     instrumentNoun: 'stocks',
     currencySymbol: r'$',
     emoji: '🇺🇸',
+  ),
+  nse(
+    id: 'nse',
+    label: 'NSE',
+    subtitle: 'Indian Market',
+    longName: 'National Stock Exchange of India',
+    objectKey: 'nse.db',
+    instrumentNoun: 'stocks',
+    currencySymbol: '₹',
+    emoji: '🇮🇳',
   );
 
   const Market({
