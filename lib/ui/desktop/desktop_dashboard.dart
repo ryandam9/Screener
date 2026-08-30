@@ -24,19 +24,11 @@ import '../widgets/watchlist_star.dart';
 /// Everything the desktop dashboard shows, gathered in one pass.
 class DesktopDashboardData {
   const DesktopDashboardData({
-    required this.summaries,
     required this.topGainers,
     required this.gainersByMarket,
     required this.movers,
     required this.runs,
-    required this.watchlistRows,
-    required this.analysesCount,
-    required this.rowsAnalysed,
-    required this.averageReturn,
-    required this.growthSeries,
   });
-
-  final Map<Market, MarketSummary> summaries;
 
   /// The strongest rows of the window, every market ranked together.
   final List<StockRow> topGainers;
@@ -49,33 +41,8 @@ class DesktopDashboardData {
   final List<StockRow> movers;
   final List<RunInfo> runs;
 
-  /// Watchlisted rows present in the selected window, every market.
-  final List<StockRow> watchlistRows;
-
-  /// Number of (market, window) tables the published files carry.
-  final int analysesCount;
-
-  /// Total rows across every window of every file.
-  ///
-  /// Not a distinct instrument count: a ticker present in five windows
-  /// contributes five rows, which is why the card labels this "Rows".
-  final int rowsAnalysed;
-
-  /// Mean percentage change in the selected window, across every market.
-  final double? averageReturn;
-
-  /// Weekly growth curve per market, from the published price history.
-  final Map<Market, List<GrowthPoint>> growthSeries;
-
-  /// Median percentage change of the watchlisted rows, or null when empty.
-  double? get watchlistMedian {
-    if (watchlistRows.isEmpty) return null;
-    final values = [for (final row in watchlistRows) row.pctChange]..sort();
-    final middle = values.length ~/ 2;
-    return values.length.isOdd
-        ? values[middle]
-        : (values[middle - 1] + values[middle]) / 2;
-  }
+  /// True when the files produced nothing to show.
+  bool get isEmpty => topGainers.isEmpty && movers.isEmpty && runs.isEmpty;
 }
 
 class DesktopDashboard extends StatefulWidget {
@@ -126,59 +93,22 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
       ? data.topGainers
       : data.gainersByMarket[_gainerMarket] ?? const [];
 
-  Future<DesktopDashboardData> _load(
-    AppState appState,
-    WatchlistController watchlist,
-  ) async {
+  Future<DesktopDashboardData> _load(AppState appState) async {
     final window = appState.selectedWindow;
-    final summaries = <Market, MarketSummary>{};
     final gainers = <StockRow>[];
     final movers = <StockRow>[];
     final runs = <RunInfo>[];
-    final watched = <StockRow>[];
-    final growth = <Market, List<GrowthPoint>>{};
-
-    var analyses = 0;
-    var instruments = 0;
-    var weightedSum = 0.0;
-    var weightedCount = 0;
 
     for (final market in Market.values) {
       final database = appState.databaseOf(market);
       if (database == null) continue;
 
-      final summary = await database.summary();
-      summaries[market] = summary;
-      analyses += database.availableWindows.length;
-      for (final stat in summary.stats) {
-        instruments += stat.count;
-      }
-
       runs.addAll(await database.allRuns());
-
-      // Memoised inside MarketDatabase: the full curve is ~650ms to build and
-      // the dashboard rebuilds often.
-      final curve = await database.medianGrowthSeries();
-      if (curve.isNotEmpty) growth[market] = curve;
 
       if (database.availableWindows.contains(window)) {
         gainers.addAll(
           await database.stocks(window, const StockQuery(limit: 8)),
         );
-
-        final average = await database.averagePctChange(window);
-        final stat = summary.statFor(window);
-        if (average != null && stat != null && stat.count > 0) {
-          weightedSum += average * stat.count;
-          weightedCount += stat.count;
-        }
-
-        final tickers = watchlist.tickersFor(market);
-        if (tickers.isNotEmpty) {
-          watched.addAll(
-            await database.stocks(window, StockQuery(tickers: tickers)),
-          );
-        }
       }
 
       final shortest = database.availableWindows.isEmpty
@@ -203,7 +133,6 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
     });
 
     return DesktopDashboardData(
-      summaries: summaries,
       topGainers: gainers.take(8).toList(),
       gainersByMarket: {
         for (final market in Market.values)
@@ -214,11 +143,6 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
       },
       movers: movers.take(5).toList(),
       runs: runs,
-      watchlistRows: watched,
-      analysesCount: analyses,
-      rowsAnalysed: instruments,
-      averageReturn: weightedCount == 0 ? null : weightedSum / weightedCount,
-      growthSeries: growth,
     );
   }
 
@@ -264,7 +188,7 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
     ].join('|');
     if (signature != _signature) {
       _signature = signature;
-      _future = _load(appState, watchlist);
+      _future = _load(appState);
     }
 
     return Column(
@@ -290,7 +214,7 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
                 );
               }
               final data = snapshot.data;
-              if (data == null || data.summaries.isEmpty) {
+              if (data == null || data.isEmpty) {
                 return Center(
                   child: appState.anyBusy || data == null
                       ? const CircularProgressIndicator()
@@ -594,44 +518,6 @@ class _DashboardBody extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final market in Market.values) ...[
-                  Expanded(
-                    child: MarketSummaryCard(
-                      title: '${market.label} Market',
-                      subtitle: market.longName,
-                      summary: data.summaries[market],
-                      window: window,
-                      instrumentNoun: market.instrumentNoun,
-                      trend: data.growthSeries[market] ?? const [],
-                      state: context.watch<AppState>().stateOf(market),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                ],
-                Expanded(
-                  child: WatchlistPerformanceCard(
-                    median: data.watchlistMedian,
-                    count: data.watchlistRows.length,
-                    window: window,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: AnalysisSummaryCard(
-                    analyses: data.analysesCount,
-                    rows: data.rowsAnalysed,
-                    averageReturn: data.averageReturn,
-                    window: window,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

@@ -8,7 +8,6 @@ import 'package:screener/ui/desktop/desktop_shell.dart';
 import 'package:screener/ui/widgets/info_dialog.dart';
 import 'package:screener/ui/widgets/change_chip.dart';
 import 'package:screener/ui/widgets/panels.dart';
-import 'package:screener/ui/widgets/refresh_stamp.dart';
 import 'package:screener/ui/widgets/table_frame.dart';
 import 'package:screener/models/market.dart';
 import 'package:screener/ui/desktop/desktop_dashboard.dart';
@@ -90,15 +89,17 @@ void main() {
     expect(find.text('Reports'), findsNothing);
   });
 
-  testWidgets('the dashboard renders its cards and the gainers table', (
-    tester,
-  ) async {
+  testWidgets('the dashboard leads with the gainers table', (tester) async {
     await launchDesktop(tester);
 
-    expect(find.text('ASX Market'), findsOneWidget);
-    expect(find.text('US Market'), findsOneWidget);
-    expect(find.text('Watchlist Performance'), findsOneWidget);
-    expect(find.text('Analysis Summary'), findsOneWidget);
+    // Nothing above the table: the market cards that used to sit there kept
+    // the chart below the fold.
+    expect(
+      tester.getTopLeft(find.textContaining('Top Gainers')).dy,
+      lessThan(tester.getTopLeft(find.byType(GainersTable)).dy),
+    );
+    expect(find.text('ASX Market'), findsNothing);
+    expect(find.text('Analysis Summary'), findsNothing);
 
     // Table headings from the design.
     for (final heading in ['Ticker', 'Market', 'Price', 'Change', '% Gain']) {
@@ -114,15 +115,6 @@ void main() {
     expect(find.text('Recent Analyses'), findsOneWidget);
   });
 
-  testWidgets('the analysis summary refuses to invent a prior run', (
-    tester,
-  ) async {
-    await launchDesktop(tester);
-
-    expect(find.text('One published run'), findsOneWidget);
-    expect(find.text('no earlier run to compare against'), findsOneWidget);
-  });
-
   testWidgets('the sidebar switches sections', (tester) async {
     await launchDesktop(tester);
 
@@ -133,7 +125,7 @@ void main() {
 
     await tester.tap(find.text('Dashboard'));
     await settle(tester);
-    expect(find.text('ASX Market'), findsOneWidget);
+    expect(find.textContaining('Top Gainers'), findsOneWidget);
   });
 
   testWidgets('the sidebar collapses to a rail and stays that way', (
@@ -448,19 +440,6 @@ void main() {
     expect(reports.dy, greaterThan(dataSources.dy));
   });
 
-  testWidgets('the desktop dashboard stamps each market card', (tester) async {
-    await launchDesktop(tester);
-
-    expect(find.byType(RefreshStamp), findsNWidgets(Market.values.length));
-    // The run's stamp, not the download's: the fixture's run is dated in the
-    // past, while the download happened seconds ago.
-    expect(
-      find.textContaining('Refreshed'),
-      findsNWidgets(Market.values.length),
-    );
-    expect(find.textContaining('Refreshed Today'), findsNothing);
-  });
-
   testWidgets('the desktop dashboard carries its own info button', (
     tester,
   ) async {
@@ -541,7 +520,7 @@ void main() {
 
     expect(find.textContaining('AMLX · Amylyx'), findsOneWidget);
     // Selecting charts in place rather than navigating away.
-    expect(find.text('ASX Market'), findsOneWidget);
+    expect(find.textContaining('Top Gainers'), findsOneWidget);
   });
 
   testWidgets('the window dropdown drives the dashboard', (tester) async {
