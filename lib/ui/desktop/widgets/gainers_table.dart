@@ -5,6 +5,7 @@ import '../../../theme/app_theme.dart';
 import '../../../utils/formatters.dart';
 import '../../widgets/category_chip.dart';
 import '../../widgets/google_finance_button.dart';
+import '../../widgets/watchlist_highlight.dart';
 import '../../widgets/watchlist_star.dart';
 import 'desktop_cards.dart';
 
@@ -148,7 +149,12 @@ class _GainerRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        color: selected ? colors.positiveSurface : null,
+        color: starredRowColor(
+          context,
+          row.market,
+          row.ticker,
+          selected: selected,
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         child: Row(
           children: [

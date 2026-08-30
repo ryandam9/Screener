@@ -19,6 +19,8 @@ import '../widgets/screen_reason.dart';
 import '../widgets/table_frame.dart';
 import '../widgets/stock_tile.dart';
 import '../widgets/ticker_avatar.dart';
+import '../widgets/watchlist_highlight.dart';
+import '../widgets/watchlist_star.dart';
 import 'stock_detail_screen.dart';
 import '../info/page_info.dart';
 import '../widgets/info_dialog.dart';
@@ -837,88 +839,103 @@ class _ConsistentList extends StatelessWidget {
               Divider(height: 1, color: colors.divider, indent: 66),
           itemBuilder: (context, index) {
             final row = rows[index];
-            return InkWell(
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) =>
-                      StockDetailScreen(market: row.market, ticker: row.ticker),
+            return Material(
+              // Consistent growers are the one list that showed a ticker
+              // without saying whether it was starred, and without a way to
+              // star it. Both belong here as much as anywhere else.
+              color:
+                  starredRowColor(context, row.market, row.ticker) ??
+                  Colors.transparent,
+              child: InkWell(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => StockDetailScreen(
+                      market: row.market,
+                      ticker: row.ticker,
+                    ),
+                  ),
                 ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 11,
-                ),
-                child: Row(
-                  children: [
-                    TickerAvatar(ticker: row.ticker),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            row.ticker,
-                            style: TextStyle(
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w700,
-                              color: colors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 1),
-                          // Wrapped, as in the other lists: the name is the
-                          // point of the row.
-                          // See _NameLine in stock_tile.dart for why this
-                          // wraps rather than flexing.
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 3,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              Text(
-                                row.shortName,
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  height: 1.25,
-                                  fontWeight: FontWeight.w500,
-                                  color: colors.textName,
-                                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 11,
+                  ),
+                  child: Row(
+                    children: [
+                      TickerAvatar(ticker: row.ticker),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              row.ticker,
+                              style: TextStyle(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w700,
+                                color: colors.textPrimary,
                               ),
-                              if (CategoryChip.maybe(row.category)
-                                  case final chip?)
-                                chip,
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Flexible(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ChangeChip(pctChange: row.pctChangeShortestWindow),
-                          const SizedBox(height: 3),
-                          Text(
-                            row.thresholdShortestWindow == null
-                                ? 'shortest window'
-                                : 'shortest window · '
-                                      '${Fmt.percent(row.thresholdShortestWindow!, decimals: 1)}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              color: colors.textTertiary,
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 1),
+                            // Wrapped, as in the other lists: the name is the
+                            // point of the row.
+                            // See _NameLine in stock_tile.dart for why this
+                            // wraps rather than flexing.
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 3,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Text(
+                                  row.shortName,
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    height: 1.25,
+                                    fontWeight: FontWeight.w500,
+                                    color: colors.textName,
+                                  ),
+                                ),
+                                if (CategoryChip.maybe(row.category)
+                                    case final chip?)
+                                  chip,
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ChangeChip(pctChange: row.pctChangeShortestWindow),
+                            const SizedBox(height: 3),
+                            Text(
+                              row.thresholdShortestWindow == null
+                                  ? 'shortest window'
+                                  : 'shortest window · '
+                                        '${Fmt.percent(row.thresholdShortestWindow!, decimals: 1)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: colors.textTertiary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      WatchlistStar(
+                        market: row.market,
+                        ticker: row.ticker,
+                        dense: true,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
