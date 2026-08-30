@@ -11,7 +11,9 @@ import 'package:screener/ui/widgets/panels.dart';
 import 'package:screener/ui/widgets/table_frame.dart';
 import 'package:screener/models/market.dart';
 import 'package:screener/ui/desktop/desktop_dashboard.dart';
+import 'package:screener/ui/desktop/widgets/desktop_cards.dart';
 import 'package:screener/ui/desktop/widgets/gainers_table.dart';
+import 'package:screener/theme/app_theme.dart';
 import 'package:screener/ui/screens/app_shell.dart';
 import 'package:screener/ui/screens/home_shell.dart';
 import 'package:screener/ui/screens/market_list_screen.dart';
@@ -113,6 +115,55 @@ void main() {
     expect(find.text('Open details'), findsOneWidget);
     expect(find.textContaining('weekly closes'), findsOneWidget);
     expect(find.text('Recent Analyses'), findsOneWidget);
+  });
+
+  testWidgets('a ten-character ticker keeps its chip on one line', (
+    tester,
+  ) async {
+    // NSE symbols run to ten characters. In a box narrower than the text the
+    // chip used to wrap, which took the whole table row's height with it.
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: const Scaffold(
+          body: Row(
+            children: [
+              SizedBox(width: 60, child: TickerChip(ticker: 'MRNA')),
+              SizedBox(width: 60, child: TickerChip(ticker: 'LAMBODHARA')),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final chips = find.byType(TickerChip);
+    expect(
+      tester.getSize(chips.last).height,
+      tester.getSize(chips.first).height,
+      reason: 'the long symbol wrapped and made its chip taller',
+    );
+  });
+
+  testWidgets('the gainers table puts its surplus width in the gutter', (
+    tester,
+  ) async {
+    // Wider than the columns need. At 1440 the table has no surplus to place
+    // and the gutter is nothing, which is the point of capping rather than
+    // splitting: a narrow window loses no name width to this.
+    await launchApp(
+      tester,
+      cacheDir: cacheDir,
+      payloads: payloads,
+      size: const Size(2000, 900),
+      devicePixelRatio: 1.0,
+    );
+
+    // The name column stops at a cap, so the surplus lands between the text
+    // columns and the numbers rather than in one hole in the middle of the
+    // row, between the company name and the market beside it.
+    final marketRight = tester.getBottomRight(find.text('Market')).dx;
+    final priceLeft = tester.getTopLeft(find.text('Price')).dx;
+    expect(priceLeft - marketRight, greaterThan(40));
   });
 
   testWidgets('the sidebar switches sections', (tester) async {
