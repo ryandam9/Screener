@@ -1136,18 +1136,6 @@ class MarketDatabase {
       '${value.month.toString().padLeft(2, '0')}-'
       '${value.day.toString().padLeft(2, '0')}';
 
-  /// Raw percentage changes for a window, used to draw the distribution.
-  Future<List<double>> pctChanges(GrowthWindow window) async {
-    final table = _tableFor(window);
-    if (table == null) return const [];
-    final rows = await _db.rawQuery(
-      'SELECT pct_change FROM "$table" WHERE pct_change IS NOT NULL ORDER BY pct_change',
-    );
-    return [
-      for (final row in rows) (row['pct_change'] as num?)?.toDouble() ?? 0,
-    ];
-  }
-
   /// Where [value] sits within a window's distribution for [sort], as 0..1.
   ///
   /// Used to describe a single stock relative to its peers ("top 12% by
@@ -1170,24 +1158,6 @@ class MarketDatabase {
     if (total == 0) return null;
     final below = (rows.first['below'] as num?)?.toDouble() ?? 0;
     return below / total;
-  }
-
-  /// Instrument counts per exchange for a window.
-  Future<List<({String exchange, int count})>> exchangeBreakdown(
-    GrowthWindow window,
-  ) async {
-    final table = _tableFor(window);
-    if (table == null) return const [];
-    final rows = await _db.rawQuery(
-      'SELECT exchange, COUNT(*) AS n FROM "$table" GROUP BY exchange ORDER BY n DESC',
-    );
-    return [
-      for (final row in rows)
-        (
-          exchange: row['exchange']?.toString() ?? 'Unknown',
-          count: (row['n'] as num?)?.toInt() ?? 0,
-        ),
-    ];
   }
 
   Future<void> close() => _db.close();

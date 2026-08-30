@@ -5,10 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:screener/models/market.dart';
 import 'package:screener/ui/screens/stock_detail_screen.dart';
-import 'package:screener/ui/widgets/change_chip.dart';
 import 'package:screener/ui/widgets/refresh_stamp.dart';
-import 'package:screener/ui/widgets/stock_tile.dart';
-import 'package:screener/ui/widgets/watchlist_star.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -169,12 +166,6 @@ void main() {
     // visiting each screen is the check.
     await launch(tester);
 
-    await tester.tap(find.text('Analysis'));
-    await settle(tester);
-    expect(find.text('Run overview'), findsOneWidget);
-    expect(find.text('Change distribution'), findsOneWidget);
-    expect(find.text('Most traded'), findsOneWidget);
-
     await tester.tap(find.text('Markets'));
     await settle(tester);
     for (final tab in ['Top Movers', 'Consistent', 'Watchlist', 'All Stocks']) {
@@ -189,90 +180,6 @@ void main() {
     await settle(tester);
     expect(find.text('Data sources'), findsOneWidget);
     expect(find.textContaining('us.db'), findsWidgets);
-  });
-
-  testWidgets('most traded names what they did, and labels the column once', (
-    tester,
-  ) async {
-    await launch(tester);
-    await tester.tap(find.text('Analysis'));
-    await settle(tester);
-    await tester.scrollUntilVisible(find.text('Most traded'), 200);
-    await settle(tester);
-
-    // The caption sits over the column, not under every number in it.
-    expect(find.text('median volume'), findsOneWidget);
-
-    // Volume is why a row is in this list; the move is why the file exists,
-    // and the panel used to leave it out entirely.
-    expect(
-      find.descendant(
-        of: find.byType(StockTile),
-        matching: find.byType(ChangeChip),
-      ),
-      findsWidgets,
-      reason: 'a most-traded row says what the ticker did',
-    );
-  });
-
-  testWidgets('most traded rows sit in the same columns as every other list', (
-    tester,
-  ) async {
-    // At a phone width, where the row has the least room to waste.
-    tester.view.physicalSize = const Size(360, 740);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-    await launchApp(
-      tester,
-      cacheDir: tempDir,
-      payloads: payloads,
-      size: tester.view.physicalSize,
-      devicePixelRatio: 1.0,
-    );
-
-    /// How far the change chip's right edge sits from the row's own.
-    /// Measured rather than asserted in pixels: the test font is far wider
-    /// than Inter, so the only stable check is one row against another.
-    double chipInset(Finder tile) {
-      final chip = find.descendant(of: tile, matching: find.byType(ChangeChip));
-      return tester.getBottomRight(tile).dx - tester.getBottomRight(chip).dx;
-    }
-
-    await tester.tap(find.text('Analysis'));
-    await settle(tester);
-    await tester.scrollUntilVisible(find.text('Most traded'), 200);
-    await settle(tester);
-
-    // The only tiles on this screen are the most-traded rows.
-    final traded = find.byType(StockTile).first;
-    final tradedInset = chipInset(traded);
-
-    final starY = tester
-        .getCenter(
-          find.descendant(of: traded, matching: find.byType(WatchlistStar)),
-        )
-        .dy;
-    final chipY = tester
-        .getCenter(
-          find.descendant(of: traded, matching: find.byType(ChangeChip)),
-        )
-        .dy;
-
-    await tester.tap(find.text('Markets').last);
-    await settle(tester);
-
-    // The trailing slot used to be a loose Flexible, which claims a share of
-    // the row's free space and leaves whatever it does not use as a hole
-    // after the last icon.
-    expect(
-      tradedInset,
-      closeTo(chipInset(find.byType(StockTile).first), 0.5),
-      reason: 'the chip ends where it does in the market list',
-    );
-
-    // One line, so the star sits level with the numbers beside it rather than
-    // floating between two stacked ones.
-    expect(starY, closeTo(chipY, 1));
   });
 
   testWidgets('the dashboard dates the run, not the download', (tester) async {

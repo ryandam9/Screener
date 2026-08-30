@@ -264,46 +264,6 @@ class PageInfos {
     ],
   );
 
-  static const analysis = PageInfo(
-    title: 'Analysis',
-    subtitle: 'The shape of a run, not a single instrument',
-    icon: Icons.speed_outlined,
-    blocks: [
-      InfoParagraph(
-        'Run-level statistics for one market and window: how many instruments '
-        'passed, how they are distributed, and which exchanges and instruments '
-        'they came from.',
-      ),
-      InfoHeading('Distribution', icon: Icons.bar_chart),
-      InfoParagraph(
-        'Instruments bucketed by percentage change. A tall left-hand bar means '
-        'the window is full of modest movers; a long right-hand tail means a '
-        'few names ran away with it.',
-      ),
-      InfoHeading('Median, strongest, weakest', icon: Icons.straighten),
-      InfoParagraph(
-        'The median is the middle instrument, so it describes the typical one. '
-        'Strongest and weakest are the ends of the range — useful for judging '
-        'how wide that range is before reading the median as typical.',
-      ),
-      InfoExample(
-        title: 'Same median, different runs',
-        lines: [
-          'Run A:  median +12%   range +10% to +15%',
-          'Run B:  median +12%   range  +2% to +180%',
-          'Only one of these is a market you could describe in one number.',
-        ],
-      ),
-      InfoDivider(),
-      InfoHeading('By exchange', icon: Icons.account_balance_outlined),
-      InfoParagraph(
-        'How the passing instruments split across the exchanges in the file, '
-        'with each exchange’s own median beside its count.',
-      ),
-      _screenerNumbers,
-    ],
-  );
-
   static const reports = PageInfo(
     title: 'Reports',
     subtitle: 'Where the numbers came from',

@@ -151,7 +151,7 @@ void main() {
     await goBack(tester);
 
     // The remaining tabs.
-    for (final tab in ['Watchlist', 'Analysis', 'More']) {
+    for (final tab in ['Watchlist', 'More']) {
       await tester.tap(find.text(tab).last);
       await settle(tester);
       await sweep(tester);

@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 
@@ -23,7 +21,6 @@ class StockTile extends StatelessWidget {
     this.selected = false,
     this.dense = false,
     this.showMarketBadge = false,
-    this.trailingBuilder,
   });
 
   final StockRow row;
@@ -39,7 +36,6 @@ class StockTile extends StatelessWidget {
   final WidgetBuilder? opensTo;
   final bool dense;
   final bool showMarketBadge;
-  final Widget Function(BuildContext context)? trailingBuilder;
 
   /// Column geometry shared with the sortable header above the list, so the
   /// headings sit directly over the values they sort.
@@ -70,11 +66,6 @@ class StockTile extends StatelessWidget {
   /// price column. A 320dp phone at 1.3x text hits both.
   static const double _minNameWidth = 96;
 
-  /// What the ticker keeps when a caller-supplied trailing widget would
-  /// otherwise take the whole row. Reached only at 320dp with the largest
-  /// text sizes, where the standard columns are wider than the row.
-  static const double _minTickerWidth = 44;
-
   /// Below this, the name gets a line of its own under the ticker instead of
   /// sharing one with the numbers.
   ///
@@ -99,27 +90,6 @@ class StockTile extends StatelessWidget {
         actionsWidth +
         16;
     return width - leading - trailing;
-  }
-
-  /// The width a caller-supplied trailing widget is given.
-  ///
-  /// The two number columns, unless the row cannot afford them — at 320dp
-  /// with the largest text they are wider than the row itself, and the ticker
-  /// would be squeezed out. The widget shrinks with it.
-  static double trailingSlot(
-    BuildContext context,
-    double width, {
-    bool dense = false,
-  }) {
-    final standard = priceColumn(context) + columnGap + changeColumn(context);
-    final room =
-        width -
-        32 -
-        leadingColumn(dense: dense) -
-        columnGap -
-        actionsWidth -
-        _minTickerWidth;
-    return math.max(0, math.min(standard, room));
   }
 
   @override
@@ -166,9 +136,8 @@ class StockTile extends StatelessWidget {
     final colors = context.colors;
     final width = constraints.maxWidth;
     final showPrice =
-        trailingBuilder != null ||
         StockTile.nameSpace(context, width, dense: dense) >=
-            StockTile._minNameWidth;
+        StockTile._minNameWidth;
     final space = StockTile.nameSpace(
       context,
       width,
@@ -244,59 +213,35 @@ class StockTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              // A caller-supplied trailing widget gets the slot the price and
-              // change columns occupy, so its numbers line up with every other
-              // list and the row's slack goes to the name.
-              //
-              // It used to be a loose Flexible, which claims a share of the
-              // free space and leaves whatever it does not use as a hole after
-              // the last icon — 40px of it at 360dp.
-              if (trailingBuilder != null)
-                SizedBox(
-                  width: StockTile.trailingSlot(context, width, dense: dense),
-                  // Scaled down only where the row cannot afford the columns —
-                  // 320dp at the largest text sizes. Everywhere else the
-                  // widget's natural width is the slot exactly, so nothing is
-                  // scaled and the numbers sit in their columns.
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerRight,
-                    child: trailingBuilder!(context),
-                  ),
-                )
-              else
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (showPrice) ...[
-                      SizedBox(
-                        width: StockTile.priceColumn(context),
-                        child: Text(
-                          Fmt.price(row.latestPrice),
-                          textAlign: TextAlign.right,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: dense ? 13.5 : 14.5,
-                            fontWeight: FontWeight.w600,
-                            color: colors.textPrimary,
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                    ],
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (showPrice) ...[
                     SizedBox(
-                      width: StockTile.changeColumn(context),
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: ChangeChip(
-                          pctChange: row.pctChange,
-                          dense: dense,
+                      width: StockTile.priceColumn(context),
+                      child: Text(
+                        Fmt.price(row.latestPrice),
+                        textAlign: TextAlign.right,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: dense ? 13.5 : 14.5,
+                          fontWeight: FontWeight.w600,
+                          color: colors.textPrimary,
+                          fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),
                     ),
+                    const SizedBox(width: 6),
                   ],
-                ),
+                  SizedBox(
+                    width: StockTile.changeColumn(context),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: ChangeChip(pctChange: row.pctChange, dense: dense),
+                    ),
+                  ),
+                ],
+              ),
               // Star and quote page, both from the row itself.
               WatchlistStar(
                 market: row.market,

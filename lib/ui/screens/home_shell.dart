@@ -5,7 +5,6 @@ import '../../models/growth_window.dart';
 import '../../state/app_state.dart';
 import '../../state/digest_router.dart';
 import '../../theme/app_theme.dart';
-import 'analysis_screen.dart';
 import 'dashboard_screen.dart';
 import 'market_list_screen.dart';
 import 'more_screen.dart';
@@ -62,7 +61,6 @@ class _HomeShellState extends State<HomeShell> {
       DashboardScreen(onSeeAllMarkets: _goToMarkets),
       MarketListScreen(market: appState.selectedMarket),
       const WatchlistScreen(),
-      const AnalysisScreen(),
       const MoreScreen(),
     ];
 
@@ -90,11 +88,6 @@ class _HomeShellState extends State<HomeShell> {
               icon: Icon(Icons.star_border_rounded),
               selectedIcon: Icon(Icons.star_rounded),
               label: 'Watchlist',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.speed_outlined),
-              selectedIcon: Icon(Icons.speed),
-              label: 'Analysis',
             ),
             NavigationDestination(
               icon: Icon(Icons.more_horiz),
