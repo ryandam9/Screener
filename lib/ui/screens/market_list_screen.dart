@@ -822,17 +822,21 @@ class _ConsistentList extends StatelessWidget {
   /// Resolves a consistent grower to the row the rest of the app passes
   /// around, so the detail pane opens on it like any other list's row.
   ///
-  /// Consistent growers are in every window by definition, so the shortest
-  /// one always has them — but a file can be replaced between the query and
-  /// the tap, and a missing row falls back to the pushed screen.
+  /// Every window is tried, shortest first, and not just the shortest: the
+  /// name of this table promises more than it delivers. In the published
+  /// `us.db` 130 of its 157 tickers are absent from the 7-day screen — the
+  /// windows are threshold and liquidity filtered, and this table is not —
+  /// so a lookup in the shortest window alone misses most of the list. Every
+  /// one of them is in some window, in all three files.
   Future<StockRow?> _rowFor(ConsistentStock stock) async {
-    final windows = database.availableWindows;
-    if (windows.isEmpty) return null;
-    final rows = await database.stocks(
-      windows.first,
-      StockQuery(tickers: [stock.ticker]),
-    );
-    return rows.isEmpty ? null : rows.first;
+    for (final window in database.availableWindows) {
+      final rows = await database.stocks(
+        window,
+        StockQuery(tickers: [stock.ticker]),
+      );
+      if (rows.isNotEmpty) return rows.first;
+    }
+    return null;
   }
 
   @override

@@ -95,8 +95,14 @@ Future<Map<String, List<int>>> buildFixturePayloads(
             ),
           ]
         : const [],
+    // NVAX is deliberately not in the 7-day window, which is the shape the
+    // published files actually have: `consistent_growth_stocks` is not
+    // threshold-filtered, so most of its tickers miss the shortest screen —
+    // 130 of 157 in us.db. Anything that resolves a consistent grower to a
+    // row has to look past the shortest window to find them.
     consistent: const [
       ('MRNA', 'Moderna, Inc. - Common Stock', 'NASDAQ', 117.91),
+      ('NVAX', 'Novavax, Inc. - Common Stock', 'NASDAQ', 44.10),
     ],
     rowsBySuffix: const {
       '_7_days': [
@@ -124,6 +130,19 @@ Future<Map<String, List<int>>> buildFixturePayloads(
         ),
       ],
       '_1_month': [
+        FixtureRow(
+          ticker: 'NVAX',
+          name: 'Novavax, Inc. - Common Stock',
+          exchange: 'NASDAQ',
+          firstDate: '2026-07-21',
+          firstPrice: 8.12,
+          lastDate: '2026-08-21',
+          latestPrice: 11.70,
+          pctChange: 44.10,
+          observations: 22,
+          daysCovered: 31,
+          medianVolume: 3120000,
+        ),
         FixtureRow(
           ticker: 'MRNA',
           name: 'Moderna, Inc. - Common Stock',

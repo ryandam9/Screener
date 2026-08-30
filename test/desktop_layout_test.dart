@@ -364,9 +364,10 @@ void main() {
 
     expect(find.text('Select an instrument'), findsOneWidget);
 
-    // This tab was the one that pushed a route over the whole window instead
-    // of handing the row to the pane.
-    await tester.tap(find.text('MRNA').first);
+    // NVAX, not MRNA: the fixture keeps it out of the 7-day window, as most
+    // real consistent growers are. Resolving it against the shortest window
+    // alone finds nothing and falls back to pushing a route.
+    await tester.tap(find.text('NVAX').first);
     await settle(tester);
 
     expect(find.byType(StockDetailScreen), findsOneWidget);
@@ -375,6 +376,14 @@ void main() {
       tester.getTopLeft(find.byType(StockDetailScreen)).dx,
       greaterThan(tester.getTopLeft(find.byType(MarketListScreen)).dx),
       reason: 'the detail belongs beside the list, not over it',
+    );
+    expect(
+      find.descendant(
+        of: find.byType(StockDetailScreen),
+        matching: find.textContaining('Novavax'),
+      ),
+      findsWidgets,
+      reason: 'the pane opened on the row that was clicked',
     );
   });
 
