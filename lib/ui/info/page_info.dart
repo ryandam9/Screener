@@ -241,6 +241,17 @@ class PageInfos {
         InfoBullet(text: 'Tap a row to open its detail screen.'),
         InfoBullet(
           text:
+              'A starred ticker is tinted wherever it is listed — every '
+              'window, the consistent growers, the price history — so you '
+              'can pick it out while scanning.',
+        ),
+        InfoBullet(
+          text:
+              'A star stays until you take it off. Nothing a run publishes '
+              'removes one.',
+        ),
+        InfoBullet(
+          text:
               'The list is stored on this device only — it is not part of '
               'the published data and is not synced anywhere.',
         ),

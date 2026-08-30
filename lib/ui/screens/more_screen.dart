@@ -12,6 +12,7 @@ import '../../services/digest_scheduler.dart';
 import '../../services/notifier.dart';
 import '../../services/digest_service.dart';
 import '../widgets/panels.dart';
+import '../widgets/watchlist_star.dart';
 import 'history_screen.dart';
 import 'reports_screen.dart';
 import '../info/page_info.dart';
@@ -185,7 +186,8 @@ class MoreScreen extends StatelessWidget {
               trailing: watchlist.isEmpty
                   ? null
                   : TextButton(
-                      onPressed: watchlist.clear,
+                      onPressed: () =>
+                          confirmClearWatchlist(context, watchlist),
                       child: const Text('Clear'),
                     ),
             ),
