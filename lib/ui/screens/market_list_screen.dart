@@ -324,7 +324,12 @@ class _MarketListScreenState extends State<MarketListScreen>
       onSelect: widget.onSelect,
       selected: widget.selected,
     ),
-    _ConsistentList(database: database, search: _search),
+    _ConsistentList(
+      database: database,
+      search: _search,
+      onSelect: widget.onSelect,
+      selected: widget.selected,
+    ),
     _WatchlistTab(
       database: database,
       window: window,
@@ -799,10 +804,36 @@ class _StockList extends StatelessWidget {
 }
 
 class _ConsistentList extends StatelessWidget {
-  const _ConsistentList({required this.database, required this.search});
+  const _ConsistentList({
+    required this.database,
+    required this.search,
+    this.onSelect,
+    this.selected,
+  });
 
   final MarketDatabase database;
   final String search;
+
+  /// Where a tapped row goes. Given one — the desktop shell's detail pane —
+  /// the row is handed over instead of a route being pushed over the list.
+  final ValueChanged<StockRow>? onSelect;
+  final StockRow? selected;
+
+  /// Resolves a consistent grower to the row the rest of the app passes
+  /// around, so the detail pane opens on it like any other list's row.
+  ///
+  /// Consistent growers are in every window by definition, so the shortest
+  /// one always has them — but a file can be replaced between the query and
+  /// the tap, and a missing row falls back to the pushed screen.
+  Future<StockRow?> _rowFor(ConsistentStock stock) async {
+    final windows = database.availableWindows;
+    if (windows.isEmpty) return null;
+    final rows = await database.stocks(
+      windows.first,
+      StockQuery(tickers: [stock.ticker]),
+    );
+    return rows.isEmpty ? null : rows.first;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -839,22 +870,43 @@ class _ConsistentList extends StatelessWidget {
               Divider(height: 1, color: colors.divider, indent: 66),
           itemBuilder: (context, index) {
             final row = rows[index];
+            final select = onSelect;
+            void open() {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => StockDetailScreen(
+                    market: row.market,
+                    ticker: row.ticker,
+                  ),
+                ),
+              );
+            }
+
             return Material(
               // Consistent growers are the one list that showed a ticker
               // without saying whether it was starred, and without a way to
               // star it. Both belong here as much as anywhere else.
               color:
-                  starredRowColor(context, row.market, row.ticker) ??
+                  starredRowColor(
+                    context,
+                    row.market,
+                    row.ticker,
+                    selected:
+                        row.ticker == selected?.ticker &&
+                        row.market == selected?.market,
+                  ) ??
                   Colors.transparent,
               child: InkWell(
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => StockDetailScreen(
-                      market: row.market,
-                      ticker: row.ticker,
-                    ),
-                  ),
-                ),
+                onTap: select == null
+                    ? open
+                    : () async {
+                        final resolved = await _rowFor(row);
+                        if (resolved != null) {
+                          select(resolved);
+                        } else if (context.mounted) {
+                          open();
+                        }
+                      },
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,

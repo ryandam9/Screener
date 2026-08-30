@@ -350,6 +350,34 @@ void main() {
     expect(find.text('Select an instrument'), findsOneWidget);
   });
 
+  testWidgets('a consistent grower opens beside the list too', (tester) async {
+    await launchDesktop(tester);
+    await tester.tap(find.text('Markets'));
+    await settle(tester);
+    await tester.tap(
+      find.descendant(
+        of: find.byType(TabBar),
+        matching: find.text('Consistent'),
+      ),
+    );
+    await settle(tester);
+
+    expect(find.text('Select an instrument'), findsOneWidget);
+
+    // This tab was the one that pushed a route over the whole window instead
+    // of handing the row to the pane.
+    await tester.tap(find.text('MRNA').first);
+    await settle(tester);
+
+    expect(find.byType(StockDetailScreen), findsOneWidget);
+    expect(find.byType(MarketListScreen), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.byType(StockDetailScreen)).dx,
+      greaterThan(tester.getTopLeft(find.byType(MarketListScreen)).dx),
+      reason: 'the detail belongs beside the list, not over it',
+    );
+  });
+
   testWidgets('the handset list is not framed', (tester) async {
     await launchApp(
       tester,
