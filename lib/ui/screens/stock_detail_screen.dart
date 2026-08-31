@@ -479,72 +479,56 @@ class _OverviewTab extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          Fmt.price(shownLastPrice),
-                          style: TextStyle(
-                            fontSize: 34,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -1,
-                            height: 1.05,
-                            color: colors.textPrimary,
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${Fmt.signedPrice(shownChange)} '
-                          '(${Fmt.signedPercent(shownPct)})',
-                          style: TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w600,
-                            color: colors.forChange(shownPct),
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          usingHistory
-                              ? '${row.window.longLabel} change, weekly closes'
-                              : '${row.window.longLabel} change',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: colors.textSecondary,
-                          ),
-                        ),
-                        if (usingHistory) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            'screener: ${Fmt.signedPercent(row.pctChange)}',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: colors.textTertiary,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+              Text(
+                Fmt.price(shownLastPrice),
+                style: TextStyle(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -1,
+                  height: 1.05,
+                  color: colors.textPrimary,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                usingHistory
+                    ? '${row.window.longLabel} change, weekly closes'
+                    : '${row.window.longLabel} change',
+                style: TextStyle(fontSize: 12, color: colors.textSecondary),
+              ),
+              if (usingHistory) ...[
+                const SizedBox(height: 2),
+                Text(
+                  'screener: ${Fmt.signedPercent(row.pctChange)}',
+                  style: TextStyle(fontSize: 11.5, color: colors.textTertiary),
+                ),
+              ],
+              const SizedBox(height: 14),
+              // Four tiles across the width rather than two labels pinned to
+              // the right: the headline block only needs its own width, so
+              // everything between it and them was a hole.
+              _StatTiles(
+                tiles: [
+                  (
+                    label: 'Change',
+                    value: Fmt.signedPercent(shownPct),
+                    color: colors.forChange(shownPct),
                   ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      _MiniStat(
-                        label: 'First Price',
-                        value: Fmt.price(shownFirstPrice),
-                      ),
-                      const SizedBox(height: 10),
-                      _MiniStat(
-                        label: 'Last Price',
-                        value: Fmt.price(shownLastPrice),
-                      ),
-                    ],
+                  (
+                    label: 'Price Change',
+                    value: Fmt.signedPrice(shownChange),
+                    color: colors.forChange(shownChange),
+                  ),
+                  (
+                    label: 'First Price',
+                    value: Fmt.price(shownFirstPrice),
+                    color: null,
+                  ),
+                  (
+                    label: 'Last Price',
+                    value: Fmt.price(shownLastPrice),
+                    color: null,
                   ),
                 ],
               ),
@@ -1165,34 +1149,83 @@ class _LinksTab extends StatelessWidget {
   }
 }
 
-class _MiniStat extends StatelessWidget {
-  const _MiniStat({required this.label, required this.value});
+typedef _Stat = ({String label, String value, Color? color});
 
-  final String label;
-  final String value;
+/// The four numbers under the quote, as tiles of their own.
+///
+/// Four across where there is room, two by two below it: at 320dp a quarter
+/// of the width cuts "+1,263.5%" in half.
+class _StatTiles extends StatelessWidget {
+  const _StatTiles({required this.tiles});
+
+  final List<_Stat> tiles;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 10.0;
+        final columns = constraints.maxWidth >= 460 ? 4 : 2;
+        final width = (constraints.maxWidth - gap * (columns - 1)) / columns;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final tile in tiles)
+              SizedBox(
+                width: width,
+                child: _StatTile(tile: tile),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  const _StatTile({required this.tile});
+
+  final _Stat tile;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 11.5, color: colors.textSecondary),
-        ),
-        const SizedBox(height: 1),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: colors.textPrimary,
-            fontFeatures: const [FontFeature.tabularFigures()],
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 9, 12, 11),
+      decoration: BoxDecoration(
+        color: colors.pageBackground,
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(color: colors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            tile.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11.5, color: colors.textSecondary),
           ),
-        ),
-      ],
+          const SizedBox(height: 3),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              tile.value,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
+                color: tile.color ?? colors.textPrimary,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
