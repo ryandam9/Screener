@@ -71,7 +71,11 @@ void main() {
 
     await openFilters(tester);
     expect(find.text('Category'), findsOneWidget);
-    expect(find.text('Issuer'), findsOneWidget);
+    expect(
+      find.text('Issuer'),
+      findsNothing,
+      reason: 'the issuer facet was hundreds of chips long on the NSE file',
+    );
     // Published lower case, shown capitalised.
     expect(find.widgetWithText(FilterChip, 'Precious Metals'), findsOneWidget);
 
@@ -96,30 +100,13 @@ void main() {
     expect(find.text('QETH'), findsWidgets);
   });
 
-  testWidgets('narrows further by issuer', (tester) async {
-    await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
-    await openMarkets(tester, 'ASX');
-
-    await openFilters(tester);
-    await tester.tap(find.widgetWithText(FilterChip, 'VanEck'));
-    await settle(tester);
-    await tester.tap(find.text('Apply'));
-    await settle(tester);
-
-    expect(find.text('GDX'), findsWidgets);
-    for (final ticker in ['QETH', 'ATOM']) {
-      expect(find.text(ticker), findsNothing);
-    }
-  });
-
-  testWidgets('the US file offers neither section', (tester) async {
+  testWidgets('the US file offers no category section', (tester) async {
     await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
     await openMarkets(tester, 'US');
 
     await openFilters(tester);
     expect(find.text('Sort by'), findsOneWidget, reason: 'the sheet is open');
     expect(find.text('Category'), findsNothing);
-    expect(find.text('Issuer'), findsNothing);
   });
 
   testWidgets('the chips wrap rather than overflow at 320dp', (tester) async {
@@ -244,8 +231,8 @@ void main() {
     await openHistory(tester);
 
     await openFilters(tester);
-    // ZZZQ carries neither label, so both facets grow a catch-all.
-    expect(find.widgetWithText(FilterChip, 'Misc'), findsNWidgets(2));
+    // ZZZQ carries no category, so the facet grows a catch-all.
+    expect(find.widgetWithText(FilterChip, 'Misc'), findsOneWidget);
 
     // Last in the row, after every published category.
     final category = find.ancestor(
