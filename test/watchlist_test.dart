@@ -270,6 +270,57 @@ void main() {
     expect(rowColour(tester, 'VBTC'), isNot(tint));
   });
 
+  testWidgets('the watchlist keeps every starred ticker, whatever the run '
+      'still lists', (tester) async {
+    // Three shapes at once: MRNA is in the selected 7-day window, NVAX is
+    // published only in the monthly one, and ZZZZ is in no table at all.
+    SharedPreferences.setMockInitialValues({
+      'watchlist': ['us:MRNA', 'us:NVAX', 'us:ZZZZ'],
+    });
+    await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
+
+    await tester.tap(find.text('Watchlist').last);
+    await settle(tester);
+
+    expect(find.text('MRNA'), findsWidgets, reason: 'in the 7 day window');
+    expect(find.text('NVAX'), findsWidgets, reason: 'only in the 1 month one');
+    expect(find.text('ZZZZ'), findsWidgets, reason: 'dropped from the run');
+
+    expect(
+      find.text('Not in the 7 day screen — showing its 1 month row'),
+      findsOneWidget,
+      reason: 'a borrowed row says which window it came from',
+    );
+    expect(find.text('Dropped from the latest run'), findsOneWidget);
+    expect(
+      find.textContaining('1 of 3 starred tickers'),
+      findsOneWidget,
+      reason: 'the header counts what the selected window covers',
+    );
+  });
+
+  testWidgets('swiping a starred ticker away can be undone', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'watchlist': ['us:MRNA', 'us:NVAX'],
+    });
+    final prefs = await launchApp(
+      tester,
+      cacheDir: cacheDir,
+      payloads: payloads,
+    );
+
+    await tester.tap(find.text('Watchlist').last);
+    await settle(tester);
+
+    await tester.drag(find.text('NVAX').first, const Offset(-500, 0));
+    await settle(tester);
+    expect(prefs.getStringList('watchlist'), ['us:MRNA']);
+
+    await tester.tap(find.text('Undo'));
+    await settle(tester);
+    expect(prefs.getStringList('watchlist'), ['us:MRNA', 'us:NVAX']);
+  });
+
   testWidgets('clearing the watchlist from settings asks first', (
     tester,
   ) async {
