@@ -263,11 +263,13 @@ void main() {
       expect(find.text('+107.9%'), findsWidgets);
     });
 
-    testWidgets('the windows tab lists the cut-off per window', (tester) async {
+    testWidgets('the performance tab lists the cut-off per window', (
+      tester,
+    ) async {
       await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
       await tester.tap(find.text('MRNA').first);
       await settle(tester);
-      await tester.tap(find.text('Windows'));
+      await tester.tap(find.text('Performance'));
       await settle(tester);
 
       expect(find.text('Cut-off'), findsOneWidget);

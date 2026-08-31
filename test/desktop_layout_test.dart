@@ -461,10 +461,7 @@ void main() {
     final row = find
         .ancestor(of: find.text('MRNA'), matching: find.byType(InkWell))
         .first;
-    final star = find.descendant(
-      of: row,
-      matching: find.byType(WatchlistStar),
-    );
+    final star = find.descendant(of: row, matching: find.byType(WatchlistStar));
     expect(
       tester.getRect(row).right - tester.getRect(star).right,
       closeTo(16, 1),
@@ -554,12 +551,12 @@ void main() {
     // A bottom bar spanning the whole window under a 900px column reads as a
     // stretched phone screen; the sections sit under the header instead.
     expect(find.byType(NavigationBar), findsNothing);
-    for (final tab in ['Overview', 'Metrics', 'Windows', 'Links']) {
+    for (final tab in ['Overview', 'Performance', 'Metrics']) {
       expect(find.text(tab), findsOneWidget, reason: '$tab missing');
     }
 
     // They still switch the content.
-    await tester.tap(find.text('Windows'));
+    await tester.tap(find.text('Performance'));
     await settle(tester);
     expect(find.text('Coverage by window'), findsOneWidget);
   });

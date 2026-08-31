@@ -212,9 +212,31 @@ void main() {
     expect(find.text('Screener change'), findsOneWidget);
     expect(find.text('Weekly change'), findsOneWidget);
 
-    await tester.tap(find.text('Windows'));
+    await tester.tap(find.text('Performance'));
     await settle(tester);
     expect(find.text('Every window'), findsOneWidget);
+  });
+
+  testWidgets('the detail screen is three sections, links folded into the '
+      'overview', (tester) async {
+    await launch(tester);
+    await tester.tap(find.text('MRNA').first);
+    await settle(tester);
+
+    for (final tab in ['Overview', 'Performance', 'Metrics']) {
+      expect(find.text(tab), findsOneWidget, reason: '$tab missing');
+    }
+    for (final gone in ['Windows', 'Links']) {
+      expect(find.text(gone), findsNothing, reason: '$gone should be gone');
+    }
+
+    // What the Links tab carried is now the tail of the overview: where the
+    // figures came from, and the link the pipeline published for them.
+    await tester.drag(find.byType(ListView).first, const Offset(0, -2000));
+    await settle(tester);
+    expect(find.text('Provenance'), findsOneWidget);
+    expect(find.text('Market file'), findsOneWidget);
+    expect(find.textContaining('Google Finance ·'), findsWidgets);
   });
 
   testWidgets('starring a ticker fills the watchlist', (tester) async {

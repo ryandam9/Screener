@@ -25,11 +25,16 @@ import '../widgets/readable_width.dart';
 import '../info/page_info.dart';
 import '../widgets/info_dialog.dart';
 
+/// The three questions this screen answers, in the order they get asked:
+/// what is this, how has it done, and what is under the numbers.
+///
+/// Four sections split that badly. "Windows" and "Overview" were both about
+/// how the ticker has performed, and "Links" was two panels — one of them a
+/// list of the same URL per window — carrying a whole destination of its own.
 enum _DetailTab {
   overview('Overview', Icons.description_outlined),
-  metrics('Metrics', Icons.bar_chart_outlined),
-  windows('Windows', Icons.history),
-  links('Links', Icons.link);
+  performance('Performance', Icons.show_chart),
+  metrics('Metrics', Icons.bar_chart_outlined);
 
   const _DetailTab(this.label, this.icon);
   final String label;
@@ -227,12 +232,13 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                               onWindowChanged: (value) =>
                                   setState(() => _window = value),
                             ),
+                            _DetailTab.performance => _PerformanceTab(
+                              data: data,
+                            ),
                             _DetailTab.metrics => _MetricsTab(
                               data: data,
                               row: row,
                             ),
-                            _DetailTab.windows => _WindowsTab(data: data),
-                            _DetailTab.links => _LinksTab(data: data, row: row),
                           },
                         ),
                       ),
@@ -429,6 +435,16 @@ class _OverviewTab extends StatelessWidget {
     final shownLastDate = lastBar == null
         ? Fmt.dateCompact(row.lastDate)
         : Fmt.shortDate(lastBar.date);
+
+    // The link for the window on screen. The file publishes one per window,
+    // differing only in a `window=` parameter, so listing all five was five
+    // rows pointing at the same page. Older files publish none at all.
+    final link =
+        row.googleFinanceUrl ??
+        [
+          for (final entry in data.rows)
+            if (entry.googleFinanceUrl != null) entry.googleFinanceUrl,
+        ].firstOrNull;
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
@@ -627,12 +643,35 @@ class _OverviewTab extends StatelessWidget {
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-          child: Text(
-            'Data as of ${Fmt.date(row.dataAsOf)}'
-            '${row.runId == null ? '' : ' · run ${row.runId}'}',
-            style: TextStyle(fontSize: 11, color: colors.textTertiary),
+        if (link != null) ...[
+          const SectionHeader(title: 'External links'),
+          Panel(
+            child: ListTile(
+              leading: Icon(Icons.open_in_new, color: colors.interactive),
+              title: Text('Google Finance · ${window.longLabel}'),
+              subtitle: Text(
+                link,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              onTap: () => openExternalUrl(context, link),
+            ),
+          ),
+        ],
+        const SectionHeader(title: 'Provenance'),
+        Panel(
+          child: Column(
+            children: [
+              MetricRow(label: 'Market file', value: row.market.objectKey),
+              Divider(height: 1, color: colors.divider, indent: 14),
+              MetricRow(label: 'Data as of', value: Fmt.date(row.dataAsOf)),
+              Divider(height: 1, color: colors.divider, indent: 14),
+              MetricRow(
+                label: 'Run id',
+                value: row.runId ?? '—',
+                monospaceValue: false,
+              ),
+            ],
           ),
         ),
       ],
@@ -892,8 +931,8 @@ class _MetricsTab extends StatelessWidget {
   }
 }
 
-class _WindowsTab extends StatelessWidget {
-  const _WindowsTab({required this.data});
+class _PerformanceTab extends StatelessWidget {
+  const _PerformanceTab({required this.data});
 
   final _TickerData data;
 
@@ -1062,62 +1101,6 @@ class _WindowsTab extends StatelessWidget {
           fontFeatures: const [FontFeature.tabularFigures()],
         ),
       ),
-    );
-  }
-}
-
-class _LinksTab extends StatelessWidget {
-  const _LinksTab({required this.data, required this.row});
-
-  final _TickerData data;
-  final StockRow row;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 24),
-      children: [
-        const SectionHeader(
-          title: 'External links',
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 10),
-        ),
-        Panel(
-          child: Column(
-            children: [
-              for (final entry in data.rows)
-                if (entry.googleFinanceUrl != null)
-                  ListTile(
-                    leading: Icon(Icons.open_in_new, color: colors.interactive),
-                    title: Text('Google Finance · ${entry.window.longLabel}'),
-                    subtitle: Text(
-                      entry.googleFinanceUrl!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    onTap: () =>
-                        openExternalUrl(context, entry.googleFinanceUrl),
-                  ),
-            ],
-          ),
-        ),
-        const SectionHeader(title: 'Provenance'),
-        Panel(
-          child: Column(
-            children: [
-              MetricRow(label: 'Market file', value: row.market.objectKey),
-              Divider(height: 1, color: colors.divider, indent: 14),
-              MetricRow(label: 'Data as of', value: Fmt.date(row.dataAsOf)),
-              Divider(height: 1, color: colors.divider, indent: 14),
-              MetricRow(
-                label: 'Run id',
-                value: row.runId ?? '—',
-                monospaceValue: false,
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
