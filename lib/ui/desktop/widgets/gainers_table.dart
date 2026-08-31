@@ -55,18 +55,38 @@ class GainersTable extends StatelessWidget {
   /// instead of sitting in a hole between the name and the market beside it.
   static const _nameCap = 380.0;
 
-  /// Everything except the name and the gutter.
-  static const _fixed =
+  /// The company name never gets less than this before a column is dropped
+  /// instead. "Moder…" is not a company.
+  static const _minName = 96.0;
+
+  /// Everything except the name and the gutter, for the columns in play.
+  static double _fixedFor({required bool market, required bool change}) =>
       _padding * 2 +
       _rank +
       _ticker +
       12 +
-      _market +
+      (market ? _market : 0) +
       _price +
-      _change +
+      (change ? _change : 0) +
       _gain +
       _star +
       _link;
+
+  /// Which columns a given width can afford, dropped in reverse order of
+  /// what the table is for: the market label first, then the absolute change.
+  /// The percentage the list is ranked on, and the price beside it, stay.
+  ///
+  /// Without this the table simply overflowed: its columns want 528px, and a
+  /// compact window's dashboard hands it about 470.
+  static ({bool market, bool change}) _columnsFor(double width) {
+    if (width - _fixedFor(market: true, change: true) >= _minName) {
+      return (market: true, change: true);
+    }
+    if (width - _fixedFor(market: false, change: true) >= _minName) {
+      return (market: false, change: true);
+    }
+    return (market: false, change: false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -97,11 +117,16 @@ class GainersTable extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        final columns = _columnsFor(constraints.maxWidth);
         final nameWidth = math.max(
           0.0,
-          math.min(_nameCap, constraints.maxWidth - _fixed),
+          math.min(
+            _nameCap,
+            constraints.maxWidth -
+                _fixedFor(market: columns.market, change: columns.change),
+          ),
         );
-        return _table(context, colors, heading, nameWidth);
+        return _table(context, colors, heading, nameWidth, columns);
       },
     );
   }
@@ -111,6 +136,7 @@ class GainersTable extends StatelessWidget {
     ScreenerColors colors,
     Widget Function(String, double, {bool end}) heading,
     double nameWidth,
+    ({bool market, bool change}) columns,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -123,11 +149,11 @@ class GainersTable extends StatelessWidget {
               heading('Ticker', _ticker),
               SizedBox(width: nameWidth),
               const SizedBox(width: 12),
-              heading('Market', _market),
+              if (columns.market) heading('Market', _market),
               // The gutter, mirrored in the row below.
               const Expanded(child: SizedBox()),
               heading('Price', _price, end: true),
-              heading('Change', _change, end: true),
+              if (columns.change) heading('Change', _change, end: true),
               heading('% Gain', _gain, end: true),
               const SizedBox(width: _star + _link),
             ],
@@ -139,6 +165,7 @@ class GainersTable extends StatelessWidget {
             rank: i + 1,
             row: rows[i],
             nameWidth: nameWidth,
+            columns: columns,
             selected:
                 rows[i].ticker == selected?.ticker &&
                 rows[i].market == selected?.market,
@@ -162,6 +189,7 @@ class _GainerRow extends StatelessWidget {
     required this.rank,
     required this.row,
     required this.nameWidth,
+    required this.columns,
     required this.selected,
     required this.onTap,
   });
@@ -171,6 +199,9 @@ class _GainerRow extends StatelessWidget {
 
   /// Set by the table so every row's columns line up. See [GainersTable].
   final double nameWidth;
+
+  /// Which optional columns this width can afford.
+  final ({bool market, bool change}) columns;
   final bool selected;
   final VoidCallback onTap;
 
@@ -260,13 +291,14 @@ class _GainerRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            SizedBox(
-              width: GainersTable._market,
-              child: Text(
-                row.market.label,
-                style: TextStyle(fontSize: 12.5, color: colors.textSecondary),
+            if (columns.market)
+              SizedBox(
+                width: GainersTable._market,
+                child: Text(
+                  row.market.label,
+                  style: TextStyle(fontSize: 12.5, color: colors.textSecondary),
+                ),
               ),
-            ),
             // A wide window has more room than the columns need, and it has to
             // go somewhere. Split between the name column and here, rather
             // than all of it into the name column: that put the whole surplus
@@ -274,11 +306,12 @@ class _GainerRow extends StatelessWidget {
             // while the names themselves still wrapped.
             const Expanded(child: SizedBox()),
             numeric(Fmt.price(row.latestPrice), GainersTable._price),
-            numeric(
-              Fmt.signedPrice(row.priceChange),
-              GainersTable._change,
-              color: colors.forChange(row.priceChange),
-            ),
+            if (columns.change)
+              numeric(
+                Fmt.signedPrice(row.priceChange),
+                GainersTable._change,
+                color: colors.forChange(row.priceChange),
+              ),
             numeric(
               Fmt.signedPercent(row.pctChange, decimals: 1),
               GainersTable._gain,

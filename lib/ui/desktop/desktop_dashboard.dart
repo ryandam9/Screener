@@ -19,6 +19,7 @@ import 'widgets/gainers_table.dart';
 import '../info/page_info.dart';
 import '../widgets/google_finance_button.dart';
 import '../widgets/info_dialog.dart';
+import '../responsive.dart';
 import '../widgets/watchlist_star.dart';
 
 /// Everything the desktop dashboard shows, gathered in one pass.
@@ -512,92 +513,92 @@ class _DashboardBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    // Two columns are a desktop pattern. A compact window's 62% of the body
+    // is about 470px, which is narrower than the gainers table's own columns
+    // — so below the desktop tier the two stack and the table gets the width.
+    final split = context.layoutSize.hasSplitPanes;
+
+    final primary = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DesktopPanel(
+          title: 'Top Gainers (${window.longLabel})',
+          // Ranked across every market by default, which is why
+          // one market can fill the table on its own; the filter
+          // is how you see the other one's best rows.
+          leadingAction: PeriodSelector<Market?>(
+            compact: true,
+            values: [null, ...Market.values],
+            selected: gainerMarket,
+            labelOf: (market) => market?.label ?? 'Both',
+            onChanged: onGainerMarket,
+          ),
+          actionLabel: 'View all',
+          onAction: onViewAllGainers,
+          child: GainersTable(
+            rows: gainers,
+            selected: selected,
+            onTap: onSelect,
+          ),
+        ),
+        const SizedBox(height: 18),
+        _SecurityChart(
+          row: selected,
+          onOpenDetails: () => onOpenStock(selected),
+        ),
+      ],
+    );
+
+    final secondary = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DesktopPanel(
+          title: 'Recent Analyses',
+          child: Column(
+            children: [
+              for (final run in data.runs.take(5)) ...[
+                _RunRow(run: run),
+                if (run != data.runs.take(5).last)
+                  Divider(height: 1, color: colors.divider, indent: 18),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        DesktopPanel(
+          title: 'Top Movers (shortest window)',
+          child: Column(
+            children: [
+              for (final row in data.movers) ...[
+                _MoverRow(row: row, onTap: () => onOpenStock(row)),
+                if (row != data.movers.last)
+                  Divider(height: 1, color: colors.divider, indent: 18),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 62,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    DesktopPanel(
-                      title: 'Top Gainers (${window.longLabel})',
-                      // Ranked across every market by default, which is why
-                      // one market can fill the table on its own; the filter
-                      // is how you see the other one's best rows.
-                      leadingAction: PeriodSelector<Market?>(
-                        compact: true,
-                        values: [null, ...Market.values],
-                        selected: gainerMarket,
-                        labelOf: (market) => market?.label ?? 'Both',
-                        onChanged: onGainerMarket,
-                      ),
-                      actionLabel: 'View all',
-                      onAction: onViewAllGainers,
-                      child: GainersTable(
-                        rows: gainers,
-                        selected: selected,
-                        onTap: onSelect,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    _SecurityChart(
-                      row: selected,
-                      onOpenDetails: () => onOpenStock(selected),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 18),
-              Expanded(
-                flex: 38,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    DesktopPanel(
-                      title: 'Recent Analyses',
-                      child: Column(
-                        children: [
-                          for (final run in data.runs.take(5)) ...[
-                            _RunRow(run: run),
-                            if (run != data.runs.take(5).last)
-                              Divider(
-                                height: 1,
-                                color: colors.divider,
-                                indent: 18,
-                              ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    DesktopPanel(
-                      title: 'Top Movers (shortest window)',
-                      child: Column(
-                        children: [
-                          for (final row in data.movers) ...[
-                            _MoverRow(row: row, onTap: () => onOpenStock(row)),
-                            if (row != data.movers.last)
-                              Divider(
-                                height: 1,
-                                color: colors.divider,
-                                indent: 18,
-                              ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          if (split)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 62, child: primary),
+                const SizedBox(width: 18),
+                Expanded(flex: 38, child: secondary),
+              ],
+            )
+          else ...[
+            primary,
+            const SizedBox(height: 18),
+            secondary,
+          ],
           const SizedBox(height: 18),
           Text(
             'Screener output, not live quotes. Prices are the window endpoints '
