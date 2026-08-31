@@ -440,22 +440,36 @@ class PageInfos {
 
   static const search = PageInfo(
     title: 'Search',
-    subtitle: 'Find an instrument in either market',
+    subtitle: 'Find an instrument in any market',
     icon: Icons.search,
     blocks: [
       InfoParagraph(
-        'Searches both databases at once, matching on ticker and on company '
-        'name. Results are drawn from the selected window.',
+        'Searches every database at once, matching on ticker and on company '
+        'name, and groups the results by where the match was found.',
       ),
       InfoBullets([
-        InfoBullet(text: 'Type a ticker — MRNA, QETH — for an exact hit.'),
-        InfoBullet(text: 'Type part of a name — "pharma" — to sweep a sector.'),
-        InfoBullet(text: 'Tap a result to open its detail screen.'),
+        InfoBullet(
+          lead: 'In the screen',
+          text:
+              'published by this run for the selected window, with its '
+              'figures.',
+        ),
+        InfoBullet(
+          lead: 'In market history',
+          text:
+              'the file publishes prices for it, but this window screened it '
+              'out. Each result names the window it did clear, if any.',
+        ),
+        InfoBullet(
+          lead: 'Watchlisted',
+          text:
+              'starred, and the latest run says nothing about it at all — no '
+              'screen row and no prices.',
+        ),
       ], icon: Icons.check_circle_outline),
       InfoNote(
-        'Only instruments that passed the screen for the selected window are '
-        'searchable. A ticker missing from the results was screened out, not '
-        'lost.',
+        'A ticker appears in one group only, the first it qualifies for, so '
+        'nothing is listed twice.',
       ),
     ],
   );

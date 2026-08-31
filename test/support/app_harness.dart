@@ -1,8 +1,7 @@
 import 'dart:io';
 
-import 'package:flutter/services.dart';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -48,6 +47,17 @@ Future<Map<String, List<int>>> buildFixturePayloads(
   ///
   /// Opt-in because the extra rows move every count the other tests assert.
   bool asxCategories = false,
+
+  /// Gives `us.db` a whole-market history table, as `asx.db` has, covering
+  /// two tickers the 7-day screen does not list: NVAX, which clears the
+  /// monthly one, and ZZZH, which clears none.
+  ///
+  /// That is the shape the real files have — `asx.db` publishes a year of
+  /// prices for 456 tickers and lists 8 of them in the 7-day window — and it
+  /// is what a search across the whole universe has to find.
+  ///
+  /// Opt-in: it adds rows to the price-history page other tests count.
+  bool historyBeyondScreens = false,
 }) async {
   // Six Fridays of history, enough for the charts to have a real shape.
   const usBars = [
@@ -74,6 +84,17 @@ Future<Map<String, List<int>>> buildFixturePayloads(
     fileName: 'us.db',
     tablePrefix: 'us_stocks_growth',
     weeklyBars: usBars,
+    // See [historyBeyondScreens]. Named as the ASX one is, since the app
+    // finds it by shape rather than by name.
+    historyTable: 'US_1_YEAR_HISTORY',
+    history: historyBeyondScreens
+        ? const [
+            FixtureHistoryBar(ticker: 'NVAX', date: '2026-07-24', close: 8.12),
+            FixtureHistoryBar(ticker: 'NVAX', date: '2026-08-21', close: 11.70),
+            FixtureHistoryBar(ticker: 'ZZZH', date: '2026-07-24', close: 4.10),
+            FixtureHistoryBar(ticker: 'ZZZH', date: '2026-08-21', close: 4.35),
+          ]
+        : const [],
     run: metadataForUs
         ? const FixtureRun(
             runId: '20260823T053645Z-704684ee',
