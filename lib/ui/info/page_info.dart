@@ -183,23 +183,21 @@ class PageInfos {
       InfoBullets([
         InfoBullet(
           lead: 'Overview',
-          text: 'the chart, the window selector and the headline metrics.',
-        ),
-        InfoBullet(
-          lead: 'Metrics',
           text:
-              'every published column — coverage, observations, median volume, '
-              'price basis, and the run that produced them.',
+              'the chart, the window selector, the headline metrics, and the '
+              'run and Google Finance link the figures came from.',
         ),
         InfoBullet(
-          lead: 'Windows',
+          lead: 'Performance',
           text:
               'the same instrument across 7D to 1Y, so a spike and a trend '
               'are easy to tell apart.',
         ),
         InfoBullet(
-          lead: 'Links',
-          text: 'the Google Finance link the pipeline published for it.',
+          lead: 'Metrics',
+          text:
+              'every published column — coverage, observations, median volume '
+              'and price basis.',
         ),
       ]),
       InfoHeading('Coverage and observations', icon: Icons.rule),

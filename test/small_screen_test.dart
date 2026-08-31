@@ -142,7 +142,7 @@ void main() {
         await settle(tester);
       }
     }
-    for (final tab in ['Metrics', 'Windows', 'Links', 'Overview']) {
+    for (final tab in ['Metrics', 'Performance', 'Overview']) {
       await tester.tap(find.text(tab));
       await settle(tester);
       await sweep(tester);
