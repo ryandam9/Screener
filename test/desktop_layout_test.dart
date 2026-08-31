@@ -9,6 +9,7 @@ import 'package:screener/ui/widgets/info_dialog.dart';
 import 'package:screener/ui/widgets/change_chip.dart';
 import 'package:screener/ui/widgets/panels.dart';
 import 'package:screener/ui/widgets/table_frame.dart';
+import 'package:screener/ui/widgets/watchlist_star.dart';
 import 'package:screener/models/market.dart';
 import 'package:screener/ui/desktop/desktop_dashboard.dart';
 import 'package:screener/ui/desktop/widgets/desktop_cards.dart';
@@ -384,6 +385,46 @@ void main() {
       ),
       findsWidgets,
       reason: 'the pane opened on the row that was clicked',
+    );
+  });
+
+  testWidgets('a consistent row runs to the edge of the list', (tester) async {
+    // Wide enough that the row has real slack to strand. The desktop list
+    // pane is capped at 560, and the test font is roughly twice Inter's
+    // width, so at that size the trailing block fills its whole flex
+    // allocation and the defect cannot show. Just under the desktop
+    // breakpoint the list is the full window.
+    await launchApp(
+      tester,
+      cacheDir: cacheDir,
+      payloads: payloads,
+      size: const Size(880, 900),
+      devicePixelRatio: 1.0,
+    );
+    await tester.tap(find.text('Markets'));
+    await settle(tester);
+    await tester.tap(
+      find.descendant(
+        of: find.byType(TabBar),
+        matching: find.text('Consistent'),
+      ),
+    );
+    await settle(tester);
+
+    // The trailing block was a loose Flexible, which claims a share of the
+    // row's free space and leaves what it does not use stranded after the
+    // star — the chip, the note and the star all floated inwards.
+    final row = find
+        .ancestor(of: find.text('MRNA'), matching: find.byType(InkWell))
+        .first;
+    final star = find.descendant(
+      of: row,
+      matching: find.byType(WatchlistStar),
+    );
+    expect(
+      tester.getRect(row).right - tester.getRect(star).right,
+      closeTo(16, 1),
+      reason: 'the star sits at the row padding, not adrift of it',
     );
   });
 
