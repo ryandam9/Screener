@@ -79,6 +79,51 @@ void main() {
     }
   });
 
+  testWidgets('a compact window rails the navigation and keeps one pane', (
+    tester,
+  ) async {
+    // 950dp: too wide for a bottom bar, too narrow to split into a list and a
+    // detail that are both worth reading.
+    await launchApp(
+      tester,
+      cacheDir: cacheDir,
+      payloads: payloads,
+      size: const Size(950, 900),
+      devicePixelRatio: 1.0,
+    );
+
+    expect(find.byType(DesktopShell), findsOneWidget);
+    expect(find.byType(HomeShell), findsNothing);
+
+    // The rail, not the labelled sidebar: the content starts within a rail's
+    // width of the edge. And no control offering to expand a sidebar that has
+    // nowhere to go.
+    expect(tester.getTopLeft(find.byType(DesktopDashboard)).dx, lessThan(100));
+    expect(find.byTooltip('Expand sidebar  (Ctrl+B)'), findsNothing);
+    expect(find.byTooltip('Collapse sidebar  (Ctrl+B)'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.public_outlined));
+    await settle(tester);
+    expect(find.byType(MarketListScreen), findsOneWidget);
+    expect(find.text('Select an instrument'), findsNothing);
+
+    // A row takes the pane rather than sitting beside the list.
+    await tester.tap(find.text('MRNA').first);
+    await settle(tester);
+    expect(find.byType(StockDetailScreen), findsOneWidget);
+    expect(
+      find.byType(MarketListScreen),
+      findsNothing,
+      reason: 'one pane at a time; the list is behind the detail',
+    );
+
+    // Closing comes back to the list.
+    await tester.tap(find.byIcon(Icons.close));
+    await settle(tester);
+    expect(find.byType(MarketListScreen), findsOneWidget);
+    expect(find.byType(StockDetailScreen), findsNothing);
+  });
+
   testWidgets('a narrow window keeps the handset layout', (tester) async {
     await launchApp(
       tester,
@@ -389,16 +434,15 @@ void main() {
   });
 
   testWidgets('a consistent row runs to the edge of the list', (tester) async {
-    // Wide enough that the row has real slack to strand. The desktop list
-    // pane is capped at 560, and the test font is roughly twice Inter's
-    // width, so at that size the trailing block fills its whole flex
-    // allocation and the defect cannot show. Just under the desktop
-    // breakpoint the list is the full window.
+    // Wide enough that the row has real slack to strand, and still a
+    // handset: the desktop list pane is capped at 560, and the test font is
+    // roughly twice Inter's width, so at that size the trailing block fills
+    // its whole flex allocation and the defect cannot show.
     await launchApp(
       tester,
       cacheDir: cacheDir,
       payloads: payloads,
-      size: const Size(880, 900),
+      size: const Size(700, 900),
       devicePixelRatio: 1.0,
     );
     await tester.tap(find.text('Markets'));

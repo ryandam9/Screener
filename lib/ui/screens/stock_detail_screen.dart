@@ -147,7 +147,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     // A bottom navigation bar spanning a 1400px window, under a column of
     // content capped at 900, reads as a phone screen someone stretched. On a
     // desktop window the four sections sit under the header instead.
-    final desktop = context.layoutSize.isDesktop;
+    final desktop = context.layoutSize.hasSidebar;
 
     return Scaffold(
       // Per screen rather than app-wide: see main.dart.
@@ -289,7 +289,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           ),
           // On a desktop window the four sections live in this toolbar rather
           // than in a bottom navigation bar spanning the whole window.
-          if (context.layoutSize.isDesktop)
+          if (context.layoutSize.hasSidebar)
             Expanded(
               child: _DetailTabBar(
                 selected: _tab,

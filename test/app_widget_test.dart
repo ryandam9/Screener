@@ -367,11 +367,12 @@ void main() {
     expect(find.text('Universe in window'), findsOneWidget);
   });
 
-  /// Wide enough for a row to have slack to strand. A loose Flexible is
-  /// allocated a share of it and leaves what it does not use where it stands,
-  /// so the trailing text floats inwards with the surplus behind it.
+  /// Wide enough for a row to have slack to strand, and still a handset. A
+  /// loose Flexible is allocated a share of it and leaves what it does not use
+  /// where it stands, so the trailing text floats inwards with the surplus
+  /// behind it.
   Future<void> launchWide(WidgetTester tester) async {
-    tester.view.physicalSize = const Size(880, 900);
+    tester.view.physicalSize = const Size(700, 900);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     await launchApp(

@@ -13,6 +13,7 @@ import '../../state/digest_router.dart';
 import '../../state/settings_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
+import '../responsive.dart';
 import '../screens/app_shell.dart';
 import '../screens/history_screen.dart';
 import '../screens/market_list_screen.dart';
@@ -106,6 +107,8 @@ class _DesktopShellState extends State<DesktopShell> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final appState = context.watch<AppState>();
+    final layout = context.layoutSize;
+    final compact = layout.isCompact;
 
     // The dashboard is built for the width; the rest are handset layouts and
     // are capped so their columns stay together.
@@ -116,6 +119,7 @@ class _DesktopShellState extends State<DesktopShell> {
         searchFocus: _searchFocus,
       ),
       AppSection.markets => _MasterDetail(
+        split: layout.hasSplitPanes,
         selected: _selected,
         onClear: () => setState(() => _selected = null),
         list: MarketListScreen(
@@ -127,6 +131,7 @@ class _DesktopShellState extends State<DesktopShell> {
         ),
       ),
       AppSection.watchlist => _MasterDetail(
+        split: layout.hasSplitPanes,
         selected: _selected,
         onClear: () => setState(() => _selected = null),
         list: WatchlistScreen(
@@ -162,8 +167,11 @@ class _DesktopShellState extends State<DesktopShell> {
           child: Row(
             children: [
               _Sidebar(
-                collapsed: settings.sidebarCollapsed,
-                onToggle: settings.toggleSidebar,
+                // A compact window has room for the rail but not for labels
+                // beside a single content pane, so the preference only
+                // applies where there is width to honour it.
+                collapsed: compact || settings.sidebarCollapsed,
+                onToggle: compact ? null : settings.toggleSidebar,
                 section: _section,
                 onSelect: (section) => setState(() {
                   _section = section;
@@ -227,7 +235,9 @@ class _Sidebar extends StatelessWidget {
   final AppSection section;
   final ValueChanged<AppSection> onSelect;
   final bool collapsed;
-  final VoidCallback onToggle;
+  /// Null where the rail cannot expand, which hides the control rather than
+  /// leaving one that does nothing.
+  final VoidCallback? onToggle;
 
   static const double expandedWidth = 236;
   static const double collapsedWidth = 68;
@@ -307,11 +317,12 @@ class _Sidebar extends StatelessWidget {
                     padding: EdgeInsets.fromLTRB(14, 14, 14, 4),
                     child: _DataStatusCard(),
                   ),
-                _CollapseButton(
-                  collapsed: collapsed,
-                  showLabel: showLabels,
-                  onToggle: onToggle,
-                ),
+                if (onToggle case final toggle?)
+                  _CollapseButton(
+                    collapsed: collapsed,
+                    showLabel: showLabels,
+                    onToggle: toggle,
+                  ),
               ],
             );
           },
@@ -595,16 +606,46 @@ class _MasterDetail extends StatelessWidget {
     required this.list,
     required this.selected,
     required this.onClear,
+    required this.split,
   });
 
   final Widget list;
   final StockRow? selected;
   final VoidCallback onClear;
 
+  /// Whether the window can hold both at once. Below the desktop tier it
+  /// cannot: a 950px window split into a 380px list and what is left gave
+  /// neither enough, so the detail takes the pane and closing it comes back.
+  final bool split;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final row = selected;
+
+    if (!split) {
+      return PageTransitionSwitcher(
+        duration: const Duration(milliseconds: 220),
+        transitionBuilder: (child, animation, secondaryAnimation) =>
+            FadeThroughTransition(
+              animation: animation,
+              secondaryAnimation: secondaryAnimation,
+              fillColor: Colors.transparent,
+              child: child,
+            ),
+        child: row == null
+            ? list
+            : _Pane(
+                key: ValueKey(row.key),
+                child: StockDetailScreen(
+                  market: row.market,
+                  ticker: row.ticker,
+                  initialWindow: row.window,
+                  onClose: onClear,
+                ),
+              ),
+      );
+    }
 
     return LayoutBuilder(
       builder: (context, constraints) {

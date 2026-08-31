@@ -168,7 +168,7 @@ class _MarketListScreenState extends State<MarketListScreen>
     final window = _resolveWindow(appState);
     // 320dp phones clip the full tab labels and the long title.
     final narrow = MediaQuery.sizeOf(context).width < 360;
-    final desktop = context.layoutSize.isDesktop;
+    final desktop = context.layoutSize.hasSidebar;
     final database = appState.databaseOf(_market);
     final state = appState.stateOf(_market);
 

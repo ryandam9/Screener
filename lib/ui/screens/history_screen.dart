@@ -106,7 +106,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final markets = _marketsWith(appState);
-    final desktop = context.layoutSize.isDesktop;
+    final desktop = context.layoutSize.hasSidebar;
 
     // Whichever market is chosen, falling back to the first that publishes
     // history: today that is the ASX, but the page follows the files rather

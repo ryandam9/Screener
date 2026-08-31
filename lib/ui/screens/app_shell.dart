@@ -33,7 +33,7 @@ class AppShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        return LayoutSize.forWidth(constraints.maxWidth).isDesktop
+        return LayoutSize.forWidth(constraints.maxWidth).hasSidebar
             ? const DesktopShell()
             : const HomeShell();
       },
