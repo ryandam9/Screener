@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -284,72 +286,96 @@ class _RunTile extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 44,
-            child: Text(
-              run.window.label,
-              style: TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  run.rowCount == 0
-                      ? 'No rows published'
-                      : '${Fmt.integer(run.rowCount)} ${run.market.instrumentNoun}',
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final scaler = MediaQuery.textScalerOf(context);
+          // What the run id may take: a published id is 171px as the app
+          // renders it, measured rather than computed from font metrics,
+          // which miss the theme's inherited letter spacing. Never more than
+          // the row can spare once the window,
+          // the CSV button and a readable name column have theirs. Below a
+          // legible width it is dropped rather than shown as an ellipsis —
+          // "2026083…" identifies nothing, and the space is worth more to the
+          // row count beside it.
+          final idWidth = math.min(
+            scaler.scale(180),
+            constraints.maxWidth - scaler.scale(44 + 10 + 12 + 116 + 90),
+          );
+          final showId = run.runId != null && idWidth >= scaler.scale(60);
+
+          return Row(
+            children: [
+              SizedBox(
+                width: 44,
+                child: Text(
+                  run.window.label,
                   style: TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
                     color: colors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'data as of ${Fmt.date(run.dataAsOf)}'
-                  '${startedAt == null ? '' : ' · run ${Fmt.relativeStamp(startedAt)}'}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: colors.textSecondary),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      run.rowCount == 0
+                          ? 'No rows published'
+                          : '${Fmt.integer(run.rowCount)} ${run.market.instrumentNoun}',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'data as of ${Fmt.date(run.dataAsOf)}'
+                      '${startedAt == null ? '' : ' · run ${Fmt.relativeStamp(startedAt)}'}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (showId) ...[
+                const SizedBox(width: 10),
+                SizedBox(
+                  width: idWidth,
+                  child: Text(
+                    run.runId!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: TextStyle(fontSize: 11, color: colors.textTertiary),
+                  ),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          if (run.runId != null)
-            Flexible(
-              child: Text(
-                run.runId!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.right,
-                style: TextStyle(fontSize: 11, color: colors.textTertiary),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 116,
+                child: OutlinedButton.icon(
+                  onPressed: busy ? null : onExport,
+                  icon: busy
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.download_outlined, size: 16),
+                  label: Text(busy ? 'Saving…' : 'CSV'),
+                ),
               ),
-            ),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: 116,
-            child: OutlinedButton.icon(
-              onPressed: busy ? null : onExport,
-              icon: busy
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.download_outlined, size: 16),
-              label: Text(busy ? 'Saving…' : 'CSV'),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }

@@ -973,7 +973,7 @@ class _ConsistentList extends StatelessWidget {
                         // it does not ellipsize at larger text sizes.
                         SizedBox(
                           width: math.min(
-                            MediaQuery.textScalerOf(context).scale(128),
+                            MediaQuery.textScalerOf(context).scale(136),
                             // Never more than the row can spare: at 320dp with
                             // the largest text the scaled width is wider than
                             // the row itself, and the name column cannot give
