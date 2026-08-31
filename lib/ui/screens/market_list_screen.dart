@@ -90,7 +90,6 @@ class _MarketListScreenState extends State<MarketListScreen>
   String _search = '';
   String? _exchange;
   Set<String> _categories = const {};
-  Set<String> _issuers = const {};
   double? _minPctChange;
   bool _searching = false;
 
@@ -132,7 +131,6 @@ class _MarketListScreenState extends State<MarketListScreen>
     search: _search.isEmpty ? null : _search,
     exchange: _exchange,
     categories: _categories,
-    issuers: _issuers,
     minPctChange: _minPctChange,
     sort: _sort,
     descending: _descending,
@@ -220,7 +218,6 @@ class _MarketListScreenState extends State<MarketListScreen>
               isLabelVisible:
                   _exchange != null ||
                   _categories.isNotEmpty ||
-                  _issuers.isNotEmpty ||
                   (_minPctChange ?? 0) > 0,
               backgroundColor: colors.positive,
               child: const Icon(Icons.filter_list),
@@ -389,7 +386,6 @@ class _MarketListScreenState extends State<MarketListScreen>
                         _market = selection.first;
                         _exchange = null;
                         _categories = const {};
-                        _issuers = const {};
                       });
                       appState.selectMarket(selection.first);
                       Navigator.of(sheetContext).pop();
@@ -430,12 +426,10 @@ class _MarketListScreenState extends State<MarketListScreen>
     // Empty for a file that publishes no such column, which leaves the
     // section out rather than showing an "All"-only row.
     final categories = await database.categories(window);
-    final issuers = await database.issuers(window);
     if (!context.mounted) return;
 
     var exchange = _exchange;
     final selectedCategories = _categories.toSet();
-    final selectedIssuers = _issuers.toSet();
     var minPct = _minPctChange ?? 0;
     var sort = _sort;
     var descending = _descending;
@@ -525,19 +519,6 @@ class _MarketListScreenState extends State<MarketListScreen>
                           }
                         }),
                       ),
-                    if (issuers.isNotEmpty)
-                      FacetSection(
-                        title: 'Issuer',
-                        values: issuers,
-                        selected: selectedIssuers,
-                        onChanged: (value, on) => setSheetState(() {
-                          if (on) {
-                            selectedIssuers.add(value);
-                          } else {
-                            selectedIssuers.remove(value);
-                          }
-                        }),
-                      ),
                     SectionHeader(
                       title:
                           'Minimum change: ${minPct <= 0 ? 'any' : Fmt.signedPercent(minPct, decimals: 0)}',
@@ -562,7 +543,6 @@ class _MarketListScreenState extends State<MarketListScreen>
                                 setState(() {
                                   _exchange = null;
                                   _categories = const {};
-                                  _issuers = const {};
                                   _minPctChange = null;
                                   _sort = StockSort.pctChange;
                                   _descending = true;
@@ -579,7 +559,6 @@ class _MarketListScreenState extends State<MarketListScreen>
                                 setState(() {
                                   _exchange = exchange;
                                   _categories = selectedCategories;
-                                  _issuers = selectedIssuers;
                                   _minPctChange = minPct <= 0 ? null : minPct;
                                   _sort = sort;
                                   _descending = descending;

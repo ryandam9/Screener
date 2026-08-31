@@ -58,7 +58,6 @@ class StockQuery {
     this.search,
     this.exchange,
     this.categories = const {},
-    this.issuers = const {},
     this.minPctChange,
     this.sort = StockSort.pctChange,
     this.descending = true,
@@ -77,10 +76,6 @@ class StockQuery {
   /// unions: precious *and* industrial metals, or metals *and* crypto.
   final Set<String> categories;
 
-  /// Keeps rows whose `issuer` is one of these, on the same terms as
-  /// [categories].
-  final Set<String> issuers;
-
   final double? minPctChange;
   final StockSort sort;
   final bool descending;
@@ -94,7 +89,6 @@ class StockQuery {
     String? search,
     String? exchange,
     Set<String>? categories,
-    Set<String>? issuers,
     double? minPctChange,
     StockSort? sort,
     bool? descending,
@@ -109,7 +103,6 @@ class StockQuery {
       search: clearSearch ? null : (search ?? this.search),
       exchange: clearExchange ? null : (exchange ?? this.exchange),
       categories: categories ?? this.categories,
-      issuers: issuers ?? this.issuers,
       minPctChange: clearMinPctChange
           ? null
           : (minPctChange ?? this.minPctChange),
@@ -125,7 +118,6 @@ class StockQuery {
       (search != null && search!.isNotEmpty) ||
       exchange != null ||
       categories.isNotEmpty ||
-      issuers.isNotEmpty ||
       (minPctChange != null && minPctChange! > 0);
 }
 
@@ -310,9 +302,6 @@ class MarketDatabase {
   /// Only the ASX file does, and only since the columns were added.
   bool get hasCategories => _hasGrowthColumn('category');
 
-  /// True when the growth tables name the fund's issuer. See [hasCategories].
-  bool get hasIssuers => _hasGrowthColumn('issuer');
-
   bool _hasGrowthColumn(String column) =>
       _tableColumns.values.any((columns) => columns.contains(column));
 
@@ -441,10 +430,7 @@ class MarketDatabase {
       clauses.add('exchange = ?');
       args.add(query.exchange);
     }
-    for (final (column, values) in [
-      ('category', query.categories),
-      ('issuer', query.issuers),
-    ]) {
+    for (final (column, values) in [('category', query.categories)]) {
       if (values.isEmpty || !columns.contains(column)) continue;
       // The "Misc" chip stands for the rows the file left blank, so it has to
       // reach them through the column rather than through a value.
@@ -542,10 +528,6 @@ class MarketDatabase {
   /// keys off to leave the section out entirely.
   Future<List<String>> categories(GrowthWindow window) =>
       _distinct(window, 'category');
-
-  /// The distinct issuers in one window's table. See [categories].
-  Future<List<String>> issuers(GrowthWindow window) =>
-      _distinct(window, 'issuer');
 
   /// Matches the rows a file published without a value for [column].
   ///

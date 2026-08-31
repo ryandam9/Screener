@@ -366,12 +366,11 @@ void main() {
     expect(bottom, closeTo(1 / 3, 0.001));
   });
 
-  test('lists the categories and issuers a file publishes', () async {
+  test('lists the categories a file publishes', () async {
     final asx = await openAsxFixture();
     addTearDown(asx.close);
 
     expect(asx.hasCategories, isTrue);
-    expect(asx.hasIssuers, isTrue);
     // Alphabetical, with the catch-all last: VAS carries no category, so the
     // list ends with the chip that stands for it.
     expect(await asx.categories(GrowthWindow.sevenDays), [
@@ -379,13 +378,6 @@ void main() {
       'industrial metals',
       'precious metals',
       'Misc',
-    ]);
-    // Every row names an issuer, so that facet has no catch-all at all.
-    expect(await asx.issuers(GrowthWindow.sevenDays), [
-      'Betashares',
-      'Global X',
-      'VanEck',
-      'Vanguard',
     ]);
   });
 
@@ -448,38 +440,35 @@ void main() {
     );
   });
 
-  test('combines an issuer filter with a category one', () async {
+  test('a category filter still reports the row it kept', () async {
     final asx = await openAsxFixture();
     addTearDown(asx.close);
 
-    final both = await asx.stocks(
+    final metals = await asx.stocks(
       GrowthWindow.sevenDays,
-      const StockQuery(
-        categories: {'precious metals', 'industrial metals'},
-        issuers: {'VanEck'},
-      ),
+      const StockQuery(categories: {'precious metals'}),
     );
-    expect([for (final r in both) r.ticker], ['GDX']);
-    expect(both.single.issuer, 'VanEck');
-    expect(both.single.category, 'precious metals');
+    expect([for (final r in metals) r.ticker], ['GDX']);
+    expect(metals.single.category, 'precious metals');
+    // The issuer is still read and still reaches the row; it is only the
+    // filter that is gone.
+    expect(metals.single.issuer, 'VanEck');
   });
 
   test(
-    'a file without the columns offers no facets and ignores them',
+    'a file without the column offers no facet and ignores one',
     () async {
       final us = await openUsFixture();
       addTearDown(us.close);
 
       expect(us.hasCategories, isFalse);
-      expect(us.hasIssuers, isFalse);
       expect(await us.categories(GrowthWindow.sevenDays), isEmpty);
-      expect(await us.issuers(GrowthWindow.sevenDays), isEmpty);
 
       // A filter carried over from the ASX list must not take the US query down
       // with a "no such column" error.
       final rows = await us.stocks(
         GrowthWindow.sevenDays,
-        const StockQuery(categories: {'crypto'}, issuers: {'Betashares'}),
+        const StockQuery(categories: {'crypto'}),
       );
       expect([for (final r in rows) r.ticker], ['MRNA', 'AMLX', 'SCTX']);
       expect(

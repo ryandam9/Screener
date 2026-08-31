@@ -4,25 +4,23 @@ import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import 'panels.dart';
 
-/// The categories and issuers a list is narrowed to.
+/// The categories a list is narrowed to.
 ///
-/// Empty sets mean no restriction, which is what both pages start with and
+/// An empty set means no restriction, which is what the page starts with and
 /// what "All" puts back.
 class FacetSelection {
-  const FacetSelection({this.categories = const {}, this.issuers = const {}});
+  const FacetSelection({this.categories = const {}});
 
   final Set<String> categories;
-  final Set<String> issuers;
 
-  bool get isEmpty => categories.isEmpty && issuers.isEmpty;
+  bool get isEmpty => categories.isEmpty;
   bool get isNotEmpty => !isEmpty;
 
-  /// How many chips are on, across both facets — what the badge counts.
-  int get length => categories.length + issuers.length;
+  /// How many chips are on — what the badge counts.
+  int get length => categories.length;
 }
 
-/// One multi-select facet: the categories a fund holds, or the issuers that
-/// run them.
+/// One multi-select facet, such as the categories a fund holds.
 ///
 /// Multi-select rather than a single choice because the cuts worth making are
 /// unions: precious *and* industrial metals, or metals *and* crypto. Nothing
@@ -45,8 +43,8 @@ class FacetSection extends StatelessWidget {
   /// Called with the value and whether it is now on.
   final void Function(String value, bool selected) onChanged;
 
-  /// Turns a published value into its chip label. Categories arrive in lower
-  /// case; issuers are already spelled the way the fund spells itself.
+  /// Turns a published value into its chip label — categories arrive in
+  /// lower case.
   final String Function(String value)? labelOf;
 
   @override
@@ -88,19 +86,17 @@ class FacetSection extends StatelessWidget {
   }
 }
 
-/// The category-and-issuer sheet, for a list whose only filters are these two.
+/// The category sheet, for a list whose only filter is that one.
 ///
 /// The market list builds its own sheet from [FacetSection] instead, because
-/// there the facets sit among a sort order, an exchange and a minimum change.
+/// there the facet sits among a sort order, an exchange and a minimum change.
 /// Returns null when the sheet is dismissed without applying.
 Future<FacetSelection?> showFacetFilterSheet(
   BuildContext context, {
   required List<String> categories,
-  required List<String> issuers,
   required FacetSelection selection,
 }) {
   final chosenCategories = selection.categories.toSet();
-  final chosenIssuers = selection.issuers.toSet();
 
   return showModalBottomSheet<FacetSelection>(
     context: context,
@@ -133,19 +129,6 @@ Future<FacetSelection?> showFacetFilterSheet(
                         }
                       }),
                     ),
-                  if (issuers.isNotEmpty)
-                    FacetSection(
-                      title: 'Issuer',
-                      values: issuers,
-                      selected: chosenIssuers,
-                      onChanged: (value, on) => setSheetState(() {
-                        if (on) {
-                          chosenIssuers.add(value);
-                        } else {
-                          chosenIssuers.remove(value);
-                        }
-                      }),
-                    ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                     child: Row(
@@ -162,10 +145,7 @@ Future<FacetSelection?> showFacetFilterSheet(
                         Expanded(
                           child: FilledButton(
                             onPressed: () => Navigator.of(sheetContext).pop(
-                              FacetSelection(
-                                categories: chosenCategories,
-                                issuers: chosenIssuers,
-                              ),
+                              FacetSelection(categories: chosenCategories),
                             ),
                             child: const Text('Apply'),
                           ),

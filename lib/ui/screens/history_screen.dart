@@ -99,10 +99,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
         !_facets.categories.contains(ticker.category)) {
       return false;
     }
-    if (_facets.issuers.isNotEmpty &&
-        !_facets.issuers.contains(ticker.issuer)) {
-      return false;
-    }
     return true;
   }
 
@@ -357,7 +353,6 @@ class _TickerList extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final categories = _valuesOf((row) => row.category);
-    final issuers = _valuesOf((row) => row.issuer);
 
     final header = Padding(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
@@ -390,7 +385,7 @@ class _TickerList extends StatelessWidget {
               // Beside the search box rather than in the app bar: the desktop
               // shell embeds this page without one, and the control has to
               // reach both layouts.
-              if (categories.isNotEmpty || issuers.isNotEmpty) ...[
+              if (categories.isNotEmpty) ...[
                 const SizedBox(width: 8),
                 IconButton(
                   tooltip: 'Filter',
@@ -404,7 +399,6 @@ class _TickerList extends StatelessWidget {
                     final chosen = await showFacetFilterSheet(
                       context,
                       categories: categories,
-                      issuers: issuers,
                       selection: facets,
                     );
                     if (chosen != null) onFacets(chosen);
