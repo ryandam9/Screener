@@ -113,6 +113,47 @@ void main() {
     );
   });
 
+  testWidgets('a wide quote puts the tiles beside the price', (tester) async {
+    // Wide enough for the detail pane to clear the breakpoint. Stacked, the
+    // headline's own line was half empty on a pane this size.
+    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await launchApp(
+      tester,
+      cacheDir: tempDir,
+      payloads: payloads,
+      size: tester.view.physicalSize,
+      devicePixelRatio: 1.0,
+    );
+    await tester.tap(find.text('Markets'));
+    await settle(tester);
+    await tester.tap(find.text('MRNA').first);
+    await settle(tester);
+
+    final headline = tester.getRect(
+      find.text('7 Day change, weekly closes'),
+    );
+    // "Change" also heads a column in the gainers table behind the pane.
+    final tile = tester.getRect(
+      find.descendant(
+        of: find.byType(StockDetailScreen),
+        matching: find.text('Change'),
+      ),
+    );
+
+    expect(
+      tile.left,
+      greaterThan(headline.right),
+      reason: 'the tiles sit beside the headline, not under it',
+    );
+    expect(
+      tile.top,
+      lessThan(headline.top),
+      reason: 'and on the price line rather than below the window it names',
+    );
+  });
+
   testWidgets('the detail screen switches windows and inner tabs', (
     tester,
   ) async {
