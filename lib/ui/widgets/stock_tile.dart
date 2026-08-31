@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 
@@ -8,6 +10,7 @@ import 'category_chip.dart';
 import 'change_chip.dart';
 import 'google_finance_button.dart';
 import 'ticker_avatar.dart';
+import 'touch_target.dart';
 import 'watchlist_highlight.dart';
 import 'watchlist_star.dart';
 
@@ -55,11 +58,13 @@ class StockTile extends StatelessWidget {
   /// The gap between the name and the first number, and between the numbers.
   static const double columnGap = 6;
 
-  /// One icon button: the star, or the link beside it.
-  static const double actionWidth = 26;
+  /// One icon button: the star, or the link beside it. Wider on a touch
+  /// device, where the icon's own footprint is not a tap target — see
+  /// [denseActionSize].
+  static double actionWidth(BuildContext context) => denseActionSize(context);
 
   /// The star and the external link at the end of every row.
-  static const double actionsWidth = actionWidth * 2;
+  static double actionsWidth(BuildContext context) => actionWidth(context) * 2;
 
   /// Below this much space for the ticker and company name, the row drops
   /// what it can rather than overflowing: first the market badge, then the
@@ -87,7 +92,7 @@ class StockTile extends StatelessWidget {
         columnGap +
         (withPrice ? priceColumn(context) + columnGap : 0) +
         changeColumn(context) +
-        actionsWidth +
+        actionsWidth(context) +
         16;
     return width - leading - trailing;
   }
@@ -114,7 +119,7 @@ class StockTile extends StatelessWidget {
         closedColor: background ?? colors.card,
         openColor: colors.pageBackground,
         middleColor: colors.card,
-        transitionDuration: const Duration(milliseconds: 380),
+        transitionDuration: const Duration(milliseconds: 240),
         closedShape: const RoundedRectangleBorder(),
         closedBuilder: (context, _) => _content(context),
         openBuilder: (context, _) => open(context),
@@ -258,7 +263,7 @@ class StockTile extends StatelessWidget {
                   dense: true,
                 )
               else
-                const SizedBox(width: StockTile.actionWidth),
+                SizedBox(width: StockTile.actionWidth(context)),
             ],
           ),
           // The name on its own line, indented to sit under the ticker.
@@ -317,7 +322,7 @@ class GainerTile extends StatelessWidget {
         closedColor: background ?? colors.card,
         openColor: colors.pageBackground,
         middleColor: colors.card,
-        transitionDuration: const Duration(milliseconds: 380),
+        transitionDuration: const Duration(milliseconds: 240),
         closedShape: const RoundedRectangleBorder(),
         closedBuilder: (context, _) => _content(context),
         openBuilder: (context, _) => open(context),
@@ -347,10 +352,23 @@ class GainerTile extends StatelessWidget {
     // list is ranked on, and the absolute change is one tap away.
     final scaler = MediaQuery.textScalerOf(context);
     final tight = constraints.maxWidth < scaler.scale(400);
+
+    // What the row spends before the ticker and the numbers: padding, the
+    // monogram, the gaps and the two actions.
+    final chrome = 16 + 38 + 12 + 8 + StockTile.actionsWidth(context) + 16;
+    // The numbers take what they want, but never more than the row can spare
+    // once the ticker has a readable minimum. Reserving a fixed width for
+    // them overflowed the row at 320dp with large text, where a touch
+    // device's actions are 88px of the 256 the row actually has.
+    final numbers = math.max(
+      0.0,
+      math.min(
+        scaler.scale(tight ? 72 : 188),
+        constraints.maxWidth - chrome - 40,
+      ),
+    );
     // At 320dp with large text even the badge has to go.
-    final space =
-        constraints.maxWidth -
-        (16 + 38 + 12 + 8 + scaler.scale(tight ? 72 : 188) + 52 + 16);
+    final space = constraints.maxWidth - chrome - numbers;
     final showBadge = showMarketBadge && space >= 124;
 
     // See StockTile: a name squeezed beside the numbers is cut mid-word, so
@@ -408,35 +426,45 @@ class GainerTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    Fmt.price(row.latestPrice),
-                    style: TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w600,
-                      color: colors.textPrimary,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
+              // Bounded to the width the row above reserved for it. Left to
+              // size itself it took whatever its widest line needed, which at
+              // 320dp and 1.6x text was more than the row had left.
+              SizedBox(
+                width: numbers,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        Fmt.price(row.latestPrice),
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w600,
+                          color: colors.textPrimary,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        tight
+                            ? Fmt.signedPercent(row.pctChange, decimals: 1)
+                            : '${Fmt.signedPrice(row.priceChange)} '
+                                  '(${Fmt.signedPercent(row.pctChange, decimals: 1)})',
+                        maxLines: 1,
+                        softWrap: false,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: colors.forChange(row.pctChange),
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    tight
-                        ? Fmt.signedPercent(row.pctChange, decimals: 1)
-                        : '${Fmt.signedPrice(row.priceChange)} '
-                              '(${Fmt.signedPercent(row.pctChange, decimals: 1)})',
-                    maxLines: 1,
-                    softWrap: false,
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: colors.forChange(row.pctChange),
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ],
+                ),
               ),
               WatchlistStar(
                 market: row.market,
@@ -453,7 +481,7 @@ class GainerTile extends StatelessWidget {
                   dense: true,
                 )
               else
-                const SizedBox(width: StockTile.actionWidth),
+                SizedBox(width: StockTile.actionWidth(context)),
             ],
           ),
           // The name on its own line, indented to sit under the ticker.

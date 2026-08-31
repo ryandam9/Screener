@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'touch_target.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -62,7 +64,7 @@ class GoogleFinanceButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final size = dense ? 26.0 : 40.0;
+    final size = dense ? denseActionSize(context) : 40.0;
 
     return Tooltip(
       message: '$ticker on Google Finance',

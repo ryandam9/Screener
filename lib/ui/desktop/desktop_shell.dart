@@ -180,7 +180,7 @@ class _DesktopShellState extends State<DesktopShell> {
                 // Sections fade through one another rather than cutting, so the
                 // sidebar selection and the content stay visibly connected.
                 child: PageTransitionSwitcher(
-                  duration: const Duration(milliseconds: 320),
+                  duration: const Duration(milliseconds: 200),
                   transitionBuilder: (child, animation, secondaryAnimation) =>
                       FadeThroughTransition(
                         animation: animation,
@@ -619,7 +619,7 @@ class _MasterDetail extends StatelessWidget {
             Container(width: 1, color: colors.cardBorder),
             Expanded(
               child: PageTransitionSwitcher(
-                duration: const Duration(milliseconds: 260),
+                duration: const Duration(milliseconds: 220),
                 transitionBuilder: (child, animation, secondaryAnimation) =>
                     FadeThroughTransition(
                       animation: animation,

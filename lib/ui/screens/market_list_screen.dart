@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -95,6 +96,17 @@ class _MarketListScreenState extends State<MarketListScreen>
 
   final TextEditingController _searchController = TextEditingController();
 
+  /// Every keystroke used to re-run the query and rebuild the whole list, so
+  /// typing a ticker looked like the screen refreshing under the reader.
+  Timer? _searchDebounce;
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 200), () {
+      if (mounted) setState(() => _search = value);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -112,6 +124,7 @@ class _MarketListScreenState extends State<MarketListScreen>
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _tabs.dispose();
     _searchController.dispose();
     super.dispose();
@@ -172,7 +185,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                   hintText: 'Search ticker or name',
                   isDense: true,
                 ),
-                onChanged: (value) => setState(() => _search = value),
+                onChanged: _onSearchChanged,
               )
             : InkWell(
                 onTap: () => _showScopeSheet(context, appState, window),
@@ -207,6 +220,8 @@ class _MarketListScreenState extends State<MarketListScreen>
             onPressed: () => setState(() {
               _searching = !_searching;
               if (!_searching) {
+                // Closing the box clears at once; only typing is debounced.
+                _searchDebounce?.cancel();
                 _search = '';
                 _searchController.clear();
               }
@@ -706,7 +721,7 @@ class _SortHeader extends StatelessWidget {
               ),
               // The star and link at the end of every row, so the headings stay
               // over the columns they sort.
-              const SizedBox(width: StockTile.actionsWidth),
+              SizedBox(width: StockTile.actionsWidth(context)),
             ],
           );
         },

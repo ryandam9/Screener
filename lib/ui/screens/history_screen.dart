@@ -549,7 +549,7 @@ class _HistoryTile extends StatelessWidget {
                       dense: true,
                     )
                   else
-                    const SizedBox(width: StockTile.actionWidth),
+                    SizedBox(width: StockTile.actionWidth(context)),
                 ],
               ),
               // The name when the file publishes one; the span of bars either
