@@ -3,7 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:screener/models/growth_window.dart';
+import 'package:screener/theme/app_theme.dart';
 import 'package:screener/ui/widgets/info_dialog.dart';
+import 'package:screener/ui/widgets/panels.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -21,9 +24,13 @@ void main() {
   late Directory serveDir;
   late Map<String, List<int>> payloads;
 
-  setUpAll(() {
+  setUpAll(() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
+    // The width of a real string is only meaningful in the app's own font;
+    // the default test face is a fixed-width stand-in. Loaded here rather
+    // than inside a test, where the fake-async zone never completes file I/O.
+    await loadInter();
   });
 
   setUp(() async {
@@ -243,6 +250,47 @@ void main() {
       },
     );
   }
+
+  testWidgets('five window pills stay on one line at 320dp', (tester) async {
+    // What the dashboard's context bar gives the selector on the narrowest
+    // phone: 320 less the panel's 16dp margins and its 10dp padding. No
+    // fixture publishes five windows — the real files do — so the selector is
+    // measured on its own at the width the page hands it.
+    const width = 320.0 - 32 - 20;
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: width,
+              child: PeriodSelector<GrowthWindow>(
+                values: GrowthWindow.values,
+                selected: GrowthWindow.sevenDays,
+                labelOf: (value) => value.label,
+                onChanged: (_) {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // At full padding a pill wants more than the 53.6dp each one gets, and
+    // `3M` broke onto two lines — doubling the row's height for nothing.
+    final baseline = tester.getSize(find.text('7D')).height;
+    for (final window in GrowthWindow.values) {
+      expect(
+        tester.getSize(find.text(window.label)).height,
+        baseline,
+        reason: '${window.label} wrapped',
+      );
+    }
+  });
 
   for (final (width, height, scale) in [
     (320.0, 640.0, 1.0), // the narrowest phone still in use

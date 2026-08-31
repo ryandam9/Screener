@@ -25,6 +25,7 @@ class _HomeShellState extends State<HomeShell> {
   bool _handlingDigestRequest = false;
 
   void _goToMarkets() => setState(() => _index = 1);
+  void _goToWatchlist() => setState(() => _index = 2);
 
   /// Lands on the 7-day list when the morning digest was tapped.
   ///
@@ -58,7 +59,10 @@ class _HomeShellState extends State<HomeShell> {
     _consumeDigestRequest(context);
 
     final pages = [
-      DashboardScreen(onSeeAllMarkets: _goToMarkets),
+      DashboardScreen(
+        onSeeAllMarkets: _goToMarkets,
+        onSeeWatchlist: _goToWatchlist,
+      ),
       MarketListScreen(market: appState.selectedMarket),
       const WatchlistScreen(),
       const MoreScreen(),

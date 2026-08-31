@@ -47,24 +47,69 @@ void main() {
         shouldFail: shouldFail,
       ).then((_) {});
 
-  testWidgets('dashboard renders both markets and the top gainers', (
+  testWidgets('the dashboard shows one market and switches between them', (
     tester,
   ) async {
     await launch(tester);
 
     expect(find.text('Stocks Analysis'), findsOneWidget);
-    // Both market cards are present; their subtitles are unique to the cards,
-    // where the bare labels also appear as badges on mixed-market rows.
-    expect(find.text('Australian Market'), findsOneWidget);
-    expect(find.text('US Market'), findsOneWidget);
 
-    // The strongest 7-day mover across both fixture markets.
+    // Every file is a segment on the context bar; one of them is on screen.
+    for (final market in Market.values) {
+      expect(
+        find.descendant(
+          of: find.byType(SegmentedButton<Market>),
+          matching: find.text(market.label),
+        ),
+        findsOneWidget,
+        reason: '${market.label} segment',
+      );
+    }
+
+    // US is the default: its rows and its summary, not the ASX file's.
     expect(find.text('MRNA'), findsWidgets);
     expect(find.text('139.22'), findsWidgets);
+    expect(find.text('QETH'), findsNothing);
 
-    // Recent Analyses is built from the run metadata inside the files.
+    await tester.tap(
+      find.descendant(
+        of: find.byType(SegmentedButton<Market>),
+        matching: find.text('ASX'),
+      ),
+    );
+    await settle(tester);
+    expect(find.text('QETH'), findsWidgets);
+    expect(find.text('MRNA'), findsNothing, reason: 'one file at a time');
+
+    // Recent Analyses is built from the run metadata inside the file.
     expect(find.text('Recent Analyses'), findsOneWidget);
     expect(find.textContaining('7 Day Analysis'), findsWidgets);
+  });
+
+  testWidgets('the gainers are on the first screen, not below the summary', (
+    tester,
+  ) async {
+    await launch(tester);
+
+    // Three stacked market cards spent the whole first viewport on summaries.
+    expect(
+      tester.getTopLeft(find.text('Top Gainers (7 Day)')).dy,
+      lessThan(300),
+    );
+  });
+
+  testWidgets('the watchlist snapshot counts what the window leaves out', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'watchlist': ['us:MRNA', 'us:NVAX'],
+    });
+    await launch(tester);
+
+    expect(find.text('Watchlist'), findsWidgets);
+    // MRNA is in the 7-day window; NVAX is published only in the monthly one,
+    // so the snapshot says so rather than quietly showing one of two.
+    expect(find.textContaining('1 of 2 starred US stocks'), findsOneWidget);
   });
 
   testWidgets('opening a gainer shows its detail screen', (tester) async {
@@ -253,7 +298,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.arrow_back));
     await settle(tester);
 
-    await tester.tap(find.text('Watchlist'));
+    await tester.tap(find.text('Watchlist').last);
     await settle(tester);
 
     expect(find.textContaining('starred tickers'), findsWidgets);
@@ -304,8 +349,8 @@ void main() {
   testWidgets('the dashboard dates the run, not the download', (tester) async {
     await launch(tester);
 
-    // One stamp per market card, because the two runs are independent.
-    expect(find.byType(RefreshStamp), findsNWidgets(Market.values.length));
+    // One stamp, for the market on screen.
+    expect(find.byType(RefreshStamp), findsOneWidget);
 
     // The fixture's run is stamped 22 August 2026 UTC; the download happened
     // in this test, seconds ago. A label saying "Today" would be dating the

@@ -8,6 +8,7 @@ import '../../models/growth_window.dart';
 import '../../models/market.dart';
 import '../../models/stock_row.dart';
 import '../../state/app_state.dart';
+import '../../state/watchlist_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../widgets/panels.dart';
@@ -20,23 +21,41 @@ import 'stock_detail_screen.dart';
 import '../info/page_info.dart';
 import '../widgets/info_dialog.dart';
 
-/// Everything the dashboard renders, gathered in one pass over every market.
+/// Everything the dashboard renders, for the one market it is showing.
 class _DashboardData {
   const _DashboardData({
-    required this.summaries,
+    required this.market,
+    required this.summary,
     required this.topGainers,
+    required this.starred,
+    required this.starredTotal,
     required this.runs,
   });
 
-  final Map<Market, MarketSummary> summaries;
+  final Market market;
+
+  /// Null while the file for [market] has not been opened.
+  final MarketSummary? summary;
+
   final List<StockRow> topGainers;
+
+  /// Starred tickers this window lists, strongest first.
+  final List<StockRow> starred;
+
+  /// How many are starred in this market altogether, including the ones this
+  /// window does not list — see the note under the snapshot.
+  final int starredTotal;
+
   final List<RunInfo> runs;
 }
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key, this.onSeeAllMarkets});
+  const DashboardScreen({super.key, this.onSeeAllMarkets, this.onSeeWatchlist});
 
   final VoidCallback? onSeeAllMarkets;
+
+  /// Opens the watchlist tab, for the snapshot's own "see all".
+  final VoidCallback? onSeeWatchlist;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -46,37 +65,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<_DashboardData>? _future;
   String _signature = '';
 
-  Future<_DashboardData> _load(AppState appState) async {
+  /// One market's dashboard.
+  ///
+  /// Three files pooled into one page put three tall summaries above the rows
+  /// someone opened the app to read. A phone shows the market that is
+  /// selected, and the strip at the top switches it.
+  Future<_DashboardData> _load(
+    AppState appState,
+    WatchlistController watchlist,
+  ) async {
+    final market = appState.selectedMarket;
     final window = appState.selectedWindow;
-    final summaries = <Market, MarketSummary>{};
-    final gainers = <StockRow>[];
-    final runs = <RunInfo>[];
+    final starredTotal = watchlist.countFor(market);
+    final database = appState.databaseOf(market);
 
-    for (final market in Market.values) {
-      final database = appState.databaseOf(market);
-      if (database == null) continue;
-      summaries[market] = await database.summary();
-      runs.addAll(await database.allRuns());
-      if (database.availableWindows.contains(window)) {
-        gainers.addAll(
-          await database.stocks(window, const StockQuery(limit: 6)),
-        );
-      }
+    if (database == null) {
+      return _DashboardData(
+        market: market,
+        summary: null,
+        topGainers: const [],
+        starred: const [],
+        starredTotal: starredTotal,
+        runs: const [],
+      );
     }
 
-    gainers.sort((a, b) => b.pctChange.compareTo(a.pctChange));
-    runs.sort((a, b) {
-      final left = a.runStartedAt;
-      final right = b.runStartedAt;
-      if (left == null || right == null) {
-        return a.window.approximateDays.compareTo(b.window.approximateDays);
-      }
-      return right.compareTo(left);
-    });
+    final hasWindow = database.availableWindows.contains(window);
+    final gainers = hasWindow
+        ? await database.stocks(window, const StockQuery(limit: 6))
+        : <StockRow>[];
+
+    final tickers = watchlist.tickersFor(market);
+    final starred = tickers.isEmpty || !hasWindow
+        ? <StockRow>[]
+        : await database.stocks(window, StockQuery(tickers: tickers));
+    starred.sort((a, b) => b.pctChange.compareTo(a.pctChange));
+
+    final runs = await database.allRuns()
+      ..sort((a, b) {
+        final left = a.runStartedAt;
+        final right = b.runStartedAt;
+        if (left == null || right == null) {
+          return a.window.approximateDays.compareTo(b.window.approximateDays);
+        }
+        return right.compareTo(left);
+      });
 
     return _DashboardData(
-      summaries: summaries,
-      topGainers: gainers.take(4).toList(),
+      market: market,
+      summary: await database.summary(),
+      topGainers: gainers,
+      starred: starred,
+      starredTotal: starredTotal,
       runs: runs,
     );
   }
@@ -84,18 +124,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
+    final watchlist = context.watch<WatchlistController>();
     final colors = context.colors;
 
-    // Reload when a database is swapped in or the window changes.
+    // Reload when the market or window changes, a database is swapped in, or
+    // a ticker is starred.
     final signature = [
+      appState.selectedMarket.id,
       appState.selectedWindow.name,
+      watchlist.keys.join(','),
       for (final market in Market.values)
         '${market.id}:${appState.stateOf(market).asset?.syncedAt.millisecondsSinceEpoch ?? 0}:'
             '${appState.stateOf(market).isReady}',
     ].join('|');
     if (signature != _signature) {
       _signature = signature;
-      _future = _load(appState);
+      _future = _load(appState, watchlist);
     }
 
     return Scaffold(
@@ -152,11 +196,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Center(child: CircularProgressIndicator()),
                   );
                 }
-                if (data.summaries.isEmpty) return const _DashboardSkeleton();
+                if (data.summary == null) return const _DashboardSkeleton();
                 return _DashboardBody(
                   data: data,
                   window: appState.selectedWindow,
                   onSeeAllMarkets: widget.onSeeAllMarkets,
+                  onSeeWatchlist: widget.onSeeWatchlist,
                 );
               },
             ),
@@ -216,22 +261,30 @@ class _DashboardBody extends StatelessWidget {
     required this.data,
     required this.window,
     this.onSeeAllMarkets,
+    this.onSeeWatchlist,
   });
 
   final _DashboardData data;
   final GrowthWindow window;
   final VoidCallback? onSeeAllMarkets;
+  final VoidCallback? onSeeWatchlist;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final market = data.market;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: _MarketCards(summaries: data.summaries, window: window),
+        const SizedBox(height: 12),
+        _ContextBar(market: market, window: window),
+        const SizedBox(height: 10),
+        _MarketStrip(
+          market: market,
+          summary: data.summary,
+          window: window,
+          state: context.watch<AppState>().stateOf(market),
         ),
         SectionHeader(
           title: 'Top Gainers (${window.longLabel})',
@@ -240,9 +293,9 @@ class _DashboardBody extends StatelessWidget {
         ),
         Panel(
           child: data.topGainers.isEmpty
-              ? const StatusView(
+              ? StatusView(
                   icon: Icons.trending_flat,
-                  title: 'No rows in this window',
+                  title: 'No ${market.label} rows in this window',
                   compact: true,
                 )
               : Column(
@@ -250,6 +303,7 @@ class _DashboardBody extends StatelessWidget {
                     for (final row in data.topGainers) ...[
                       GainerTile(
                         row: row,
+                        showMarketBadge: false,
                         opensTo: (_) => StockDetailScreen(
                           market: row.market,
                           ticker: row.ticker,
@@ -262,6 +316,52 @@ class _DashboardBody extends StatelessWidget {
                   ],
                 ),
         ),
+        if (data.starredTotal > 0) ...[
+          SectionHeader(
+            title: 'Watchlist',
+            actionLabel: 'See all',
+            onAction: onSeeWatchlist,
+          ),
+          Panel(
+            child: data.starred.isEmpty
+                ? StatusView(
+                    icon: Icons.star_border_rounded,
+                    title:
+                        'None of your ${market.label} stars are in this window',
+                    compact: true,
+                  )
+                : Column(
+                    children: [
+                      for (final row in data.starred.take(3)) ...[
+                        GainerTile(
+                          row: row,
+                          showMarketBadge: false,
+                          opensTo: (_) => StockDetailScreen(
+                            market: row.market,
+                            ticker: row.ticker,
+                            initialWindow: window,
+                          ),
+                        ),
+                        if (row != data.starred.take(3).last)
+                          Divider(height: 1, color: colors.divider, indent: 66),
+                      ],
+                    ],
+                  ),
+          ),
+          // The snapshot only shows what this window lists. Saying how many
+          // are starred altogether keeps it from reading as the whole list —
+          // the watchlist tab is the one that shows every star.
+          if (data.starred.length < data.starredTotal)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Text(
+                '${data.starred.length} of ${data.starredTotal} starred '
+                '${market.label} ${market.instrumentNoun} are in the '
+                '${window.longLabel.toLowerCase()} window.',
+                style: TextStyle(fontSize: 11.5, color: colors.textTertiary),
+              ),
+            ),
+        ],
         const SectionHeader(title: 'Recent Analyses'),
         Panel(
           child: Column(
@@ -279,90 +379,61 @@ class _DashboardBody extends StatelessWidget {
   }
 }
 
-/// The market cards at the top of the dashboard, in as many columns as fit.
+/// Which file, and which window of it, the page below is about.
 ///
-/// One row across was right for two files. A third makes each card 108dp on a
-/// 360dp phone, which is narrower than the headline percentage — "+117.91%"
-/// wrapped onto a second line, and onto a third at the largest text sizes. So
-/// the strip breaks into a grid instead: two up on a phone, all of them across
-/// wherever there is room.
-class _MarketCards extends StatelessWidget {
-  const _MarketCards({required this.summaries, required this.window});
+/// One bar rather than a title menu and a toolbar icon: the two choices that
+/// decide every number on the screen were the two that took the most taps to
+/// find.
+class _ContextBar extends StatelessWidget {
+  const _ContextBar({required this.market, required this.window});
 
-  final Map<Market, MarketSummary> summaries;
+  final Market market;
   final GrowthWindow window;
-
-  /// Below this a card cannot hold its own headline. Scaled with the reader's
-  /// text size, since that is what the number's width follows.
-  static const double _minCardWidth = 132;
-  static const double _gap = 12;
 
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    final markets = Market.values;
+    final windows = appState.availableWindows;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final minimum = MediaQuery.textScalerOf(context).scale(_minCardWidth);
-        final columns = ((constraints.maxWidth + _gap) / (minimum + _gap))
-            .floor()
-            .clamp(1, markets.length);
-
-        final rows = <Widget>[];
-        for (var start = 0; start < markets.length; start += columns) {
-          final chunk = markets.skip(start).take(columns).toList();
-          rows.add(
-            // IntrinsicHeight gives the row a definite height, so its cards
-            // can stretch to match the tallest. Without it, `stretch` inside
-            // the scrolling column asks for infinite height.
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (var i = 0; i < columns; i++) ...[
-                    if (i != 0) const SizedBox(width: _gap),
-                    // A short last row keeps the column width of the rows
-                    // above it: a lone card stretched across the screen would
-                    // read as a different kind of card altogether.
-                    Expanded(
-                      child: i < chunk.length
-                          ? _MarketCard(
-                              market: chunk[i],
-                              summary: summaries[chunk[i]],
-                              window: window,
-                              state: appState.stateOf(chunk[i]),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          );
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (var i = 0; i < rows.length; i++) ...[
-              if (i != 0) const SizedBox(height: _gap),
-              rows[i],
+    return Panel(
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SegmentedButton<Market>(
+            segments: [
+              for (final value in Market.values)
+                ButtonSegment(value: value, label: Text(value.label)),
             ],
-          ],
-        );
-      },
+            selected: {market},
+            showSelectedIcon: false,
+            style: const ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            onSelectionChanged: (selection) =>
+                appState.selectMarket(selection.first),
+          ),
+          const SizedBox(height: 8),
+          PeriodSelector<GrowthWindow>(
+            values: windows,
+            selected: windows.contains(window) ? window : windows.first,
+            labelOf: (value) => value.label,
+            onChanged: appState.selectWindow,
+          ),
+        ],
+      ),
     );
   }
 }
 
-/// One market's card at the top of the dashboard.
+/// The selected market in one strip: what the window did, and how fresh it is.
 ///
-/// The published data has no index level, so the headline number is the median
-/// percentage change of the window and the sparkline is that median across
-/// every window the file contains.
-class _MarketCard extends StatelessWidget {
-  const _MarketCard({
+/// The old page stacked a full-height card per file above the rows. Three
+/// files made that 430dp on a 400dp-wide phone — the whole first screen spent
+/// on summaries, with the movers below the fold.
+class _MarketStrip extends StatelessWidget {
+  const _MarketStrip({
     required this.market,
     required this.summary,
     required this.window,
@@ -373,7 +444,7 @@ class _MarketCard extends StatelessWidget {
   final MarketSummary? summary;
   final GrowthWindow window;
 
-  /// The download behind this card, for the refresh stamp.
+  /// The download behind this strip, for the refresh stamp.
   final MarketState state;
 
   @override
@@ -386,80 +457,71 @@ class _MarketCard extends StatelessWidget {
         if (entry.count > 0) entry.medianPctChange,
     ];
 
-    return Material(
-      color: colors.card,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: colors.cardBorder),
-      ),
-      child: InkWell(
-        onTap: summary == null
-            ? null
-            : () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) =>
-                      MarketListScreen(market: market, initialWindow: window),
-                ),
-              ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
+    return Panel(
+      padding: const EdgeInsets.fromLTRB(14, 11, 14, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                market.label,
-                style: TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -0.3,
-                  color: colors.textPrimary,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (stat == null || stat.count == 0)
+                      Text(
+                        summary == null ? 'Loading…' : 'No rows',
+                        style: TextStyle(
+                          fontSize: 20,
+                          color: colors.textTertiary,
+                        ),
+                      )
+                    else ...[
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          Fmt.signedPercent(stat.medianPctChange, decimals: 2),
+                          maxLines: 1,
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.6,
+                            color: colors.forChange(stat.medianPctChange),
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        'median ${window.label} · '
+                        '${Fmt.integer(stat.count)} ${market.instrumentNoun}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: colors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              Text(
-                market.subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 11.5, color: colors.textSecondary),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 40,
-                child: trend.length >= 2
-                    ? Sparkline(values: trend, color: colors.positive)
-                    : const SizedBox.shrink(),
-              ),
-              const SizedBox(height: 10),
-              if (stat == null || stat.count == 0)
-                Text(
-                  summary == null ? 'Loading…' : 'No rows',
-                  style: TextStyle(fontSize: 15, color: colors.textTertiary),
-                )
-              else ...[
-                Text(
-                  Fmt.signedPercent(stat.medianPctChange, decimals: 2),
-                  style: TextStyle(
-                    fontSize: 21,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.6,
-                    color: colors.forChange(stat.medianPctChange),
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'median ${window.label} · ${Fmt.integer(stat.count)} ${market.instrumentNoun}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11.5, color: colors.textSecondary),
+              if (trend.length >= 2) ...[
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 92,
+                  height: 36,
+                  child: Sparkline(values: trend, color: colors.positive),
                 ),
               ],
-              const SizedBox(height: 8),
-              RefreshStamp(state: state, dense: true),
             ],
           ),
-        ),
+          const SizedBox(height: 6),
+          RefreshStamp(state: state, dense: true),
+        ],
       ),
     );
   }
