@@ -80,11 +80,15 @@ class PageInfo {
 
 /// Opens [info] as a dialog, fading and scaling in.
 Future<void> showPageInfo(BuildContext context, PageInfo info) {
+  final media = MediaQuery.of(context);
   return showModal<void>(
     context: context,
-    configuration: const FadeScaleTransitionConfiguration(
-      transitionDuration: Duration(milliseconds: 220),
-      reverseTransitionDuration: Duration(milliseconds: 160),
+    configuration: FadeScaleTransitionConfiguration(
+      transitionDuration: AppMotion.forMedia(media, AppMotion.content),
+      reverseTransitionDuration: AppMotion.forMedia(
+        media,
+        AppMotion.selection,
+      ),
     ),
     builder: (context) => InfoDialog(info: info),
   );

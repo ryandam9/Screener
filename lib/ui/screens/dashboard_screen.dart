@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -25,6 +26,7 @@ import '../widgets/info_dialog.dart';
 class _DashboardData {
   const _DashboardData({
     required this.market,
+    required this.window,
     required this.summary,
     required this.growthTrend,
     required this.topGainers,
@@ -34,6 +36,7 @@ class _DashboardData {
   });
 
   final Market market;
+  final GrowthWindow window;
 
   /// Null while the file for [market] has not been opened.
   final MarketSummary? summary;
@@ -88,6 +91,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (database == null) {
       return _DashboardData(
         market: market,
+        window: window,
         summary: null,
         growthTrend: const [],
         topGainers: const [],
@@ -129,6 +133,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final growth = await growthFuture;
     return _DashboardData(
       market: market,
+      window: window,
       summary: await summaryFuture,
       growthTrend: [for (final point in growth) point.pctChange],
       topGainers: gainers,
@@ -211,7 +216,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 if (data.summary == null) return const _DashboardSkeleton();
                 return _DashboardBody(
                   data: data,
-                  window: appState.selectedWindow,
+                  window: data.window,
                   onSeeAllMarkets: widget.onSeeAllMarkets,
                   onSeeWatchlist: widget.onSeeWatchlist,
                 );
@@ -250,17 +255,38 @@ class _DashboardBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final market = data.market;
+    final motionDuration = AppMotion.contentDuration(context);
+
+    Widget fadeThrough({
+      required String key,
+      required Color fillColor,
+      required Widget child,
+    }) => PageTransitionSwitcher(
+      duration: motionDuration,
+      transitionBuilder: (child, animation, secondaryAnimation) =>
+          FadeThroughTransition(
+            animation: animation,
+            secondaryAnimation: secondaryAnimation,
+            fillColor: fillColor,
+            child: child,
+          ),
+      child: KeyedSubtree(key: ValueKey(key), child: child),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 12),
-        _MarketOverview(
-          market: market,
-          summary: data.summary,
-          trend: data.growthTrend,
-          window: window,
-          state: context.watch<AppState>().stateOf(market),
+        fadeThrough(
+          key: 'overview-${market.id}-${window.name}',
+          fillColor: colors.pageBackground,
+          child: _MarketOverview(
+            market: market,
+            summary: data.summary,
+            trend: data.growthTrend,
+            window: window,
+            state: context.watch<AppState>().stateOf(market),
+          ),
         ),
         SectionHeader(
           title: 'Top Gainers (${window.longLabel})',
@@ -268,47 +294,18 @@ class _DashboardBody extends StatelessWidget {
           onAction: onSeeAllMarkets,
         ),
         Panel(
-          child: data.topGainers.isEmpty
-              ? StatusView(
-                  icon: Icons.trending_flat,
-                  title: 'No ${market.label} rows in this window',
-                  compact: true,
-                )
-              : Column(
-                  children: [
-                    for (final row in data.topGainers) ...[
-                      GainerTile(
-                        row: row,
-                        showMarketBadge: false,
-                        opensTo: (_) => StockDetailScreen(
-                          market: row.market,
-                          ticker: row.ticker,
-                          initialWindow: window,
-                        ),
-                      ),
-                      if (row != data.topGainers.last)
-                        Divider(height: 1, color: colors.divider, indent: 66),
-                    ],
-                  ],
-                ),
-        ),
-        if (data.starredTotal > 0) ...[
-          SectionHeader(
-            title: 'Watchlist',
-            actionLabel: 'See all',
-            onAction: onSeeWatchlist,
-          ),
-          Panel(
-            child: data.starred.isEmpty
+          child: fadeThrough(
+            key: 'gainers-${market.id}-${window.name}',
+            fillColor: colors.card,
+            child: data.topGainers.isEmpty
                 ? StatusView(
-                    icon: Icons.star_border_rounded,
-                    title:
-                        'None of your ${market.label} stars are in this window',
+                    icon: Icons.trending_flat,
+                    title: 'No ${market.label} rows in this window',
                     compact: true,
                   )
                 : Column(
                     children: [
-                      for (final row in data.starred.take(3)) ...[
+                      for (final row in data.topGainers) ...[
                         GainerTile(
                           row: row,
                           showMarketBadge: false,
@@ -318,11 +315,56 @@ class _DashboardBody extends StatelessWidget {
                             initialWindow: window,
                           ),
                         ),
-                        if (row != data.starred.take(3).last)
-                          Divider(height: 1, color: colors.divider, indent: 66),
+                        if (row != data.topGainers.last)
+                          Divider(
+                            height: 1,
+                            color: colors.divider,
+                            indent: 66,
+                          ),
                       ],
                     ],
                   ),
+          ),
+        ),
+        if (data.starredTotal > 0) ...[
+          SectionHeader(
+            title: 'Watchlist',
+            actionLabel: 'See all',
+            onAction: onSeeWatchlist,
+          ),
+          Panel(
+            child: fadeThrough(
+              key: 'watchlist-${market.id}-${window.name}',
+              fillColor: colors.card,
+              child: data.starred.isEmpty
+                  ? StatusView(
+                      icon: Icons.star_border_rounded,
+                      title:
+                          'None of your ${market.label} stars are in this window',
+                      compact: true,
+                    )
+                  : Column(
+                      children: [
+                        for (final row in data.starred.take(3)) ...[
+                          GainerTile(
+                            row: row,
+                            showMarketBadge: false,
+                            opensTo: (_) => StockDetailScreen(
+                              market: row.market,
+                              ticker: row.ticker,
+                              initialWindow: window,
+                            ),
+                          ),
+                          if (row != data.starred.take(3).last)
+                            Divider(
+                              height: 1,
+                              color: colors.divider,
+                              indent: 66,
+                            ),
+                        ],
+                      ],
+                    ),
+            ),
           ),
           // The snapshot only shows what this window lists. Saying how many
           // are starred altogether keeps it from reading as the whole list —
@@ -340,14 +382,18 @@ class _DashboardBody extends StatelessWidget {
         ],
         const SectionHeader(title: 'Recent Analyses'),
         Panel(
-          child: Column(
-            children: [
-              for (final run in data.runs.take(4)) ...[
-                _RunTile(run: run),
-                if (run != data.runs.take(4).last)
-                  Divider(height: 1, color: colors.divider, indent: 16),
+          child: fadeThrough(
+            key: 'runs-${market.id}',
+            fillColor: colors.card,
+            child: Column(
+              children: [
+                for (final run in data.runs.take(4)) ...[
+                  _RunTile(run: run),
+                  if (run != data.runs.take(4).last)
+                    Divider(height: 1, color: colors.divider, indent: 16),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ],

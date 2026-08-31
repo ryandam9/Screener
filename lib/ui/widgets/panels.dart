@@ -440,7 +440,7 @@ class _PeriodPill extends StatelessWidget {
     final colors = context.colors;
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 160),
+      duration: AppMotion.selectionDuration(context),
       decoration: BoxDecoration(
         color: selected ? colors.interactive : colors.pageBackground,
         borderRadius: BorderRadius.circular(20),

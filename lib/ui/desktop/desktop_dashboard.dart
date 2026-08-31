@@ -1,3 +1,4 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -22,12 +23,15 @@ import '../widgets/watchlist_star.dart';
 /// Everything the desktop dashboard shows, gathered in one pass.
 class DesktopDashboardData {
   const DesktopDashboardData({
+    required this.window,
     required this.topGainers,
     required this.gainersByMarket,
     required this.summaries,
     required this.movers,
     required this.runs,
   });
+
+  final GrowthWindow window;
 
   /// The strongest rows of the window, every market ranked together.
   final List<StockRow> topGainers;
@@ -181,6 +185,7 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
     });
 
     return DesktopDashboardData(
+      window: window,
       topGainers: gainers.take(8).toList(),
       gainersByMarket: {
         for (final market in Market.values)
@@ -291,7 +296,7 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
                 gainerMarket: _gainerMarket,
                 onGainerMarket: (market) =>
                     setState(() => _gainerMarket = market),
-                window: appState.selectedWindow,
+                window: data.window,
                 selected: selected,
                 onSelect: (row) => setState(() => _selected = row),
                 onOpenStock: _openStock,
@@ -563,6 +568,24 @@ class _DashboardBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final motionDuration = AppMotion.contentDuration(context);
+
+    Widget fadeThrough({
+      required String key,
+      required Color fillColor,
+      required Widget child,
+    }) => PageTransitionSwitcher(
+      duration: motionDuration,
+      transitionBuilder: (child, animation, secondaryAnimation) =>
+          FadeThroughTransition(
+            animation: animation,
+            secondaryAnimation: secondaryAnimation,
+            fillColor: fillColor,
+            child: child,
+          ),
+      child: KeyedSubtree(key: ValueKey(key), child: child),
+    );
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.desktopPage,
@@ -589,15 +612,23 @@ class _DashboardBody extends StatelessWidget {
             ),
             actionLabel: 'View all',
             onAction: onViewAllGainers,
-            child: GainersTable(
-              rows: gainers,
-              selected: selected,
-              onTap: onSelect,
+            child: fadeThrough(
+              key: 'gainers-${window.name}-${gainerMarket?.id ?? 'all'}',
+              fillColor: colors.card,
+              child: GainersTable(
+                rows: gainers,
+                selected: selected,
+                onTap: onSelect,
+              ),
             ),
           );
-          final chart = _SecurityChart(
-            row: selected,
-            onOpenDetails: () => onOpenStock(selected),
+          final chart = fadeThrough(
+            key: 'chart-${selected.key}-${selected.window.name}',
+            fillColor: colors.pageBackground,
+            child: _SecurityChart(
+              row: selected,
+              onOpenDetails: () => onOpenStock(selected),
+            ),
           );
           final recent = DesktopPanel(
             title: 'Recent Analyses',
@@ -746,7 +777,7 @@ class _MarketPulseCell extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
+        duration: AppMotion.selectionDuration(context),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         color: selected ? colors.interactiveSurface : Colors.transparent,
         child: Row(

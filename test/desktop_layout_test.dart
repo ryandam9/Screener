@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -139,6 +140,16 @@ void main() {
 
   testWidgets('the dashboard leads with the gainers table', (tester) async {
     await launchDesktop(tester);
+
+    final contentTransitions = find.descendant(
+      of: find.byType(DesktopDashboard),
+      matching: find.byType(PageTransitionSwitcher),
+    );
+    expect(contentTransitions, findsNWidgets(2));
+    for (final transition
+        in tester.widgetList<PageTransitionSwitcher>(contentTransitions)) {
+      expect(transition.duration, AppMotion.content);
+    }
 
     // Nothing above the table: the market cards that used to sit there kept
     // the chart below the fold.

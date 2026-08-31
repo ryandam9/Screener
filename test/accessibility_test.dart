@@ -84,6 +84,22 @@ void main() {
     }
   });
 
+  test('content and selection motion follow reduced-motion preference', () {
+    const reduced = MediaQueryData(disableAnimations: true);
+    const standard = MediaQueryData();
+
+    expect(AppMotion.forMedia(reduced, AppMotion.content), Duration.zero);
+    expect(AppMotion.forMedia(reduced, AppMotion.selection), Duration.zero);
+    expect(
+      AppMotion.forMedia(standard, AppMotion.content),
+      AppMotion.content,
+    );
+    expect(
+      AppMotion.forMedia(standard, AppMotion.selection),
+      AppMotion.selection,
+    );
+  });
+
   testWidgets('a dense row action is a real tap target on a phone', (
     tester,
   ) async {

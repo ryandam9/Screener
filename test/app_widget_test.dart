@@ -1,9 +1,11 @@
 import 'dart:io';
 
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:screener/models/market.dart';
+import 'package:screener/theme/app_theme.dart';
 import 'package:screener/ui/screens/stock_detail_screen.dart';
 import 'package:screener/ui/widgets/refresh_stamp.dart';
 import 'package:screener/ui/widgets/sparkline.dart';
@@ -54,6 +56,14 @@ void main() {
     await launch(tester);
 
     expect(find.text('Stocks Analysis'), findsOneWidget);
+
+    final contentTransitions = tester
+        .widgetList<PageTransitionSwitcher>(find.byType(PageTransitionSwitcher))
+        .toList();
+    expect(contentTransitions, hasLength(3));
+    for (final transition in contentTransitions) {
+      expect(transition.duration, AppMotion.content);
+    }
 
     // Every file is a segment in the market overview; one is on screen.
     for (final market in Market.values) {
