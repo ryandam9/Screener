@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -488,4 +490,21 @@ class FakeNotifier implements Notifier {
 
   @override
   Future<void> cancelAll() async => posted.clear();
+}
+
+/// Loads the bundled Inter faces into the test's font collection.
+///
+/// The default test font is a fixed-width stand-in whose glyphs are nothing
+/// like Inter's, so any assertion about how wide a real string renders passes
+/// or fails for the wrong reason without this.
+Future<void> loadInter() async {
+  final loader = FontLoader('Inter');
+  for (final entity in Directory('assets/fonts').listSync()) {
+    if (entity is File && entity.path.endsWith('.ttf')) {
+      loader.addFont(
+        entity.readAsBytes().then((bytes) => bytes.buffer.asByteData()),
+      );
+    }
+  }
+  await loader.load();
 }

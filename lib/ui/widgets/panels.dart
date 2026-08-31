@@ -387,22 +387,37 @@ class PeriodSelector<T> extends StatelessWidget {
       );
     }
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        for (final value in values)
-          Expanded(
-            child: Center(
-              child: _PeriodPill(
-                label: labelOf(value),
-                selected: value == selected,
-                onTap: () => onChanged(value),
+    // Five pills across a 320dp phone leave about 54dp each, and a pill at
+    // full padding wants a little more than that: `3M` broke onto two lines,
+    // which doubled the row's height. Under pressure the padding gives way
+    // before the label does.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cell = constraints.maxWidth / values.length;
+        final tight = cell.isFinite && cell < _roomyCell;
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            for (final value in values)
+              Expanded(
+                child: Center(
+                  child: _PeriodPill(
+                    label: labelOf(value),
+                    selected: value == selected,
+                    onTap: () => onChanged(value),
+                    dense: tight,
+                  ),
+                ),
               ),
-            ),
-          ),
-      ],
+          ],
+        );
+      },
     );
   }
+
+  /// Below this much room per pill, the dense padding is used instead.
+  static const double _roomyCell = 58;
 }
 
 class _PeriodPill extends StatelessWidget {
@@ -445,6 +460,8 @@ class _PeriodPill extends StatelessWidget {
             ),
             child: Text(
               label,
+              maxLines: 1,
+              softWrap: false,
               style: TextStyle(
                 fontSize: dense ? 12 : 13,
                 fontWeight: FontWeight.w600,

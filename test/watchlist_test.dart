@@ -37,17 +37,40 @@ void main() {
     }
   });
 
-  /// The star inside the dashboard row for [ticker].
-  Finder starFor(String ticker) => find.descendant(
-    of: find.ancestor(of: find.text(ticker), matching: find.byType(GainerTile)),
-    matching: find.byType(WatchlistStar),
-  );
+  /// Switches the dashboard's context bar to [market].
+  ///
+  /// Scrolls back to the top first: starring a row scrolls the list, and the
+  /// context bar is the first thing on it.
+  Future<void> selectMarket(WidgetTester tester, String market) async {
+    await tester.drag(find.byType(GainerTile).first, const Offset(0, 1200));
+    await settle(tester, frames: 6);
+    await tester.tap(
+      find.descendant(
+        of: find.byType(SegmentedButton<Market>),
+        matching: find.text(market),
+      ),
+    );
+    await settle(tester);
+  }
+
+  /// The star inside the dashboard's Top Gainers row for [ticker].
+  ///
+  /// `.first` because a starred ticker shows up twice on the dashboard: in the
+  /// gainers list and again in the watchlist snapshot below it.
+  Finder starFor(String ticker) => find
+      .descendant(
+        of: find.ancestor(
+          of: find.text(ticker),
+          matching: find.byType(GainerTile),
+        ),
+        matching: find.byType(WatchlistStar),
+      )
+      .first;
 
   /// Stars [ticker] from its dashboard row, scrolling to it first.
   ///
-  /// The rows below the market cards are off the bottom of a phone once there
-  /// are three files to summarise, and a tap that lands outside the viewport
-  /// does nothing at all rather than failing.
+  /// A tap that lands outside the viewport does nothing at all rather than
+  /// failing, so the row is brought on screen first.
   Future<void> tapStar(WidgetTester tester, String ticker) async {
     await tester.ensureVisible(starFor(ticker));
     await settle(tester, frames: 4);
@@ -182,6 +205,7 @@ void main() {
     );
 
     await tapStar(tester, 'MRNA');
+    await selectMarket(tester, 'ASX');
     await tapStar(tester, 'QETH');
 
     expect(prefs.getStringList('watchlist'), ['asx:QETH', 'us:MRNA']);
@@ -256,6 +280,7 @@ void main() {
 
   testWidgets('the price history page marks a starred ticker', (tester) async {
     await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
+    await selectMarket(tester, 'ASX');
     await tapStar(tester, 'QETH');
     final tint = starredSurface(tester);
 

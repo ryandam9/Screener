@@ -51,20 +51,24 @@ void main() {
     expect(Market.values.indexOf(Market.nse), Market.values.length - 1);
   });
 
-  testWidgets('the dashboard summarises NSE alongside the other files', (
-    tester,
-  ) async {
+  testWidgets('the dashboard offers NSE and switches to it', (tester) async {
     await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
 
-    expect(find.text('NSE'), findsWidgets);
-    expect(find.text('Indian Market'), findsOneWidget);
-    // The file's own rows are ranked with everyone else's.
+    // The third file is a segment on the context bar, not a third card.
+    final segment = find.descendant(
+      of: find.byType(SegmentedButton<Market>),
+      matching: find.text('NSE'),
+    );
+    expect(segment, findsOneWidget);
+    expect(find.text('TATAMOTORS'), findsNothing, reason: 'US is selected');
+
+    await tester.tap(segment);
+    await settle(tester);
     expect(find.text('TATAMOTORS'), findsWidgets);
+    expect(find.text('MRNA'), findsNothing, reason: 'one file at a time');
   });
 
-  testWidgets('a third card wraps rather than squeezing the headline', (
-    tester,
-  ) async {
+  testWidgets('the third file costs the dashboard no height', (tester) async {
     await launchApp(
       tester,
       cacheDir: cacheDir,
@@ -73,16 +77,15 @@ void main() {
       devicePixelRatio: 1.0,
     );
 
-    final asx = tester.getTopLeft(find.text('Australian Market'));
-    final us = tester.getTopLeft(find.text('US Market'));
-    final nse = tester.getTopLeft(find.text('Indian Market'));
-
-    // Two across, then the third under the first. Side by side all three
-    // would each get 108dp, which is narrower than "+117.91%".
-    expect(us.dx, greaterThan(asx.dx));
-    expect((us.dy - asx.dy).abs(), lessThan(1));
-    expect(nse.dx, asx.dx, reason: 'the third wraps to the next row');
-    expect(nse.dy, greaterThan(asx.dy));
+    // Three stacked market cards put the rows below the fold. The strip is one
+    // market's, so the gainers start in the first screenful whatever the
+    // bucket grows to.
+    final gainers = tester.getTopLeft(find.text('Top Gainers (7 Day)'));
+    expect(
+      gainers.dy,
+      lessThan(300),
+      reason: 'the rows people opened the app for are on the first screen',
+    );
   });
 
   testWidgets('the market list opens on NSE and lists its rows', (
