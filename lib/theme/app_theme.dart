@@ -91,7 +91,7 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
     textPrimary: Color(0xFF14181F),
     textSecondary: Color(0xFF616B77),
     textName: Color(0xFF414A57),
-    textTertiary: Color(0xFF8C95A1),
+    textTertiary: Color(0xFF68717E),
     divider: Color(0xFFEDEFF3),
     chartGrid: Color(0xFFEDEFF3),
   );
@@ -112,7 +112,7 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
     textPrimary: Color(0xFFF2F4F7),
     textSecondary: Color(0xFFA5AEBA),
     textName: Color(0xFFC6CEDA),
-    textTertiary: Color(0xFF7A8494),
+    textTertiary: Color(0xFF8B95A6),
     divider: Color(0xFF242A33),
     chartGrid: Color(0xFF242A33),
   );

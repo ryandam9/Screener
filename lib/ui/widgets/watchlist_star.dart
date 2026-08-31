@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'touch_target.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/market.dart';
@@ -29,7 +31,7 @@ class WatchlistStar extends StatelessWidget {
     final colors = context.colors;
     final watchlist = context.watch<WatchlistController>();
     final starred = watchlist.contains(market, ticker);
-    final size = dense ? 26.0 : 40.0;
+    final size = dense ? denseActionSize(context) : 40.0;
 
     return Tooltip(
       message: starred
