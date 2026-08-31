@@ -270,6 +270,69 @@ void main() {
     expect(find.text('Universe in window'), findsOneWidget);
   });
 
+  /// Wide enough for a row to have slack to strand. A loose Flexible is
+  /// allocated a share of it and leaves what it does not use where it stands,
+  /// so the trailing text floats inwards with the surplus behind it.
+  Future<void> launchWide(WidgetTester tester) async {
+    tester.view.physicalSize = const Size(880, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await launchApp(
+      tester,
+      cacheDir: tempDir,
+      payloads: payloads,
+      size: tester.view.physicalSize,
+      devicePixelRatio: 1.0,
+    );
+  }
+
+  testWidgets('Recent Analyses stamps sit at the edge of their row', (
+    tester,
+  ) async {
+    await launchWide(tester);
+
+    final tile = find
+        .ancestor(
+          of: find.textContaining('7 Day Analysis').first,
+          matching: find.byType(InkWell),
+        )
+        .first;
+    final stamp = find.descendant(of: tile, matching: find.byType(Text)).last;
+    expect(
+      tester.getRect(tile).right - tester.getRect(stamp).right,
+      closeTo(16, 1),
+      reason: 'the stamp sits at the row padding, not adrift of it',
+    );
+  });
+
+  testWidgets('a run id sits against the CSV button beside it', (tester) async {
+    await launchWide(tester);
+
+    await tester.tap(find.text('More'));
+    await settle(tester);
+    await tester.scrollUntilVisible(find.text('Runs and CSV export'), 200);
+    await settle(tester, frames: 4);
+    await tester.tap(find.text('Runs and CSV export'));
+    await settle(tester);
+
+    // The surplus a loose Flexible does not use is left at the end of the
+    // row, past every child — so what it strands is the space after the
+    // button, not the space before it.
+    final button = find.byType(OutlinedButton).first;
+    final row = find.ancestor(of: button, matching: find.byType(Padding)).first;
+    expect(
+      tester.getRect(row).right - tester.getRect(button).right,
+      closeTo(12, 1),
+      reason: 'the CSV button sits at the row padding, not adrift of it',
+    );
+
+    // And the run id is beside the button rather than swallowed.
+    expect(
+      find.byWidgetPredicate((w) => w is Text && (w.data ?? '').contains('Z-')),
+      findsWidgets,
+    );
+  });
+
   testWidgets('a failed refresh keeps serving the cached databases', (
     tester,
   ) async {

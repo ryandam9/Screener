@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -481,47 +483,58 @@ class _RunTile extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '${run.market.label} - ${run.window.longLabel} Analysis',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: colors.textPrimary,
+        child: LayoutBuilder(
+          builder: (context, constraints) => Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${run.market.label} - ${run.window.longLabel} Analysis',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: colors.textPrimary,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${Fmt.integer(run.rowCount)} ${run.market.instrumentNoun} analyzed',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: colors.textSecondary,
+                    const SizedBox(height: 2),
+                    Text(
+                      '${Fmt.integer(run.rowCount)} ${run.market.instrumentNoun} analyzed',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: colors.textSecondary,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Flexible(
-              child: Text(
-                startedAt == null
-                    ? Fmt.date(run.dataAsOf)
-                    : Fmt.relativeStamp(startedAt),
-                textAlign: TextAlign.right,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 11.5, color: colors.textTertiary),
+              const SizedBox(width: 10),
+              // A column of its own rather than a loose Flexible, which claims
+              // a share of the row's free space and leaves what it does not use
+              // stranded after it. Sized to the longest stamp this prints —
+              // "Yesterday, 11:37 AM", 110px in Inter — and never more than the
+              // row can spare.
+              SizedBox(
+                width: math.min(
+                  MediaQuery.textScalerOf(context).scale(120),
+                  constraints.maxWidth * 0.4,
+                ),
+                child: Text(
+                  startedAt == null
+                      ? Fmt.date(run.dataAsOf)
+                      : Fmt.relativeStamp(startedAt),
+                  textAlign: TextAlign.right,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11.5, color: colors.textTertiary),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
