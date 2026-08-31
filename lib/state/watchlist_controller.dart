@@ -23,6 +23,10 @@ class WatchlistController extends ChangeNotifier {
   int get length => _entries.length;
   bool get isEmpty => _entries.isEmpty;
 
+  /// Every entry as `market:TICKER`, sorted — a stable description of what is
+  /// starred, for callers that cache work against it.
+  List<String> get keys => _entries.toList()..sort();
+
   /// Starred tickers for one market, without the market prefix.
   List<String> tickersFor(Market market) {
     final prefix = '${market.id}:';
@@ -45,6 +49,14 @@ class WatchlistController extends ChangeNotifier {
     notifyListeners();
     await _persist();
     return added;
+  }
+
+  /// Puts a ticker back, for the undo a swipe deserves.
+  Future<void> add(Market market, String ticker) async {
+    if (_entries.add(entryFor(market, ticker))) {
+      notifyListeners();
+      await _persist();
+    }
   }
 
   Future<void> remove(Market market, String ticker) async {
