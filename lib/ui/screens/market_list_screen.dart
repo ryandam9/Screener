@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -878,10 +880,8 @@ class _ConsistentList extends StatelessWidget {
             void open() {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => StockDetailScreen(
-                    market: row.market,
-                    ticker: row.ticker,
-                  ),
+                  builder: (_) =>
+                      StockDetailScreen(market: row.market, ticker: row.ticker),
                 ),
               );
             }
@@ -916,81 +916,100 @@ class _ConsistentList extends StatelessWidget {
                     horizontal: 16,
                     vertical: 11,
                   ),
-                  child: Row(
-                    children: [
-                      TickerAvatar(ticker: row.ticker),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              row.ticker,
-                              style: TextStyle(
-                                fontSize: 14.5,
-                                fontWeight: FontWeight.w700,
-                                color: colors.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 1),
-                            // Wrapped, as in the other lists: the name is the
-                            // point of the row.
-                            // See _NameLine in stock_tile.dart for why this
-                            // wraps rather than flexing.
-                            Wrap(
-                              spacing: 6,
-                              runSpacing: 3,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                Text(
-                                  row.shortName,
-                                  maxLines: 3,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 12.5,
-                                    height: 1.25,
-                                    fontWeight: FontWeight.w500,
-                                    color: colors.textName,
-                                  ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => Row(
+                      children: [
+                        TickerAvatar(ticker: row.ticker),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                row.ticker,
+                                style: TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: colors.textPrimary,
                                 ),
-                                if (CategoryChip.maybe(row.category)
-                                    case final chip?)
-                                  chip,
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Flexible(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ChangeChip(pctChange: row.pctChangeShortestWindow),
-                            const SizedBox(height: 3),
-                            Text(
-                              row.thresholdShortestWindow == null
-                                  ? 'shortest window'
-                                  : 'shortest window · '
-                                        '${Fmt.percent(row.thresholdShortestWindow!, decimals: 1)}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                color: colors.textTertiary,
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 1),
+                              // Wrapped, as in the other lists: the name is the
+                              // point of the row.
+                              // See _NameLine in stock_tile.dart for why this
+                              // wraps rather than flexing.
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 3,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                    row.shortName,
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      height: 1.25,
+                                      fontWeight: FontWeight.w500,
+                                      color: colors.textName,
+                                    ),
+                                  ),
+                                  if (CategoryChip.maybe(row.category)
+                                      case final chip?)
+                                    chip,
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      WatchlistStar(
-                        market: row.market,
-                        ticker: row.ticker,
-                        dense: true,
-                      ),
-                    ],
+                        const SizedBox(width: 10),
+                        // A column of its own rather than a loose Flexible.
+                        // Flexible claims a share of the row's free space and
+                        // leaves whatever it does not use where it stands, so
+                        // the chip, the note and the star all floated inwards
+                        // with the surplus stranded after them. Sized to the
+                        // note, which is the widest thing in it, and scaled so
+                        // it does not ellipsize at larger text sizes.
+                        SizedBox(
+                          width: math.min(
+                            MediaQuery.textScalerOf(context).scale(128),
+                            // Never more than the row can spare: at 320dp with
+                            // the largest text the scaled width is wider than
+                            // the row itself, and the name column cannot give
+                            // back more than it has.
+                            constraints.maxWidth * 0.45,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ChangeChip(
+                                pctChange: row.pctChangeShortestWindow,
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                row.thresholdShortestWindow == null
+                                    ? 'shortest window'
+                                    : 'shortest window · '
+                                          '${Fmt.percent(row.thresholdShortestWindow!, decimals: 1)}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  color: colors.textTertiary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        WatchlistStar(
+                          market: row.market,
+                          ticker: row.ticker,
+                          dense: true,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
