@@ -113,6 +113,37 @@ void main() {
     );
   });
 
+  testWidgets('the ticker, name and listing share one line', (tester) async {
+    tester.view.physicalSize = const Size(640, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await launchApp(
+      tester,
+      cacheDir: tempDir,
+      payloads: payloads,
+      size: tester.view.physicalSize,
+      devicePixelRatio: 1.0,
+    );
+    await tester.tap(find.text('MRNA').first);
+    await settle(tester);
+
+    final detail = find.byType(StockDetailScreen);
+    final ticker = tester.getRect(
+      find.descendant(of: detail, matching: find.text('MRNA')).first,
+    );
+    final name = tester.getRect(
+      find.descendant(
+        of: detail,
+        matching: find.text('Moderna, Inc. - Common Stock'),
+      ),
+    );
+
+    // Stacked, these three lines pushed the price and its tiles down the
+    // screen for nothing.
+    expect(name.left, greaterThan(ticker.right));
+    expect(name.center.dy, closeTo(ticker.center.dy, 4));
+  });
+
   testWidgets('a wide quote puts the tiles beside the price', (tester) async {
     // 640dp: the handset shell, so the pushed detail is the whole window and
     // the width under test is the header's own. A threshold on the window's

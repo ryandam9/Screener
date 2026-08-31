@@ -439,46 +439,41 @@ class _OverviewTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                row.ticker,
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.6,
-                  color: colors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                row.name,
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w500,
-                  color: colors.textName,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Row(
+              // Ticker, name and listing on one line, wrapping only where the
+              // row is too narrow to hold them: three stacked lines pushed
+              // the price and its tiles down the screen for nothing.
+              Wrap(
+                spacing: 12,
+                runSpacing: 3,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  Flexible(
-                    child: Text(
-                      '${row.exchange} · ${_prettyAssetType(row.assetType)}',
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: colors.textTertiary,
-                      ),
+                  Text(
+                    row.ticker,
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.6,
+                      color: colors.textPrimary,
                     ),
+                  ),
+                  Text(
+                    row.name,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w500,
+                      color: colors.textName,
+                    ),
+                  ),
+                  Text(
+                    '${row.exchange} · ${_prettyAssetType(row.assetType)}',
+                    style: TextStyle(fontSize: 12, color: colors.textTertiary),
                   ),
                   // Published for the ASX ETFs only, so the line carries the
                   // chip only where the row is labelled.
-                  if (CategoryChip.maybe(row.category) case final chip?) ...[
-                    const SizedBox(width: 8),
-                    chip,
-                  ],
+                  if (CategoryChip.maybe(row.category) case final chip?) chip,
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               _Quote(
                 price: Fmt.price(shownLastPrice),
                 window: usingHistory
@@ -1241,7 +1236,13 @@ class _StatTiles extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         const gap = 10.0;
-        final columns = constraints.maxWidth >= 460 ? 4 : 2;
+        // Four across only where four can hold the numbers at full size. The
+        // widest value the files produce — "+2,454.7%", "139,225.00" — is
+        // 129px as the app renders it, and the tile adds 24 of padding. Below
+        // that the tiles would scale their own numbers down, which is the
+        // opposite of what they are for.
+        const forFour = 4 * (129 + 24) + 3 * gap;
+        final columns = constraints.maxWidth >= forFour ? 4 : 2;
         final width = (constraints.maxWidth - gap * (columns - 1)) / columns;
         return Wrap(
           spacing: gap,
@@ -1292,9 +1293,9 @@ class _StatTile extends StatelessWidget {
               tile.value,
               maxLines: 1,
               style: TextStyle(
-                fontSize: 19,
+                fontSize: 24,
                 fontWeight: FontWeight.w700,
-                letterSpacing: -0.3,
+                letterSpacing: -0.4,
                 color: tile.color ?? colors.textPrimary,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
