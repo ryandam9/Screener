@@ -48,7 +48,7 @@ void main() {
 
     expect(find.byType(InfoDialog), findsOneWidget);
     expect(find.text('Dashboard'), findsWidgets);
-    expect(find.text('Market cards'), findsOneWidget);
+    expect(find.text('Market overview'), findsOneWidget);
 
     // Headings, bullets, worked examples and caveats all render; the sheet
     // scrolls, so the later blocks are scrolled to rather than assumed.
@@ -153,7 +153,7 @@ void main() {
     await tester.tap(find.byType(InfoButton));
     await settle(tester);
 
-    final heading = find.text('Market cards');
+    final heading = find.text('Market overview');
     expect(
       SelectionContainer.maybeOf(tester.element(heading)),
       isNotNull,

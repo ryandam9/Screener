@@ -7,7 +7,6 @@ import '../../models/market.dart';
 import '../../models/price_bar.dart';
 import '../../models/stock_row.dart';
 import '../../state/app_state.dart';
-import '../../state/watchlist_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../screens/stock_detail_screen.dart';
@@ -70,6 +69,11 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
   FocusNode? _ownFocus;
   Future<DesktopDashboardData>? _future;
   String _signature = '';
+  String _databaseSignature = '';
+  final Map<
+    Market,
+    ({MarketDatabase database, MarketSummary summary})
+  > _summaryCache = {};
 
   /// Which market the gainers table is showing, or null for both ranked
   /// together.
@@ -101,27 +105,68 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
     final runs = <RunInfo>[];
     final summaries = <Market, MarketSummary>{};
 
-    for (final market in Market.values) {
+    Future<
+      ({
+        Market market,
+        List<RunInfo> runs,
+        MarketSummary summary,
+        List<StockRow> gainers,
+        List<StockRow> movers,
+      })
+    > loadMarket(Market market) async {
       final database = appState.databaseOf(market);
-      if (database == null) continue;
-
-      runs.addAll(await database.allRuns());
-      summaries[market] = await database.summary();
-
-      if (database.availableWindows.contains(window)) {
-        gainers.addAll(
-          await database.stocks(window, const StockQuery(limit: 8)),
+      if (database == null) {
+        return (
+          market: market,
+          runs: const [],
+          summary: MarketSummary(
+            market: market,
+            stats: const [],
+            consistentCount: 0,
+          ),
+          gainers: const [],
+          movers: const [],
         );
       }
 
       final shortest = database.availableWindows.isEmpty
           ? null
           : database.availableWindows.first;
-      if (shortest != null) {
-        movers.addAll(
-          await database.stocks(shortest, const StockQuery(limit: 5)),
-        );
-      }
+
+      // Start every independent read immediately. Each market has its own
+      // SQLite database, so loading the three files concurrently removes the
+      // serial wait that made the dashboard feel slower as markets were added.
+      final runsFuture = database.allRuns();
+      final cached = _summaryCache[market];
+      final summaryFuture = cached?.database == database
+          ? Future<MarketSummary>.value(cached!.summary)
+          : database.summary();
+      final gainersFuture = database.availableWindows.contains(window)
+          ? database.stocks(window, const StockQuery(limit: 8))
+          : Future<List<StockRow>>.value(const []);
+      final moversFuture = shortest == null
+          ? Future<List<StockRow>>.value(const [])
+          : database.stocks(shortest, const StockQuery(limit: 5));
+
+      final summary = await summaryFuture;
+      _summaryCache[market] = (database: database, summary: summary);
+      return (
+        market: market,
+        runs: await runsFuture,
+        summary: summary,
+        gainers: await gainersFuture,
+        movers: await moversFuture,
+      );
+    }
+
+    final marketData = await Future.wait([
+      for (final market in Market.values) loadMarket(market),
+    ]);
+    for (final result in marketData) {
+      runs.addAll(result.runs);
+      summaries[result.market] = result.summary;
+      gainers.addAll(result.gainers);
+      movers.addAll(result.movers);
     }
 
     gainers.sort((a, b) => b.pctChange.compareTo(a.pctChange));
@@ -180,16 +225,18 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    final watchlist = context.watch<WatchlistController>();
     final colors = context.colors;
 
-    final signature = [
-      appState.selectedWindow.name,
-      watchlist.length.toString(),
+    final databaseSignature = [
       for (final market in Market.values)
         '${market.id}:${appState.stateOf(market).asset?.syncedAt.millisecondsSinceEpoch ?? 0}'
             ':${appState.stateOf(market).isReady}',
     ].join('|');
+    if (databaseSignature != _databaseSignature) {
+      _databaseSignature = databaseSignature;
+      _summaryCache.clear();
+    }
+    final signature = '${appState.selectedWindow.name}|$databaseSignature';
     if (signature != _signature) {
       _signature = signature;
       _future = _load(appState);
@@ -517,10 +564,18 @@ class _DashboardBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.desktopPage,
+        20,
+        AppSpacing.desktopPage,
+        28,
+      ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final splitWorkspace = constraints.maxWidth >= 1020;
+          // At 58% of a 1020dp workspace the table drops its Market column.
+          // That makes a combined ranking ambiguous, so the chart only moves
+          // alongside once the table can keep every identity column.
+          final splitWorkspace = constraints.maxWidth >= 1120;
           final splitSupporting = constraints.maxWidth >= 820;
 
           final gainersPanel = DesktopPanel(
@@ -578,37 +633,37 @@ class _DashboardBody extends StatelessWidget {
                 selected: gainerMarket,
                 onSelect: onGainerMarket,
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: AppSpacing.panelGap),
               if (splitWorkspace)
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(flex: 58, child: gainersPanel),
-                    const SizedBox(width: 18),
-                    Expanded(flex: 42, child: chart),
+                    Expanded(flex: 60, child: gainersPanel),
+                    const SizedBox(width: AppSpacing.panelGap),
+                    Expanded(flex: 40, child: chart),
                   ],
                 )
               else ...[
                 gainersPanel,
-                const SizedBox(height: 18),
+                const SizedBox(height: AppSpacing.panelGap),
                 chart,
               ],
-              const SizedBox(height: 18),
+              const SizedBox(height: AppSpacing.panelGap),
               if (splitSupporting)
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(child: recent),
-                    const SizedBox(width: 18),
+                    const SizedBox(width: AppSpacing.panelGap),
                     Expanded(child: movers),
                   ],
                 )
               else ...[
                 recent,
-                const SizedBox(height: 18),
+                const SizedBox(height: AppSpacing.panelGap),
                 movers,
               ],
-              const SizedBox(height: 18),
+              const SizedBox(height: AppSpacing.panelGap),
               Text(
                 'Screener output, not live quotes. Prices are the window '
                 'endpoints published by the pipeline.',
@@ -643,7 +698,7 @@ class _MarketPulseStrip extends StatelessWidget {
     return Material(
       color: colors.card,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         side: BorderSide(color: colors.cardBorder),
       ),
       clipBehavior: Clip.antiAlias,

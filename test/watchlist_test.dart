@@ -37,10 +37,10 @@ void main() {
     }
   });
 
-  /// Switches the dashboard's context bar to [market].
+  /// Switches the dashboard's market overview to [market].
   ///
   /// Scrolls back to the top first: starring a row scrolls the list, and the
-  /// context bar is the first thing on it.
+  /// market overview is the first thing on it.
   Future<void> selectMarket(WidgetTester tester, String market) async {
     await tester.drag(find.byType(GainerTile).first, const Offset(0, 1200));
     await settle(tester, frames: 6);

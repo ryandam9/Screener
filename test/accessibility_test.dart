@@ -64,6 +64,26 @@ void main() {
     }
   });
 
+  test('semantic change colours clear 4.5:1 on their UI surfaces', () {
+    for (final (name, colors) in [
+      ('light', ScreenerColors.light),
+      ('dark', ScreenerColors.dark),
+    ]) {
+      for (final (foreground, surface, label) in [
+        (colors.positive, colors.positiveSurface, 'positive chip'),
+        (colors.negative, colors.negativeSurface, 'negative chip'),
+        (colors.positive, colors.interactiveSurface, 'selected positive'),
+        (colors.negative, colors.interactiveSurface, 'selected negative'),
+      ]) {
+        expect(
+          contrast(foreground, surface),
+          greaterThanOrEqualTo(4.5),
+          reason: '$name $label',
+        );
+      }
+    }
+  });
+
   testWidgets('a dense row action is a real tap target on a phone', (
     tester,
   ) async {

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:screener/models/growth_window.dart';
+import 'package:screener/models/market.dart';
 import 'package:screener/theme/app_theme.dart';
 import 'package:screener/ui/widgets/info_dialog.dart';
 import 'package:screener/ui/widgets/panels.dart';
@@ -101,7 +102,7 @@ void main() {
       devicePixelRatio: tester.view.devicePixelRatio,
     );
 
-    // Dashboard, including its info sheet and the market cards.
+    // Dashboard, including its info sheet and market overview.
     await sweep(tester);
     await openAndCloseInfo(tester);
 
@@ -252,7 +253,7 @@ void main() {
   }
 
   testWidgets('five window pills stay on one line at 320dp', (tester) async {
-    // What the dashboard's context bar gives the selector on the narrowest
+    // What the dashboard overview gives the selector on the narrowest
     // phone: 320 less the panel's 16dp margins and its 10dp padding. No
     // fixture publishes five windows — the real files do — so the selector is
     // measured on its own at the width the page hands it.
@@ -290,6 +291,42 @@ void main() {
         reason: '${window.label} wrapped',
       );
     }
+  });
+
+  testWidgets('dashboard filters keep full width at 320dp with large text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1.0;
+    tester.platformDispatcher.textScaleFactorTestValue = 1.6;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    await launchApp(
+      tester,
+      cacheDir: cacheDir,
+      payloads: payloads,
+      size: const Size(320, 640),
+      devicePixelRatio: 1.0,
+    );
+
+    final selector = find.byType(PeriodSelector<GrowthWindow>).first;
+    expect(tester.getSize(selector).width, greaterThanOrEqualTo(260));
+    for (final window in GrowthWindow.values) {
+      final label = find.descendant(
+        of: selector,
+        matching: find.text(window.label),
+      );
+      expect(label, findsOneWidget);
+      expect(
+        truncated(tester, label),
+        isFalse,
+        reason: '${window.label} is clipped by the refresh stamp',
+      );
+    }
+
+    final markets = find.byType(SegmentedButton<Market>);
+    expect(tester.getSize(markets).height, greaterThanOrEqualTo(44));
   });
 
   for (final (width, height, scale) in [

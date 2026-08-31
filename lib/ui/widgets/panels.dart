@@ -73,7 +73,9 @@ class Panel extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = EdgeInsets.zero,
-    this.margin = const EdgeInsets.symmetric(horizontal: 16),
+    this.margin = const EdgeInsets.symmetric(
+      horizontal: AppSpacing.mobilePage,
+    ),
   });
 
   final Widget child;
@@ -92,7 +94,7 @@ class Panel extends StatelessWidget {
         color: colors.card,
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadii.panel),
           side: BorderSide(color: colors.cardBorder),
         ),
         child: Padding(padding: padding, child: child),

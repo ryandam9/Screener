@@ -26,6 +26,7 @@ class _DashboardData {
   const _DashboardData({
     required this.market,
     required this.summary,
+    required this.growthTrend,
     required this.topGainers,
     required this.starred,
     required this.starredTotal,
@@ -36,6 +37,11 @@ class _DashboardData {
 
   /// Null while the file for [market] has not been opened.
   final MarketSummary? summary;
+
+  /// Chronological, chain-linked median market growth from the published
+  /// weekly price series. Unlike the window summaries, these points form a
+  /// real time series and are safe to draw as a sparkline.
+  final List<double> growthTrend;
 
   final List<StockRow> topGainers;
 
@@ -83,6 +89,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return _DashboardData(
         market: market,
         summary: null,
+        growthTrend: const [],
         topGainers: const [],
         starred: const [],
         starredTotal: starredTotal,
@@ -90,30 +97,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
 
+    // Start the two dashboard-wide reads together. SQLite may serialize work
+    // within a database, but neither request now waits for the other to be
+    // created, and the cached growth series makes subsequent loads cheap.
+    final summaryFuture = database.summary();
+    final growthFuture = database.medianGrowthSeries();
     final hasWindow = database.availableWindows.contains(window);
-    final gainers = hasWindow
-        ? await database.stocks(window, const StockQuery(limit: 6))
-        : <StockRow>[];
-
     final tickers = watchlist.tickersFor(market);
-    final starred = tickers.isEmpty || !hasWindow
-        ? <StockRow>[]
-        : await database.stocks(window, StockQuery(tickers: tickers));
+    final gainersFuture = hasWindow
+        ? database.stocks(window, const StockQuery(limit: 6))
+        : Future<List<StockRow>>.value(const []);
+    final starredFuture = tickers.isEmpty || !hasWindow
+        ? Future<List<StockRow>>.value(const [])
+        : database.stocks(window, StockQuery(tickers: tickers));
+    final runsFuture = database.allRuns();
+
+    final gainers = await gainersFuture;
+    final starred = await starredFuture;
     starred.sort((a, b) => b.pctChange.compareTo(a.pctChange));
 
-    final runs = await database.allRuns()
-      ..sort((a, b) {
-        final left = a.runStartedAt;
-        final right = b.runStartedAt;
-        if (left == null || right == null) {
-          return a.window.approximateDays.compareTo(b.window.approximateDays);
-        }
-        return right.compareTo(left);
-      });
+    final runs = await runsFuture;
+    runs.sort((a, b) {
+      final left = a.runStartedAt;
+      final right = b.runStartedAt;
+      if (left == null || right == null) {
+        return a.window.approximateDays.compareTo(b.window.approximateDays);
+      }
+      return right.compareTo(left);
+    });
 
+    final growth = await growthFuture;
     return _DashboardData(
       market: market,
-      summary: await database.summary(),
+      summary: await summaryFuture,
+      growthTrend: [for (final point in growth) point.pctChange],
       topGainers: gainers,
       starred: starred,
       starredTotal: starredTotal,
@@ -241,6 +258,7 @@ class _DashboardBody extends StatelessWidget {
         _MarketOverview(
           market: market,
           summary: data.summary,
+          trend: data.growthTrend,
           window: window,
           state: context.watch<AppState>().stateOf(market),
         ),
@@ -343,12 +361,14 @@ class _MarketOverview extends StatelessWidget {
   const _MarketOverview({
     required this.market,
     required this.summary,
+    required this.trend,
     required this.window,
     required this.state,
   });
 
   final Market market;
   final MarketSummary? summary;
+  final List<double> trend;
   final GrowthWindow window;
 
   /// The download behind this strip, for the refresh stamp.
@@ -361,10 +381,6 @@ class _MarketOverview extends StatelessWidget {
     final windows = appState.availableWindows;
     final summary = this.summary;
     final stat = summary?.statFor(window);
-    final trend = [
-      for (final entry in summary?.stats ?? const <WindowStat>[])
-        if (entry.count > 0) entry.medianPctChange,
-    ];
 
     return Panel(
       padding: EdgeInsets.zero,
@@ -450,10 +466,20 @@ class _MarketOverview extends StatelessWidget {
                   SizedBox(
                     width: 72,
                     height: 32,
-                    child: Sparkline(values: trend, color: colors.positive),
+                    child: Sparkline(
+                      values: trend,
+                      color: colors.forChange(trend.last),
+                    ),
                   ),
                 ],
               ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: RefreshStamp(state: state, dense: true),
             ),
           ),
           Divider(height: 1, color: colors.divider),
@@ -471,30 +497,17 @@ class _MarketOverview extends StatelessWidget {
                   showSelectedIcon: false,
                   style: const ButtonStyle(
                     visualDensity: VisualDensity.compact,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    tapTargetSize: MaterialTapTargetSize.padded,
                   ),
                   onSelectionChanged: (selection) =>
                       appState.selectMarket(selection.first),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: PeriodSelector<GrowthWindow>(
-                        values: windows,
-                        selected: windows.contains(window)
-                            ? window
-                            : windows.first,
-                        labelOf: (value) => value.label,
-                        onChanged: appState.selectWindow,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    SizedBox(
-                      width: 104,
-                      child: RefreshStamp(state: state, dense: true),
-                    ),
-                  ],
+                PeriodSelector<GrowthWindow>(
+                  values: windows,
+                  selected: windows.contains(window) ? window : windows.first,
+                  labelOf: (value) => value.label,
+                  onChanged: appState.selectWindow,
                 ),
               ],
             ),
@@ -694,7 +707,7 @@ class _DashboardSkeleton extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         border: Border.all(color: colors.cardBorder),
       ),
     );
@@ -703,15 +716,12 @@ class _DashboardSkeleton extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: Column(
         children: [
-          Row(
-            children: [
-              Expanded(child: block(150)),
-              const SizedBox(width: 12),
-              Expanded(child: block(150)),
-            ],
-          ),
-          block(220),
-          block(150),
+          // Match the loaded page: one market overview, then the ranked list
+          // and recent analyses. A two-card skeleton implied a layout that no
+          // longer exists and made the page visibly jump when data arrived.
+          block(190),
+          block(320),
+          block(180),
         ],
       ),
     );

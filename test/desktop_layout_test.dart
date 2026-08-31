@@ -163,6 +163,36 @@ void main() {
     expect(find.text('Recent Analyses'), findsOneWidget);
   });
 
+  testWidgets('an intermediate workspace keeps market identity in the table', (
+    tester,
+  ) async {
+    // With the earlier split threshold this width put the chart beside a
+    // roughly 610dp table. The table then dropped its Market column even
+    // though the default ranking combines ASX, US and NSE rows.
+    await launchApp(
+      tester,
+      cacheDir: cacheDir,
+      payloads: payloads,
+      size: const Size(1360, 900),
+      devicePixelRatio: 1.0,
+    );
+
+    final table = find.byType(GainersTable);
+    expect(table, findsOneWidget);
+    expect(
+      find.descendant(of: table, matching: find.text('Market')),
+      findsOneWidget,
+    );
+
+    final chartTitle = find.textContaining('MRNA · Moderna');
+    expect(chartTitle, findsOneWidget);
+    expect(
+      tester.getTopLeft(chartTitle).dy,
+      greaterThan(tester.getBottomLeft(table).dy),
+      reason: 'the chart should stack until the table can keep Market',
+    );
+  });
+
   testWidgets('a ten-character ticker keeps its chip on one line', (
     tester,
   ) async {
@@ -620,7 +650,7 @@ void main() {
     await tester.tap(find.byType(InfoButton));
     await settle(tester);
     expect(find.byType(InfoDialog), findsOneWidget);
-    expect(find.text('Market cards'), findsOneWidget);
+    expect(find.text('Market overview'), findsOneWidget);
   });
 
   testWidgets('Reports shows the run metadata and the screen funnel', (

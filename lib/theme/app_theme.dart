@@ -7,6 +7,26 @@ import 'package:flutter/material.dart';
 /// `TextPainter` has no ancestor to inherit from), so they name it explicitly.
 const String kFontFamily = 'Inter';
 
+/// Shared shape tokens for the app's panels and controls.
+///
+/// Keeping these outside [AppTheme] lets custom `Material` panels use the
+/// same geometry as themed cards instead of repeating almost-identical
+/// hard-coded radii.
+class AppRadii {
+  const AppRadii._();
+
+  static const double panel = 12;
+  static const double control = 10;
+}
+
+class AppSpacing {
+  const AppSpacing._();
+
+  static const double mobilePage = 16;
+  static const double desktopPage = 24;
+  static const double panelGap = 18;
+}
+
 /// Colours the design uses that Material's scheme has no slot for.
 @immutable
 class ScreenerColors extends ThemeExtension<ScreenerColors> {
@@ -86,14 +106,14 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
       value >= 0 ? positiveSurface : negativeSurface;
 
   static const light = ScreenerColors(
-    // Deep teal keeps the product's original market identity without using
-    // the same hue as a gain. Positive values below are brighter and greener,
-    // so selection and performance remain distinguishable at a glance.
+    // Deep teal keeps the product's original market identity. Positive values
+    // lean greener and use their own surface, so selection and performance
+    // remain distinguishable while both clear small-text contrast targets.
     interactive: Color(0xFF0F766E),
     interactiveSurface: Color(0xFFE6F4F1),
-    positive: Color(0xFF16825D),
+    positive: Color(0xFF11734F),
     positiveSurface: Color(0xFFE7F6EF),
-    negative: Color(0xFFC43D4B),
+    negative: Color(0xFFB83243),
     negativeSurface: Color(0xFFFCEBED),
     neutral: Color(0xFF596474),
     neutralSurface: Color(0xFFF0F2F5),
@@ -221,7 +241,7 @@ class AppTheme {
   /// Material derives focus rings, ripples and text selection from this, so
   /// it follows the interactive colour rather than the gain colour.
   static const _seed = Color(0xFF0F766E);
-  static const _radius = 12.0;
+  static const _radius = AppRadii.panel;
 
   static ThemeData light() => _build(Brightness.light, ScreenerColors.light);
 
@@ -396,7 +416,7 @@ class AppTheme {
               : const Color(0xFF062A25),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(AppRadii.control),
           ),
         ),
       ),
@@ -405,7 +425,7 @@ class AppTheme {
           foregroundColor: colors.textPrimary,
           side: BorderSide(color: colors.cardBorder),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(AppRadii.control),
           ),
         ),
       ),
