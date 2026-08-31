@@ -114,9 +114,10 @@ void main() {
   });
 
   testWidgets('a wide quote puts the tiles beside the price', (tester) async {
-    // Wide enough for the detail pane to clear the breakpoint. Stacked, the
-    // headline's own line was half empty on a pane this size.
-    tester.view.physicalSize = const Size(1600, 900);
+    // 640dp: the handset shell, so the pushed detail is the whole window and
+    // the width under test is the header's own. A threshold on the window's
+    // width stacked the quote on panes far wider than this.
+    tester.view.physicalSize = const Size(640, 900);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     await launchApp(
@@ -126,15 +127,10 @@ void main() {
       size: tester.view.physicalSize,
       devicePixelRatio: 1.0,
     );
-    await tester.tap(find.text('Markets'));
-    await settle(tester);
     await tester.tap(find.text('MRNA').first);
     await settle(tester);
 
-    final headline = tester.getRect(
-      find.text('7 Day change, weekly closes'),
-    );
-    // "Change" also heads a column in the gainers table behind the pane.
+    final headline = tester.getRect(find.text('7 Day change, weekly closes'));
     final tile = tester.getRect(
       find.descendant(
         of: find.byType(StockDetailScreen),

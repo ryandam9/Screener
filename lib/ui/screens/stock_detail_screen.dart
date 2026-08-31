@@ -1148,9 +1148,16 @@ class _Quote extends StatelessWidget {
   final String? screener;
   final List<_Stat> tiles;
 
-  /// Below this the price and the tiles stack. The headline needs about
-  /// 200px, and four tiles want 460 between them.
-  static const _sideBySide = 700.0;
+  /// How much has to be left for the tiles, after the headline and the gap,
+  /// before the two share a row.
+  ///
+  /// Measured against what is left rather than against the whole width: a
+  /// detail pane on a 1240px window is only about 550px wide once the
+  /// sidebar and the list beside it have theirs, and a threshold on the
+  /// window's width stacked the quote on exactly the layout it was meant to
+  /// fix. Two tiles of ~120 fit in this, and [_StatTiles] deals four across
+  /// when it is given enough for them.
+  static const _minTiles = 250.0;
 
   /// What the headline is allowed to take when they share a row, so the
   /// tiles get the rest rather than splitting it.
@@ -1192,7 +1199,8 @@ class _Quote extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < _sideBySide) {
+        final forTiles = constraints.maxWidth - _headlineWidth - 20;
+        if (forTiles < _minTiles) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
