@@ -136,7 +136,7 @@ class MoreScreen extends StatelessWidget {
                 ListTile(
                   leading: Icon(
                     Icons.description_outlined,
-                    color: colors.positive,
+                    color: colors.interactive,
                   ),
                   title: const Text('Runs and CSV export'),
                   subtitle: const Text(
@@ -153,7 +153,7 @@ class MoreScreen extends StatelessWidget {
                 ListTile(
                   leading: Icon(
                     Icons.candlestick_chart_outlined,
-                    color: colors.positive,
+                    color: colors.interactive,
                   ),
                   title: const Text('Price history'),
                   subtitle: const Text(

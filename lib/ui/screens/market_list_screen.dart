@@ -234,7 +234,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                   _exchange != null ||
                   _categories.isNotEmpty ||
                   (_minPctChange ?? 0) > 0,
-              backgroundColor: colors.positive,
+              backgroundColor: colors.interactive,
               child: const Icon(Icons.filter_list),
             ),
             onPressed: database == null
@@ -415,7 +415,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                   ListTile(
                     title: Text('${value.longLabel} analysis'),
                     trailing: value == window
-                        ? Icon(Icons.check, color: context.colors.positive)
+                        ? Icon(Icons.check, color: context.colors.interactive)
                         : null,
                     onTap: () {
                       setState(() => _window = value);

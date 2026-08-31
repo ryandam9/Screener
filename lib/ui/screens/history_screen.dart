@@ -392,7 +392,7 @@ class _TickerList extends StatelessWidget {
                   icon: Badge(
                     isLabelVisible: facets.isNotEmpty,
                     label: facets.isEmpty ? null : Text('${facets.length}'),
-                    backgroundColor: colors.positive,
+                    backgroundColor: colors.interactive,
                     child: const Icon(Icons.filter_list),
                   ),
                   onPressed: () async {
@@ -619,7 +619,7 @@ class _GoogleFinanceAction extends StatelessWidget {
         icon: const Icon(Icons.open_in_new, size: 18),
         label: Text('${ticker.ticker} on Google Finance'),
         style: FilledButton.styleFrom(
-          backgroundColor: context.colors.positive,
+          backgroundColor: context.colors.interactive,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(

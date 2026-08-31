@@ -195,7 +195,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ListTile(
                   title: Text('${window.longLabel} analysis'),
                   trailing: window == appState.selectedWindow
-                      ? Icon(Icons.check, color: context.colors.positive)
+                      ? Icon(Icons.check, color: context.colors.interactive)
                       : null,
                   onTap: () {
                     appState.selectWindow(window);

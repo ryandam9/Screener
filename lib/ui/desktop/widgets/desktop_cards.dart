@@ -61,7 +61,7 @@ class DesktopPanel extends StatelessWidget {
                   TextButton(
                     onPressed: onAction,
                     style: TextButton.styleFrom(
-                      foregroundColor: colors.positive,
+                      foregroundColor: colors.interactive,
                       textStyle: const TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
@@ -79,7 +79,6 @@ class DesktopPanel extends StatelessWidget {
     );
   }
 }
-
 
 /// Small rounded ticker label used in the desktop tables.
 class TickerChip extends StatelessWidget {
