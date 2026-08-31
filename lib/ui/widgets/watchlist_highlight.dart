@@ -30,6 +30,6 @@ Color? starredRowColor(
   bool selected = false,
 }) {
   final colors = context.colors;
-  if (selected) return colors.positiveSurface;
+  if (selected) return colors.interactiveSurface;
   return isStarred(context, market, ticker) ? colors.starredSurface : null;
 }

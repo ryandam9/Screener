@@ -1088,7 +1088,7 @@ class _LinksTab extends StatelessWidget {
               for (final entry in data.rows)
                 if (entry.googleFinanceUrl != null)
                   ListTile(
-                    leading: Icon(Icons.open_in_new, color: colors.positive),
+                    leading: Icon(Icons.open_in_new, color: colors.interactive),
                     title: Text('Google Finance · ${entry.window.longLabel}'),
                     subtitle: Text(
                       entry.googleFinanceUrl!,
@@ -1360,7 +1360,7 @@ class _DetailTabBar extends StatelessWidget {
               padding: const EdgeInsets.only(right: 6),
               child: Material(
                 color: tab == selected
-                    ? colors.positiveSurface
+                    ? colors.interactiveSurface
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(9),
                 clipBehavior: Clip.antiAlias,
@@ -1380,7 +1380,7 @@ class _DetailTabBar extends StatelessWidget {
                             tab.icon,
                             size: 17,
                             color: tab == selected
-                                ? colors.positive
+                                ? colors.interactive
                                 : colors.textSecondary,
                           ),
                           if (labelled) ...[
@@ -1393,7 +1393,7 @@ class _DetailTabBar extends StatelessWidget {
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w600,
                                 color: tab == selected
-                                    ? colors.positive
+                                    ? colors.interactive
                                     : colors.textSecondary,
                               ),
                             ),

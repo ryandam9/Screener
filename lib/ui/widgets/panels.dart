@@ -51,7 +51,7 @@ class SectionHeader extends StatelessWidget {
             TextButton(
               onPressed: onAction,
               style: TextButton.styleFrom(
-                foregroundColor: colors.positive,
+                foregroundColor: colors.interactive,
                 textStyle: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -425,10 +425,10 @@ class _PeriodPill extends StatelessWidget {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 160),
       decoration: BoxDecoration(
-        color: selected ? colors.positive : colors.pageBackground,
+        color: selected ? colors.interactive : colors.pageBackground,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: selected ? colors.positive : colors.cardBorder,
+          color: selected ? colors.interactive : colors.cardBorder,
         ),
       ),
       clipBehavior: Clip.antiAlias,

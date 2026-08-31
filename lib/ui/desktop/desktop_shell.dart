@@ -235,6 +235,7 @@ class _Sidebar extends StatelessWidget {
   final AppSection section;
   final ValueChanged<AppSection> onSelect;
   final bool collapsed;
+
   /// Null where the rail cannot expand, which hides the control rather than
   /// leaving one that does nothing.
   final VoidCallback? onToggle;
@@ -428,7 +429,7 @@ class _NavItem extends StatelessWidget {
         // somewhere.
         message: collapsed ? section.label : '',
         child: Material(
-          color: selected ? colors.positiveSurface : Colors.transparent,
+          color: selected ? colors.interactiveSurface : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -446,7 +447,7 @@ class _NavItem extends StatelessWidget {
                   Icon(
                     selected ? section.selectedIcon : section.icon,
                     size: 20,
-                    color: selected ? colors.positive : colors.textSecondary,
+                    color: selected ? colors.interactive : colors.textSecondary,
                   ),
                   if (!collapsed) ...[
                     const SizedBox(width: 12),
@@ -461,7 +462,7 @@ class _NavItem extends StatelessWidget {
                               ? FontWeight.w600
                               : FontWeight.w500,
                           color: selected
-                              ? colors.positive
+                              ? colors.interactive
                               : colors.textSecondary,
                         ),
                       ),

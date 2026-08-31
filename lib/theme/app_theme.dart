@@ -11,6 +11,8 @@ const String kFontFamily = 'Inter';
 @immutable
 class ScreenerColors extends ThemeExtension<ScreenerColors> {
   const ScreenerColors({
+    required this.interactive,
+    required this.interactiveSurface,
     required this.positive,
     required this.positiveSurface,
     required this.negative,
@@ -30,6 +32,14 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
     required this.divider,
     required this.chartGrid,
   });
+
+  /// Selection, focus, navigation and primary actions.
+  ///
+  /// Deliberately not [positive]. When one colour says both "this is the page
+  /// you are on" and "this instrument went up", a green sidebar item reads as
+  /// a gain and a green focus ring reads as a status.
+  final Color interactive;
+  final Color interactiveSurface;
 
   final Color positive;
   final Color positiveSurface;
@@ -76,6 +86,8 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
       value >= 0 ? positiveSurface : negativeSurface;
 
   static const light = ScreenerColors(
+    interactive: Color(0xFF2563EB),
+    interactiveSurface: Color(0xFFEDF3FE),
     positive: Color(0xFF00875A),
     positiveSurface: Color(0xFFE3F6EC),
     negative: Color(0xFFC62828),
@@ -97,6 +109,8 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
   );
 
   static const dark = ScreenerColors(
+    interactive: Color(0xFF7CB4FB),
+    interactiveSurface: Color(0xFF17233A),
     positive: Color(0xFF4ADE9B),
     positiveSurface: Color(0xFF10352A),
     negative: Color(0xFFF87171),
@@ -119,6 +133,8 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
 
   @override
   ScreenerColors copyWith({
+    Color? interactive,
+    Color? interactiveSurface,
     Color? positive,
     Color? positiveSurface,
     Color? negative,
@@ -139,6 +155,8 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
     Color? chartGrid,
   }) {
     return ScreenerColors(
+      interactive: interactive ?? this.interactive,
+      interactiveSurface: interactiveSurface ?? this.interactiveSurface,
       positive: positive ?? this.positive,
       positiveSurface: positiveSurface ?? this.positiveSurface,
       negative: negative ?? this.negative,
@@ -165,6 +183,8 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
     if (other is! ScreenerColors) return this;
     Color mix(Color a, Color b) => Color.lerp(a, b, t)!;
     return ScreenerColors(
+      interactive: mix(interactive, other.interactive),
+      interactiveSurface: mix(interactiveSurface, other.interactiveSurface),
       positive: mix(positive, other.positive),
       positiveSurface: mix(positiveSurface, other.positiveSurface),
       negative: mix(negative, other.negative),
@@ -195,7 +215,9 @@ extension ScreenerColorsX on BuildContext {
 class AppTheme {
   const AppTheme._();
 
-  static const _seed = Color(0xFF00875A);
+  /// Material derives focus rings, ripples and text selection from this, so
+  /// it follows the interactive colour rather than the gain colour.
+  static const _seed = Color(0xFF2563EB);
   static const _radius = 14.0;
 
   static ThemeData light() => _build(Brightness.light, ScreenerColors.light);
@@ -285,9 +307,9 @@ class AppTheme {
         thickness: 1,
       ),
       tabBarTheme: TabBarThemeData(
-        labelColor: colors.positive,
+        labelColor: colors.interactive,
         unselectedLabelColor: colors.textSecondary,
-        indicatorColor: colors.positive,
+        indicatorColor: colors.interactive,
         indicatorSize: TabBarIndicatorSize.tab,
         dividerColor: colors.divider,
         labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
@@ -307,7 +329,7 @@ class AppTheme {
           (states) => IconThemeData(
             size: 22,
             color: states.contains(WidgetState.selected)
-                ? colors.positive
+                ? colors.interactive
                 : colors.textTertiary,
           ),
         ),
@@ -318,7 +340,7 @@ class AppTheme {
                 ? FontWeight.w600
                 : FontWeight.w500,
             color: states.contains(WidgetState.selected)
-                ? colors.positive
+                ? colors.interactive
                 : colors.textTertiary,
           ),
         ),
@@ -340,7 +362,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colors.positive, width: 1.4),
+          borderSide: BorderSide(color: colors.interactive, width: 1.4),
         ),
         hintStyle: TextStyle(color: colors.textTertiary),
       ),
@@ -360,7 +382,7 @@ class AppTheme {
         subtitleTextStyle: TextStyle(fontSize: 13, color: colors.textSecondary),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
-        color: colors.positive,
+        color: colors.interactive,
         linearTrackColor: colors.neutralSurface,
       ),
     );
