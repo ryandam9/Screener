@@ -86,49 +86,52 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
       value >= 0 ? positiveSurface : negativeSurface;
 
   static const light = ScreenerColors(
-    interactive: Color(0xFF2563EB),
-    interactiveSurface: Color(0xFFEDF3FE),
-    positive: Color(0xFF00875A),
-    positiveSurface: Color(0xFFE3F6EC),
-    negative: Color(0xFFC62828),
-    negativeSurface: Color(0xFFFCEBEB),
-    neutral: Color(0xFF5B6470),
-    neutralSurface: Color(0xFFEFF1F4),
-    warning: Color(0xFF96660C),
-    warningSurface: Color(0xFFFBF0DC),
-    starredSurface: Color(0xFFFDF5E4),
+    // Deep teal keeps the product's original market identity without using
+    // the same hue as a gain. Positive values below are brighter and greener,
+    // so selection and performance remain distinguishable at a glance.
+    interactive: Color(0xFF0F766E),
+    interactiveSurface: Color(0xFFE6F4F1),
+    positive: Color(0xFF16825D),
+    positiveSurface: Color(0xFFE7F6EF),
+    negative: Color(0xFFC43D4B),
+    negativeSurface: Color(0xFFFCEBED),
+    neutral: Color(0xFF596474),
+    neutralSurface: Color(0xFFF0F2F5),
+    warning: Color(0xFF9A6700),
+    warningSurface: Color(0xFFFFF3D6),
+    starredSurface: Color(0xFFFFF8E8),
     card: Color(0xFFFFFFFF),
-    cardBorder: Color(0xFFE7E9EE),
-    pageBackground: Color(0xFFF4F6F8),
-    textPrimary: Color(0xFF14181F),
-    textSecondary: Color(0xFF616B77),
-    textName: Color(0xFF414A57),
-    textTertiary: Color(0xFF68717E),
-    divider: Color(0xFFEDEFF3),
-    chartGrid: Color(0xFFEDEFF3),
+    cardBorder: Color(0xFFE1E6EC),
+    pageBackground: Color(0xFFF6F8FA),
+    textPrimary: Color(0xFF17202B),
+    textSecondary: Color(0xFF566273),
+    textName: Color(0xFF344152),
+    textTertiary: Color(0xFF667284),
+    divider: Color(0xFFE8ECF1),
+    chartGrid: Color(0xFFE8ECF1),
   );
 
   static const dark = ScreenerColors(
-    interactive: Color(0xFF7CB4FB),
-    interactiveSurface: Color(0xFF17233A),
-    positive: Color(0xFF4ADE9B),
-    positiveSurface: Color(0xFF10352A),
-    negative: Color(0xFFF87171),
-    negativeSurface: Color(0xFF3A1B1B),
-    neutral: Color(0xFF9AA4B2),
-    neutralSurface: Color(0xFF232830),
-    warning: Color(0xFFE9B44C),
-    warningSurface: Color(0xFF33280F),
-    starredSurface: Color(0xFF262009),
-    card: Color(0xFF181C22),
-    cardBorder: Color(0xFF272D36),
-    pageBackground: Color(0xFF0F1216),
-    textPrimary: Color(0xFFF2F4F7),
-    textSecondary: Color(0xFFA5AEBA),
-    textName: Color(0xFFC6CEDA),
-    textTertiary: Color(0xFF8B95A6),
-    divider: Color(0xFF242A33),
-    chartGrid: Color(0xFF242A33),
+    interactive: Color(0xFF5EEAD4),
+    interactiveSurface: Color(0xFF123630),
+    positive: Color(0xFF65D6A6),
+    positiveSurface: Color(0xFF12382D),
+    negative: Color(0xFFFF7A86),
+    negativeSurface: Color(0xFF3B1D23),
+    neutral: Color(0xFFA4AFBD),
+    neutralSurface: Color(0xFF232A33),
+    warning: Color(0xFFF2C45D),
+    warningSurface: Color(0xFF392E13),
+    starredSurface: Color(0xFF2B2512),
+    card: Color(0xFF171C23),
+    cardBorder: Color(0xFF2B333E),
+    pageBackground: Color(0xFF0E1319),
+    textPrimary: Color(0xFFF4F7FA),
+    textSecondary: Color(0xFFADB7C5),
+    textName: Color(0xFFD0D7E2),
+    textTertiary: Color(0xFF929EAE),
+    divider: Color(0xFF252C35),
+    chartGrid: Color(0xFF252C35),
   );
 
   @override
@@ -217,8 +220,8 @@ class AppTheme {
 
   /// Material derives focus rings, ripples and text selection from this, so
   /// it follows the interactive colour rather than the gain colour.
-  static const _seed = Color(0xFF2563EB);
-  static const _radius = 14.0;
+  static const _seed = Color(0xFF0F766E);
+  static const _radius = 12.0;
 
   static ThemeData light() => _build(Brightness.light, ScreenerColors.light);
 
@@ -321,7 +324,7 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: colors.card,
         surfaceTintColor: Colors.transparent,
-        indicatorColor: Colors.transparent,
+        indicatorColor: colors.interactiveSurface,
         elevation: 0,
         height: 66,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
@@ -384,6 +387,45 @@ class AppTheme {
       progressIndicatorTheme: ProgressIndicatorThemeData(
         color: colors.interactive,
         linearTrackColor: colors.neutralSurface,
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: colors.interactive,
+          foregroundColor: brightness == Brightness.light
+              ? Colors.white
+              : const Color(0xFF062A25),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: colors.textPrimary,
+          side: BorderSide(color: colors.cardBorder),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected)
+                ? colors.interactive
+                : colors.textSecondary,
+          ),
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected)
+                ? colors.interactiveSurface
+                : colors.card,
+          ),
+          side: WidgetStatePropertyAll(BorderSide(color: colors.cardBorder)),
+          textStyle: const WidgetStatePropertyAll(
+            TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ),
       ),
     );
   }

@@ -160,11 +160,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               MaterialPageRoute<void>(builder: (_) => const SearchScreen()),
             ),
           ),
-          IconButton(
-            tooltip: 'Window',
-            icon: const Icon(Icons.tune),
-            onPressed: () => _showWindowPicker(context, appState),
-          ),
           const InfoButton(info: PageInfos.dashboard),
           const SizedBox(width: 4),
         ],
@@ -219,41 +214,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Future<void> _showWindowPicker(BuildContext context, AppState appState) {
-    return showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: context.colors.card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 8),
-              const SectionHeader(
-                title: 'Analysis window',
-                padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
-              ),
-              for (final window in GrowthWindow.values)
-                ListTile(
-                  title: Text('${window.longLabel} analysis'),
-                  trailing: window == appState.selectedWindow
-                      ? Icon(Icons.check, color: context.colors.interactive)
-                      : null,
-                  onTap: () {
-                    appState.selectWindow(window);
-                    Navigator.of(sheetContext).pop();
-                  },
-                ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
-  }
 }
 
 class _DashboardBody extends StatelessWidget {
@@ -278,9 +238,7 @@ class _DashboardBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 12),
-        _ContextBar(market: market, window: window),
-        const SizedBox(height: 10),
-        _MarketStrip(
+        _MarketOverview(
           market: market,
           summary: data.summary,
           window: window,
@@ -379,61 +337,10 @@ class _DashboardBody extends StatelessWidget {
   }
 }
 
-/// Which file, and which window of it, the page below is about.
-///
-/// One bar rather than a title menu and a toolbar icon: the two choices that
-/// decide every number on the screen were the two that took the most taps to
-/// find.
-class _ContextBar extends StatelessWidget {
-  const _ContextBar({required this.market, required this.window});
-
-  final Market market;
-  final GrowthWindow window;
-
-  @override
-  Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
-    final windows = appState.availableWindows;
-
-    return Panel(
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SegmentedButton<Market>(
-            segments: [
-              for (final value in Market.values)
-                ButtonSegment(value: value, label: Text(value.label)),
-            ],
-            selected: {market},
-            showSelectedIcon: false,
-            style: const ButtonStyle(
-              visualDensity: VisualDensity.compact,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            onSelectionChanged: (selection) =>
-                appState.selectMarket(selection.first),
-          ),
-          const SizedBox(height: 8),
-          PeriodSelector<GrowthWindow>(
-            values: windows,
-            selected: windows.contains(window) ? window : windows.first,
-            labelOf: (value) => value.label,
-            onChanged: appState.selectWindow,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The selected market in one strip: what the window did, and how fresh it is.
-///
-/// The old page stacked a full-height card per file above the rows. Three
-/// files made that 430dp on a 400dp-wide phone — the whole first screen spent
-/// on summaries, with the movers below the fold.
-class _MarketStrip extends StatelessWidget {
-  const _MarketStrip({
+/// Market context, performance and filters in one compact card. This keeps
+/// the primary rankings visible in the first phone viewport.
+class _MarketOverview extends StatelessWidget {
+  const _MarketOverview({
     required this.market,
     required this.summary,
     required this.window,
@@ -450,6 +357,8 @@ class _MarketStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final appState = context.watch<AppState>();
+    final windows = appState.availableWindows;
     final summary = this.summary;
     final stat = summary?.statFor(window);
     final trend = [
@@ -458,69 +367,138 @@ class _MarketStrip extends StatelessWidget {
     ];
 
     return Panel(
-      padding: const EdgeInsets.fromLTRB(14, 11, 14, 10),
+      padding: EdgeInsets.zero,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (stat == null || stat.count == 0)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: colors.interactiveSurface,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(market.emoji, style: const TextStyle(fontSize: 18)),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       Text(
-                        summary == null ? 'Loading…' : 'No rows',
+                        '${market.label} · ${window.longLabel}',
                         style: TextStyle(
-                          fontSize: 20,
-                          color: colors.textTertiary,
-                        ),
-                      )
-                    else ...[
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          Fmt.signedPercent(stat.medianPctChange, decimals: 2),
-                          maxLines: 1,
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.6,
-                            color: colors.forChange(stat.medianPctChange),
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        'median ${window.label} · '
-                        '${Fmt.integer(stat.count)} ${market.instrumentNoun}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11.5,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
                           color: colors.textSecondary,
                         ),
                       ),
+                      const SizedBox(height: 1),
+                      if (stat == null || stat.count == 0)
+                        Text(
+                          summary == null ? 'Loading…' : 'No rows',
+                          style: TextStyle(
+                            fontSize: 20,
+                            color: colors.textTertiary,
+                          ),
+                        )
+                      else
+                        Row(
+                          children: [
+                            Text(
+                              Fmt.signedPercent(
+                                stat.medianPctChange,
+                                decimals: 2,
+                              ),
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.5,
+                                color: colors.forChange(stat.medianPctChange),
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 7),
+                            Flexible(
+                              child: Text(
+                                'median · ${Fmt.integer(stat.count)} '
+                                '${market.instrumentNoun}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: colors.textTertiary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                     ],
+                  ),
+                ),
+                if (trend.length >= 2) ...[
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 72,
+                    height: 32,
+                    child: Sparkline(values: trend, color: colors.positive),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Divider(height: 1, color: colors.divider),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 9, 10, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SegmentedButton<Market>(
+                  segments: [
+                    for (final value in Market.values)
+                      ButtonSegment(value: value, label: Text(value.label)),
+                  ],
+                  selected: {market},
+                  showSelectedIcon: false,
+                  style: const ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  onSelectionChanged: (selection) =>
+                      appState.selectMarket(selection.first),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: PeriodSelector<GrowthWindow>(
+                        values: windows,
+                        selected: windows.contains(window)
+                            ? window
+                            : windows.first,
+                        labelOf: (value) => value.label,
+                        onChanged: appState.selectWindow,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    SizedBox(
+                      width: 104,
+                      child: RefreshStamp(state: state, dense: true),
+                    ),
                   ],
                 ),
-              ),
-              if (trend.length >= 2) ...[
-                const SizedBox(width: 12),
-                SizedBox(
-                  width: 92,
-                  height: 36,
-                  child: Sparkline(values: trend, color: colors.positive),
-                ),
               ],
-            ],
+            ),
           ),
-          const SizedBox(height: 6),
-          RefreshStamp(state: state, dense: true),
         ],
       ),
     );
