@@ -84,6 +84,35 @@ void main() {
     expect(find.text('Median Vol.'), findsOneWidget);
   });
 
+  testWidgets('the quote leads with four tiles across the width', (
+    tester,
+  ) async {
+    await launch(tester);
+    await tester.tap(find.text('MRNA').first);
+    await settle(tester);
+
+    for (final label in [
+      'Change',
+      'Price Change',
+      'First Price',
+      'Last Price',
+    ]) {
+      expect(find.text(label), findsWidgets, reason: '$label tile missing');
+    }
+
+    // They run the width of the header. The two they replaced were pinned to
+    // the right of a headline block that only needed its own width, so
+    // everything between the two was a hole.
+    final left = tester.getRect(find.text('Change').first).left;
+    final right = tester.getRect(find.text('Last Price').first).right;
+    final width = tester.view.physicalSize.width / tester.view.devicePixelRatio;
+    expect(
+      right - left,
+      greaterThan(width * 0.75),
+      reason: 'the tiles span the header rather than huddling on one side',
+    );
+  });
+
   testWidgets('the detail screen switches windows and inner tabs', (
     tester,
   ) async {
