@@ -479,36 +479,14 @@ class _OverviewTab extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              Text(
-                Fmt.price(shownLastPrice),
-                style: TextStyle(
-                  fontSize: 34,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -1,
-                  height: 1.05,
-                  color: colors.textPrimary,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                usingHistory
+              _Quote(
+                price: Fmt.price(shownLastPrice),
+                window: usingHistory
                     ? '${row.window.longLabel} change, weekly closes'
                     : '${row.window.longLabel} change',
-                style: TextStyle(fontSize: 12, color: colors.textSecondary),
-              ),
-              if (usingHistory) ...[
-                const SizedBox(height: 2),
-                Text(
-                  'screener: ${Fmt.signedPercent(row.pctChange)}',
-                  style: TextStyle(fontSize: 11.5, color: colors.textTertiary),
-                ),
-              ],
-              const SizedBox(height: 14),
-              // Four tiles across the width rather than two labels pinned to
-              // the right: the headline block only needs its own width, so
-              // everything between it and them was a hole.
-              _StatTiles(
+                screener: usingHistory
+                    ? 'screener: ${Fmt.signedPercent(row.pctChange)}'
+                    : null,
                 tiles: [
                   (
                     label: 'Change',
@@ -1150,6 +1128,96 @@ class _LinksTab extends StatelessWidget {
 }
 
 typedef _Stat = ({String label, String value, Color? color});
+
+/// The price, the window it covers, and the four numbers that describe it.
+///
+/// Side by side where the row can hold both — a detail pane is usually wide
+/// enough, and stacking them there left the headline's own line half empty.
+/// Stacked below the breakpoint, where four tiles beside a price would be
+/// narrower than the numbers in them.
+class _Quote extends StatelessWidget {
+  const _Quote({
+    required this.price,
+    required this.window,
+    required this.screener,
+    required this.tiles,
+  });
+
+  final String price;
+  final String window;
+  final String? screener;
+  final List<_Stat> tiles;
+
+  /// Below this the price and the tiles stack. The headline needs about
+  /// 200px, and four tiles want 460 between them.
+  static const _sideBySide = 700.0;
+
+  /// What the headline is allowed to take when they share a row, so the
+  /// tiles get the rest rather than splitting it.
+  static const _headlineWidth = 230.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    final headline = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          price,
+          style: TextStyle(
+            fontSize: 34,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -1,
+            height: 1.05,
+            color: colors.textPrimary,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          window,
+          style: TextStyle(fontSize: 12, color: colors.textSecondary),
+        ),
+        if (screener case final line?) ...[
+          const SizedBox(height: 2),
+          Text(
+            line,
+            style: TextStyle(fontSize: 11.5, color: colors.textTertiary),
+          ),
+        ],
+      ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < _sideBySide) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              headline,
+              const SizedBox(height: 14),
+              _StatTiles(tiles: tiles),
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: _headlineWidth),
+              child: headline,
+            ),
+            const SizedBox(width: 20),
+            Expanded(child: _StatTiles(tiles: tiles)),
+          ],
+        );
+      },
+    );
+  }
+}
 
 /// The four numbers under the quote, as tiles of their own.
 ///
