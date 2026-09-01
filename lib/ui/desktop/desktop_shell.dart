@@ -188,7 +188,7 @@ class _DesktopShellState extends State<DesktopShell> {
                 // Sections fade through one another rather than cutting, so the
                 // sidebar selection and the content stay visibly connected.
                 child: PageTransitionSwitcher(
-                  duration: AppMotion.contentDuration(context),
+                  duration: const Duration(milliseconds: 200),
                   transitionBuilder: (child, animation, secondaryAnimation) =>
                       FadeThroughTransition(
                         animation: animation,
@@ -248,7 +248,7 @@ class _Sidebar extends StatelessWidget {
     final colors = context.colors;
 
     return AnimatedContainer(
-      duration: AppMotion.contentDuration(context),
+      duration: const Duration(milliseconds: 200),
       curve: Curves.easeOutCubic,
       width: collapsed ? collapsedWidth : expandedWidth,
       color: colors.card,
@@ -374,7 +374,7 @@ class _CollapseButton extends StatelessWidget {
                     : MainAxisAlignment.center,
                 children: [
                   AnimatedRotation(
-                    duration: AppMotion.contentDuration(context),
+                    duration: const Duration(milliseconds: 200),
                     turns: collapsed ? 0.5 : 0,
                     child: Icon(
                       Icons.keyboard_double_arrow_left,
@@ -626,7 +626,7 @@ class _MasterDetail extends StatelessWidget {
 
     if (!split) {
       return PageTransitionSwitcher(
-        duration: AppMotion.contentDuration(context),
+        duration: const Duration(milliseconds: 220),
         transitionBuilder: (child, animation, secondaryAnimation) =>
             FadeThroughTransition(
               animation: animation,
@@ -661,7 +661,7 @@ class _MasterDetail extends StatelessWidget {
             Container(width: 1, color: colors.cardBorder),
             Expanded(
               child: PageTransitionSwitcher(
-                duration: AppMotion.contentDuration(context),
+                duration: const Duration(milliseconds: 220),
                 transitionBuilder: (child, animation, secondaryAnimation) =>
                     FadeThroughTransition(
                       animation: animation,

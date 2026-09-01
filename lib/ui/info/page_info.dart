@@ -22,17 +22,15 @@ class PageInfos {
     icon: Icons.dashboard_outlined,
     blocks: [
       InfoParagraph(
-        'The dashboard summarizes the three screener databases the app '
-        'downloads from S3 — ASX, US and NSE. Nothing here is computed from '
-        'live prices; it is all read from the published files.',
+        'The dashboard is a summary of the two screener databases the app '
+        'downloads from S3 — one for the ASX, one for the US market. Nothing '
+        'here is computed from live prices; it is all read from the files.',
       ),
-      InfoHeading('Market overview', icon: Icons.credit_card_outlined),
+      InfoHeading('Market cards', icon: Icons.credit_card_outlined),
       InfoParagraph(
-        'On a phone, one compact overview shows the selected market and keeps '
-        'its market and window controls together. On desktop, a three-market '
-        'pulse keeps every market visible and also filters the combined '
-        'ranking. The headline figure is the median percentage change across '
-        'the instruments that passed the selected window.',
+        'One card per market. The big figure is the median percentage change '
+        'across every instrument that passed the screen for the selected '
+        'window, so a single runaway ticker cannot drag it.',
       ),
       InfoBullets([
         InfoBullet(
@@ -42,23 +40,19 @@ class PageInfos {
         InfoBullet(
           lead: 'The sparkline',
           text:
-              'appears when history is published and is chronological: it '
-              'traces the market’s weekly path, chain-linked from median '
-              'week-over-week returns.',
+              'traces the market’s weekly path over the published year, '
+              'chained from median weekly returns.',
         ),
         InfoBullet(
-          lead: 'Market and window',
-          text:
-              'change every dashboard figure together; the refresh stamp '
-              'states how current the selected file is.',
+          lead: 'The caption',
+          text: 'names the window and how many instruments it covers.',
         ),
       ]),
       InfoDivider(),
       InfoHeading('Top Gainers', icon: Icons.trending_up),
       InfoParagraph(
         'The strongest instruments in the selected window, sorted by '
-        'percentage change. Tap a row to open it on a phone; on desktop the '
-        'row updates the adjacent chart and Open details drills into it.',
+        'percentage change. Tap a row to open its detail screen.',
       ),
       InfoExample(
         title: 'Reading a row',
@@ -69,17 +63,17 @@ class PageInfos {
               'percentage.',
         ],
       ),
-      InfoHeading('Recent Analyses', icon: Icons.insights_outlined),
+      InfoHeading('Analysis Summary', icon: Icons.insights_outlined),
       InfoParagraph(
-        'The latest published analysis runs, including their market, window, '
-        'row count and run time. The phone lists the selected market; desktop '
-        'can show the loaded markets together. Tap one on a phone to open that '
-        'market and window.',
+        'Totals for the latest run: how many window analyses were published, '
+        'how many rows they hold in total, and the average change across the '
+        'selected window.',
       ),
       InfoNote(
-        'A ticker may appear in several windows because each window applies '
-        'its own threshold. Recent Analyses describes published runs, not a '
-        'comparison with an earlier month.',
+        'Rows counts a ticker once per window it appears in, so a ticker in '
+        'five windows contributes five rows. Each file carries a single run, '
+        'so there is no earlier run to compare against and no month-on-month '
+        'delta to show.',
       ),
       _screenerNumbers,
     ],

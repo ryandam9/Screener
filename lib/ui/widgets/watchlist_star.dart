@@ -47,7 +47,7 @@ class WatchlistStar extends StatelessWidget {
           child: InkWell(
             onTap: () => watchlist.toggle(market, ticker),
             child: AnimatedSwitcher(
-              duration: AppMotion.selectionDuration(context),
+              duration: const Duration(milliseconds: 180),
               transitionBuilder: (child, animation) =>
                   ScaleTransition(scale: animation, child: child),
               child: Icon(
