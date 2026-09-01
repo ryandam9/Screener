@@ -300,18 +300,23 @@ class _DashboardBody extends StatelessWidget {
                 )
               : Column(
                   children: [
-                    for (final row in data.topGainers) ...[
+                    for (
+                      var index = 0;
+                      index < data.topGainers.length;
+                      index++
+                    ) ...[
                       GainerTile(
-                        row: row,
+                        row: data.topGainers[index],
+                        rank: index + 1,
                         showMarketBadge: false,
                         opensTo: (_) => StockDetailScreen(
-                          market: row.market,
-                          ticker: row.ticker,
+                          market: data.topGainers[index].market,
+                          ticker: data.topGainers[index].ticker,
                           initialWindow: window,
                         ),
                       ),
-                      if (row != data.topGainers.last)
-                        Divider(height: 1, color: colors.divider, indent: 66),
+                      if (index < data.topGainers.length - 1)
+                        Divider(height: 1, color: colors.divider, indent: 54),
                     ],
                   ],
                 ),
