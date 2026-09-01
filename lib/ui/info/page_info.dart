@@ -368,7 +368,7 @@ class PageInfos {
     blocks: [
       InfoHeading('Data sources', icon: Icons.cloud_download_outlined),
       InfoParagraph(
-        'The app reads two SQLite files published to S3 and keeps a copy on '
+        'The app reads market SQLite files published to S3 and keeps a copy on '
         'this device. Each row shows the file’s state, its size, and when '
         'it was last synced.',
       ),
@@ -391,19 +391,24 @@ class PageInfos {
         'serving the cached files rather than emptying the screens.',
       ),
       InfoDivider(),
-      InfoHeading('Refresh and alerts', icon: Icons.notifications_none),
+      InfoHeading('Screen alerts', icon: Icons.notifications_none),
       InfoParagraph(
-        'Every file is fetched at 9:00 and again at 11:00, and each one that '
-        'actually changed is announced. Then the 7-day screen is compared '
-        'with the last time it was checked: every ticker that joined gets a '
-        'notification of its own, naming the company and its move.',
+        'The app checks the selected market files around your chosen time and '
+        'compares the 7-day screen with the previous successful check. New '
+        'matches are combined into one expandable notification.',
       ),
       InfoBullets([
         InfoBullet(
-          lead: 'Only what is new',
+          lead: 'Calm by default',
           text:
-              'a ticker already in the screen is never announced twice, so '
-              'the second run of the day is usually silent.',
+              'routine file refreshes stay in the app. Only new screen '
+              'matches notify, and an existing ticker is not repeated.',
+        ),
+        InfoBullet(
+          lead: 'Watchlist mode',
+          text:
+              'optionally adds quiet direct links for starred tickers. The '
+              'consolidated summary remains the only audible alert.',
         ),
         InfoBullet(
           lead: 'On Android',
@@ -420,7 +425,15 @@ class PageInfos {
         ),
         InfoBullet(
           lead: 'Check now',
-          text: 'fetches every file and posts what is in the screen today.',
+          text:
+              'refreshes the files and shows an in-app preview. Send sample '
+              'is the only manual action that posts a notification.',
+        ),
+        InfoBullet(
+          lead: 'Data health',
+          text:
+              'successful refreshes remain silent. An optional low-priority '
+              'warning appears only after repeated failures leave data stale.',
         ),
       ]),
       InfoDivider(),

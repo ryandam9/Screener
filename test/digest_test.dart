@@ -185,6 +185,28 @@ void main() {
       expect(digest.isEmpty, isTrue);
       expect(digest.title, 'No 7-day screen published today');
     });
+
+    test('notification payloads preserve typed destinations', () {
+      final stock = NotificationRoute.tryParse(
+        const NotificationRoute.stock(
+          market: Market.us,
+          ticker: 'MRNA',
+        ).toPayload(),
+      )!;
+      expect(stock.destination, NotificationDestination.stock);
+      expect(stock.market, Market.us);
+      expect(stock.ticker, 'MRNA');
+      expect(stock.window, GrowthWindow.sevenDays);
+
+      final data = NotificationRoute.tryParse(
+        const NotificationRoute.dataSources().toPayload(),
+      )!;
+      expect(data.destination, NotificationDestination.dataSources);
+
+      final legacy = NotificationRoute.tryParse('digest:7d')!;
+      expect(legacy.destination, NotificationDestination.screen);
+      expect(legacy.window, GrowthWindow.sevenDays);
+    });
   });
 
   group('sending alerts', () {
@@ -245,87 +267,87 @@ void main() {
       expect(service().snapshot, contains('us:MRNA'));
     });
 
-    test('a ticker that joins the screen gets its own alert', () async {
-      // Yesterday saw everything except AMLX.
-      await prefs.setStringList('digest_snapshot_7d', [
-        'us:MRNA',
-        'asx:QETH',
-        'nse:TATAMOTORS',
-      ]);
+    test(
+      'a ticker that joins the screen gets one consolidated alert',
+      () async {
+        // Yesterday saw everything except AMLX.
+        await prefs.setStringList('digest_snapshot_7d', [
+          'us:MRNA',
+          'asx:QETH',
+          'nse:TATAMOTORS',
+        ]);
 
-      final digest = (await service().run()).digest!;
-      expect(digest.newKeys, {'us:AMLX'});
+        final digest = (await service().run()).digest!;
+        expect(digest.newKeys, {'us:AMLX'});
 
-      expect(notifier.posted, hasLength(1), reason: 'one ticker, one alert');
-      final alert = notifier.last!;
-      // The name is the point of the alert, so it is in the title rather than
-      // buried in a body the shade may collapse.
-      expect(alert.title, '📈 AMLX — Amylyx Pharmaceuticals, Inc.');
-      expect(alert.body, startsWith('Increased 81.9% in the last week.'));
-      expect(alert.body, contains(r'Current price $39.16'));
-      expect(alert.body, contains('cut-off 10%'));
-      expect(alert.payload, DigestService.tapPayload);
-      expect(alert.group, NotificationIds.sevenDayGroupFor(Market.us));
-      expect(alert.isGroupSummary, isFalse);
-    });
+        expect(
+          notifier.posted,
+          hasLength(1),
+          reason: 'one calm summary per run',
+        );
+        final alert = notifier.last!;
+        expect(alert.title, '1 new in the 7-day screen');
+        expect(alert.body, contains('AMLX +81.9%'));
+        expect(alert.lines.single, contains('Amylyx Pharmaceuticals, Inc.'));
+        expect(alert.payload, DigestService.tapPayload);
+        expect(alert.id, NotificationIds.digest);
+        expect(alert.kind, AppNotificationKind.marketAlert);
+        expect(alert.group, isNull);
+        expect(alert.isGroupSummary, isFalse);
+      },
+    );
 
-    test('several newcomers are grouped under a summary', () async {
+    test('several newcomers remain one expandable summary', () async {
       await prefs.setStringList('digest_snapshot_7d', ['us:GONE']);
 
       await service().run();
 
-      // The US file has two newcomers, so they get a summary above them; the
-      // ASX file has one, which needs no group of its own.
-      final summaries = notifier.posted.where((n) => n.isGroupSummary);
-      expect(summaries, hasLength(1));
-      final summary = summaries.single;
-      expect(summary.title, '🇺🇸 2 new in the US 7-day screen');
-      expect(summary.id, NotificationIds.digestFor(Market.us));
-      expect(
-        notifier.posted.where((n) => !n.isGroupSummary).map((n) => n.title),
-        contains('📈 MRNA — Moderna, Inc.'),
-      );
-
-      // The summary is a list, not a paragraph: one line per ticker, which is
-      // what Android expands the collapsed group into.
-      expect(summary.lines, hasLength(2));
+      expect(notifier.posted, hasLength(1));
+      final summary = notifier.posted.single;
+      expect(summary.title, '4 new in the 7-day screen');
+      expect(summary.id, NotificationIds.digest);
+      expect(summary.lines, hasLength(4));
       expect(summary.lines.first, startsWith('MRNA +117.9%'));
       expect(summary.lines.first, contains('Moderna, Inc.'));
-      expect(summary.summaryText, contains('stocks'));
+      expect(summary.summaryText, contains('US'));
+      expect(summary.summaryText, contains('ASX'));
     });
 
-    test('each file is announced on its own, in its own group', () async {
-      // Both files carry newcomers. They are separate screens, so neither is
-      // bundled under the other's summary.
-      await prefs.setStringList('digest_snapshot_7d', ['us:GONE']);
+    test(
+      'markets are consolidated instead of producing notification groups',
+      () async {
+        await prefs.setStringList('digest_snapshot_7d', ['us:GONE']);
 
-      await service().run();
+        await service().run();
 
-      Iterable<AppNotification> inGroup(Market market) => notifier.posted.where(
-        (n) => n.group == NotificationIds.sevenDayGroupFor(market),
-      );
+        expect(notifier.posted, hasLength(1));
+        expect(notifier.posted.single.summaryText, contains('ASX'));
+        expect(notifier.posted.single.summaryText, contains('US'));
+        expect(notifier.posted.single.summaryText, contains('NSE'));
+        expect(notifier.posted.single.group, isNull);
+      },
+    );
 
-      expect(
-        [for (final n in inGroup(Market.asx)) n.title],
-        ['📈 QETH — Betashares Ethereum ETF'],
-        reason: 'the ASX newcomer gets its own alert, under its own group',
-      );
-      expect(
-        inGroup(Market.us),
-        hasLength(3),
-        reason: 'two tickers, one summary',
-      );
-      expect(
-        [for (final n in inGroup(Market.nse)) n.title],
-        ['📈 TATAMOTORS — Tata Motors Limited'],
-        reason: 'and the NSE newcomer under its own',
-      );
-      expect(
-        notifier.posted.map((n) => n.group).toSet(),
-        hasLength(Market.values.length),
-        reason: 'one group per file, never a shared one',
-      );
-    });
+    test(
+      'watchlist mode adds only quiet, deep-linked starred alerts',
+      () async {
+        await prefs.setStringList('digest_snapshot_7d', ['us:GONE']);
+        await prefs.setString('alert_delivery_mode', 'summaryAndWatchlist');
+        await prefs.setStringList('watchlist', ['us:MRNA']);
+
+        await service().run();
+
+        expect(notifier.posted, hasLength(2));
+        final direct = notifier.posted.last;
+        expect(direct.title, contains('MRNA'));
+        expect(direct.kind, AppNotificationKind.watchlistAlert);
+        expect(direct.silent, isTrue);
+        final route = NotificationRoute.tryParse(direct.payload)!;
+        expect(route.destination, NotificationDestination.stock);
+        expect(route.market, Market.us);
+        expect(route.ticker, 'MRNA');
+      },
+    );
 
     test('nothing new means nothing posted, however often it runs', () async {
       await service().run();
@@ -355,9 +377,8 @@ void main() {
       expect(notifier.posted, isNotEmpty);
     });
 
-    test('a run that adds many tickers caps the alerts', () {
-      // The cap is on the alerts, not on the digest, which still counts them.
-      expect(DigestService.maxAlertsPerMarket, lessThan(20));
+    test('a run that adds many tickers caps the summary lines', () {
+      expect(DigestService.maxSummaryLines, lessThan(20));
     });
 
     test('an alert prices each market in its own currency', () {
@@ -365,40 +386,34 @@ void main() {
         row('QETH', 21.0, market: Market.asx),
       );
       expect(asx, startsWith('Increased 21.0% in the last week.'));
-      expect(asx, contains(r'Current price A$121.00'));
+      expect(asx, contains(r'Screened price A$121.00'));
+      expect(asx, contains('data as of 2026-08-21'));
 
       final us = DigestService.alertBody(row('MRNA', 117.9));
-      expect(us, contains(r'Current price $217.90'));
+      expect(us, contains(r'Screened price $217.90'));
       expect(us, isNot(contains(r'A$')));
     });
 
-    test('a refreshed file is announced once, when it changes', () async {
+    test('a refreshed file updates in-app health without notifying', () async {
       // The first sync has nothing to compare against, so it is recorded.
-      expect(await service().refresh(), isEmpty);
+      expect((await service().refresh()).changed, isEmpty);
       expect(notifier.posted, isEmpty);
 
       // Unchanged bytes: the conditional request says nothing happened.
-      expect(await service().refresh(), isEmpty);
+      expect((await service().refresh()).changed, isEmpty);
       expect(notifier.posted, isEmpty);
 
       // A new publish changes the ETag.
       version = '2';
-      final changed = await service().refresh();
+      final report = await service().refresh();
       expect(
-        changed,
+        report.changed,
         hasLength(Market.values.length),
         reason: 'every file was republished',
       );
-      expect(notifier.posted, hasLength(Market.values.length));
-      expect(
-        notifier.posted.map((n) => n.title),
-        containsAll([
-          '🇦🇺 asx.db refreshed',
-          '🇺🇸 us.db refreshed',
-          '🇮🇳 nse.db refreshed',
-        ]),
-      );
-      expect(notifier.posted.first.body, contains('downloaded'));
+      expect(report.allSucceeded, isTrue);
+      expect(notifier.posted, isEmpty);
+      expect(service().lastSuccess, isNotNull);
     });
 
     test('a failed download is not announced', () async {
@@ -414,7 +429,9 @@ void main() {
         clock: () => now,
       );
 
-      expect(await offline.refresh(), isEmpty);
+      final report = await offline.refresh();
+      expect(report.changed, isEmpty);
+      expect(report.failures, hasLength(Market.values.length));
       expect(notifier.posted, isEmpty);
     });
 
@@ -434,8 +451,9 @@ void main() {
         clock: () => now,
       );
 
-      final digest = (await offline.run()).digest!;
-      expect(digest.isEmpty, isTrue);
+      final run = await offline.run();
+      expect(run.digest, isNull);
+      expect(run.refresh.allSucceeded, isFalse);
       expect(notifier.posted, isEmpty, reason: 'an empty screen is not news');
     });
   });
@@ -475,13 +493,13 @@ void main() {
       );
       await tester.tap(find.text('More'));
       await settle(tester);
-      await tester.scrollUntilVisible(find.text('Refresh and alerts'), 200);
+      await tester.scrollUntilVisible(find.text('Screen alerts'), 200);
       await settle(tester, frames: 4);
       // scrollUntilVisible stops as soon as the row exists, which can leave it
       // hard against the bottom edge — and a third data source pushed this
       // section far enough down that it lands there. A tap on the switch would
       // then miss, and miss silently. Centre it before touching it.
-      await tester.ensureVisible(find.text('Refresh and alerts'));
+      await tester.ensureVisible(find.text('Screen alerts'));
       await settle(tester, frames: 4);
     }
 
@@ -492,7 +510,7 @@ void main() {
       await openSettings(tester, notifier);
 
       final toggle = find.ancestor(
-        of: find.text('Refresh and alerts'),
+        of: find.text('Screen alerts'),
         matching: find.byType(SwitchListTile),
       );
       expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
@@ -513,7 +531,7 @@ void main() {
       await openSettings(tester, notifier);
 
       final toggle = find.ancestor(
-        of: find.text('Refresh and alerts'),
+        of: find.text('Screen alerts'),
         matching: find.byType(SwitchListTile),
       );
       await tester.tap(
@@ -525,7 +543,7 @@ void main() {
       expect(find.textContaining('blocked'), findsOneWidget);
     });
 
-    testWidgets('"Check now" posts what the screen holds', (tester) async {
+    testWidgets('"Check now" previews without posting', (tester) async {
       final notifier = FakeNotifier();
       await openSettings(tester, notifier);
 
@@ -541,13 +559,23 @@ void main() {
         await settle(tester, frames: 10);
       }
 
-      // Forced, so it posts even on a first run: one alert per ticker, with a
-      // summary above them.
-      expect(notifier.posted, isNotEmpty);
-      expect(
-        notifier.posted.map((n) => '${n.title} ${n.body}').join(' '),
-        contains('MRNA'),
-      );
+      expect(notifier.posted, isEmpty);
+      expect(find.text('In-app preview — nothing was sent'), findsOneWidget);
+      expect(find.textContaining('7-day screen'), findsWidgets);
+    });
+
+    testWidgets('"Send sample" posts exactly one example', (tester) async {
+      final notifier = FakeNotifier();
+      await openSettings(tester, notifier);
+
+      await tester.scrollUntilVisible(find.text('Send sample'), 150);
+      await settle(tester, frames: 4);
+      await tester.tap(find.text('Send sample'));
+      await settle(tester);
+
+      expect(notifier.posted, hasLength(1));
+      expect(notifier.posted.single.kind, AppNotificationKind.sample);
+      expect(notifier.posted.single.summaryText, 'Example only');
     });
 
     testWidgets('tapping the digest while on another window does not crash', (

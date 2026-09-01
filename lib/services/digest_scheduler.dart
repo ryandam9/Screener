@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show TimeOfDay;
 import 'package:flutter/widgets.dart' show WidgetsFlutterBinding;
@@ -8,10 +6,11 @@ import 'package:workmanager/workmanager.dart';
 
 import '../data/db_sync_service.dart';
 import '../data/sqlite_platform.dart';
+import '../state/settings_controller.dart';
 import 'digest_service.dart';
 import 'notifier.dart';
 
-/// Wakes the app once a day to build and post the digest.
+/// Wakes the app for one or two approximate daily checks.
 ///
 /// Android runs the work itself through WorkManager, so the notification
 /// arrives whether or not the app is open. Everywhere else the platform has no
@@ -56,10 +55,12 @@ class DigestScheduler {
     if (!isSupported) return;
 
     final manager = Workmanager();
-    // Cancel first: the times are fixed today, but a changed list must not
-    // leave yesterday's registration running.
-    for (final at in refreshTimes) {
-      await manager.cancelByUniqueName(uniqueNameFor(at));
+    // Clear every supported hour so a changed preference cannot leave an old
+    // registration behind. Checks are intentionally hour-granular in the UI.
+    for (var hour = 0; hour < 24; hour++) {
+      await manager.cancelByUniqueName(
+        uniqueNameFor(TimeOfDay(hour: hour, minute: 0)),
+      );
     }
     // The name the single daily digest used before the refresh schedule.
     await manager.cancelByUniqueName('daily-7d-digest');
@@ -103,29 +104,26 @@ void digestCallbackDispatcher() {
     // Reload rather than trust the snapshot this isolate started with: the UI
     // isolate may have written since.
     await preferences.reload();
+    if (!(preferences.getBool(SettingsController.digestEnabledKey) ?? false)) {
+      return true;
+    }
 
     final sync = DbSyncService(preferences: preferences);
     try {
       // Fetches every file, says which changed, then says which tickers are
       // new in the 7-day screen.
-      await DigestService(
+      final result = await DigestService(
         preferences: preferences,
         sync: sync,
         notifier: LocalNotifier(),
       ).run();
+      // WorkManager applies its exponential retry policy. A failed refresh is
+      // not compared against stale cache, and a later retry can finish it.
+      return result.refresh.allSucceeded;
     } on Object {
-      // A failed digest is not worth a retry storm; tomorrow's run, or the
-      // next launch, produces one.
+      return false;
     } finally {
       sync.dispose();
     }
-    return true;
   });
 }
-
-/// Whether this platform can be asked to wake the app on a schedule.
-///
-/// Exposed for the settings screen, which explains the difference rather than
-/// silently doing nothing on desktop.
-bool get platformSchedulesDigest =>
-    !kIsWeb && (Platform.isAndroid || Platform.isIOS);

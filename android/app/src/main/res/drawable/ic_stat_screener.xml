@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Notification small icons are alpha masks: Android supplies their colour. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M4,18L4,15L9,10L13,14L18.2,8.8L16,6.6L22,6L21.4,12L19.3,9.9L13,16.2L9,12.2L5.5,15.7L5.5,18Z" />
+</vector>
