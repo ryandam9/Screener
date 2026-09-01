@@ -170,7 +170,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () => appState.refreshAll(force: true),
+        onRefresh: appState.refreshAll,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.only(bottom: 28),
@@ -185,7 +185,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     title: 'Could not read the databases',
                     message: '${snapshot.error}',
                     actionLabel: 'Retry',
-                    onAction: () => appState.refreshAll(force: true),
+                    onAction: appState.refreshAll,
                   );
                 }
                 final data = snapshot.data;
@@ -694,7 +694,7 @@ class _SyncBanner extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           GestureDetector(
-            onTap: () => context.read<AppState>().refreshAll(force: true),
+            onTap: () => context.read<AppState>().refreshAll(),
             child: Text(
               'Retry',
               style: TextStyle(
