@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-import '../models/market.dart';
+enum AppNotificationKind { marketAlert, watchlistAlert, dataHealth, sample }
+
+enum NotificationPermissionStatus { enabled, blocked, unsupported }
 
 /// One notification to post.
 @immutable
@@ -15,6 +17,9 @@ class AppNotification {
     this.isGroupSummary = false,
     this.lines = const [],
     this.summaryText,
+    this.kind = AppNotificationKind.marketAlert,
+    this.silent = false,
+    this.actionLabel,
   });
 
   final int id;
@@ -41,6 +46,17 @@ class AppNotification {
 
   /// The short right-hand note above the lines, e.g. `8 ASX · 153 US`.
   final String? summaryText;
+
+  /// Selects a user-controllable Android channel. Channel ids are versioned:
+  /// Android freezes a channel's behaviour after it is created.
+  final AppNotificationKind kind;
+
+  /// Useful for watchlist children: the consolidated digest makes the sound,
+  /// while direct links add detail without making the phone chime repeatedly.
+  final bool silent;
+
+  /// Optional foreground action. The body itself remains tappable too.
+  final String? actionLabel;
 }
 
 /// Posts notifications, and says whether it is allowed to.
@@ -51,6 +67,11 @@ abstract class Notifier {
   /// True when notifications can actually be shown — permission granted and
   /// the platform supported.
   Future<bool> ensurePermission();
+
+  Future<NotificationPermissionStatus> permissionStatus();
+
+  /// Opens this app's notification controls when the platform exposes them.
+  Future<bool> openSettings();
 
   Future<void> show(AppNotification notification);
 
@@ -64,13 +85,7 @@ class NotificationIds {
 
   static const digest = 1;
   static const test = 2;
-
-  /// One summary per file, so the screens sit in the shade side by side
-  /// rather than replacing one another.
-  static int digestFor(Market market) => 100 + market.index;
-
-  /// One notification per refreshed file, replaced rather than stacked.
-  static int forFile(Market market) => 10 + market.index;
+  static const dataHealth = 3;
 
   /// A stable id per ticker, so re-entering the screen replaces the old alert.
   ///
@@ -83,14 +98,6 @@ class NotificationIds {
     }
     return 1000 + hash;
   }
-
-  /// Android's group key for one file's 7-day alerts.
-  ///
-  /// A group per market rather than one for both: they are separate screens
-  /// over separate universes, and bundling them hides whichever file has
-  /// fewer names that day behind the other's.
-  static String sevenDayGroupFor(Market market) =>
-      'seven_day_screen_${market.id}';
 }
 
 /// The real notifier, backed by flutter_local_notifications.
@@ -119,10 +126,7 @@ class LocalNotifier implements Notifier {
       (defaultTargetPlatform == TargetPlatform.android ||
           defaultTargetPlatform == TargetPlatform.iOS);
 
-  static const _channelId = 'daily_digest';
-  static const _channelName = 'Daily digest';
-  static const _channelDescription =
-      'The morning summary of the 7-day growth screen.';
+  static const _smallIcon = 'ic_stat_screener';
 
   Future<void> initialise() async {
     if (_initialised) return;
@@ -130,7 +134,7 @@ class LocalNotifier implements Notifier {
 
     await _plugin.initialize(
       settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        android: AndroidInitializationSettings(_smallIcon),
         linux: LinuxInitializationSettings(defaultActionName: 'Open'),
       ),
       onDidReceiveNotificationResponse: (response) =>
@@ -164,8 +168,39 @@ class LocalNotifier implements Notifier {
   }
 
   @override
+  Future<NotificationPermissionStatus> permissionStatus() async {
+    await initialise();
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      return (await android?.areNotificationsEnabled() ?? true)
+          ? NotificationPermissionStatus.enabled
+          : NotificationPermissionStatus.blocked;
+    }
+    if (defaultTargetPlatform == TargetPlatform.linux) {
+      return NotificationPermissionStatus.enabled;
+    }
+    return NotificationPermissionStatus.unsupported;
+  }
+
+  @override
+  Future<bool> openSettings() async {
+    await initialise();
+    if (defaultTargetPlatform != TargetPlatform.android) return false;
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    if (android == null) return false;
+    return await android.openAppNotificationSettings() ?? false;
+  }
+
+  @override
   Future<void> show(AppNotification notification) async {
     await initialise();
+    final channel = _channelFor(notification.kind);
     await _plugin.show(
       id: notification.id,
       title: notification.title,
@@ -173,11 +208,12 @@ class LocalNotifier implements Notifier {
       payload: notification.payload,
       notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
-          _channelId,
-          _channelName,
-          channelDescription: _channelDescription,
-          importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
+          channel.id,
+          channel.name,
+          channelDescription: channel.description,
+          icon: _smallIcon,
+          importance: channel.importance,
+          priority: channel.priority,
           styleInformation: notification.lines.isEmpty
               // The body names a company and its move, over two lines.
               ? BigTextStyleInformation(notification.body)
@@ -188,6 +224,21 @@ class LocalNotifier implements Notifier {
                 ),
           groupKey: notification.group,
           setAsGroupSummary: notification.isGroupSummary,
+          groupAlertBehavior: notification.group == null
+              ? GroupAlertBehavior.all
+              : GroupAlertBehavior.summary,
+          silent: notification.silent,
+          onlyAlertOnce: notification.isGroupSummary,
+          category: AndroidNotificationCategory.recommendation,
+          actions: notification.actionLabel == null
+              ? const []
+              : [
+                  AndroidNotificationAction(
+                    'open',
+                    notification.actionLabel!,
+                    showsUserInterface: true,
+                  ),
+                ],
         ),
         linux: const LinuxNotificationDetails(),
       ),
@@ -196,4 +247,52 @@ class LocalNotifier implements Notifier {
 
   @override
   Future<void> cancelAll() => _plugin.cancelAll();
+
+  static _AndroidChannel _channelFor(AppNotificationKind kind) =>
+      switch (kind) {
+        AppNotificationKind.marketAlert => const _AndroidChannel(
+          id: 'market_alerts_v2',
+          name: 'Market alerts',
+          description: 'Consolidated updates from selected growth screens.',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+        ),
+        AppNotificationKind.watchlistAlert => const _AndroidChannel(
+          id: 'watchlist_alerts_v1',
+          name: 'Watchlist alerts',
+          description: 'Direct alerts for starred tickers entering a screen.',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+        ),
+        AppNotificationKind.dataHealth => const _AndroidChannel(
+          id: 'data_health_v1',
+          name: 'Data health',
+          description: 'Low-priority warnings when market data stays stale.',
+          importance: Importance.low,
+          priority: Priority.low,
+        ),
+        AppNotificationKind.sample => const _AndroidChannel(
+          id: 'notification_preview_v1',
+          name: 'Notification previews',
+          description: 'Sample notifications sent from Settings.',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+        ),
+      };
+}
+
+class _AndroidChannel {
+  const _AndroidChannel({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.importance,
+    required this.priority,
+  });
+
+  final String id;
+  final String name;
+  final String description;
+  final Importance importance;
+  final Priority priority;
 }

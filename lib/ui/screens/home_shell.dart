@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../models/growth_window.dart';
 import '../../state/app_state.dart';
 import '../../state/digest_router.dart';
 import '../../theme/app_theme.dart';
 import 'dashboard_screen.dart';
 import 'market_list_screen.dart';
 import 'more_screen.dart';
+import 'stock_detail_screen.dart';
 import 'watchlist_screen.dart';
 
 /// Root scaffold with the five-tab bottom navigation from the design.
@@ -27,7 +27,7 @@ class _HomeShellState extends State<HomeShell> {
   void _goToMarkets() => setState(() => _index = 1);
   void _goToWatchlist() => setState(() => _index = 2);
 
-  /// Lands on the 7-day list when the morning digest was tapped.
+  /// Opens the exact screen described by a notification tap.
   ///
   /// Everything happens after the frame, never inside it. Both shells are
   /// built from `AppShell`'s LayoutBuilder — that is, during layout — and
@@ -37,17 +37,36 @@ class _HomeShellState extends State<HomeShell> {
   /// while looking at a window other than 7D.
   void _consumeDigestRequest(BuildContext context) {
     if (_handlingDigestRequest) return;
-    if (!context.read<DigestRouter>().showSevenDayList) return;
+    if (!context.read<DigestRouter>().hasPendingRoute) return;
     _handlingDigestRequest = true;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _handlingDigestRequest = false;
       if (!mounted) return;
       final router = context.read<DigestRouter>();
-      if (!router.showSevenDayList) return;
-      router.consume();
-      context.read<AppState>().selectWindow(GrowthWindow.sevenDays);
-      setState(() => _index = 1);
+      final route = router.consume();
+      if (route == null) return;
+      final appState = context.read<AppState>();
+      if (route.market != null) appState.selectMarket(route.market!);
+      if (route.window != null) appState.selectWindow(route.window!);
+
+      switch (route.destination) {
+        case NotificationDestination.dataSources:
+          setState(() => _index = 3);
+        case NotificationDestination.screen:
+          setState(() => _index = 1);
+        case NotificationDestination.stock:
+          setState(() => _index = 1);
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => StockDetailScreen(
+                market: route.market!,
+                ticker: route.ticker!,
+                initialWindow: route.window,
+              ),
+            ),
+          );
+      }
     });
   }
 

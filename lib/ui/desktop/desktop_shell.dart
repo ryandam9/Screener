@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 
 import '../../models/market.dart';
 import '../../models/stock_row.dart';
-import '../../models/growth_window.dart';
 import '../../state/app_state.dart';
 import '../../state/digest_router.dart';
 import '../../state/settings_controller.dart';
@@ -79,7 +78,7 @@ class _DesktopShellState extends State<DesktopShell> {
     super.dispose();
   }
 
-  /// Lands on the 7-day list when the morning digest was tapped.
+  /// Opens the exact screen described by a notification tap.
   ///
   /// Everything happens after the frame, never inside it. Both shells are
   /// built from `AppShell`'s LayoutBuilder — that is, during layout — and
@@ -89,17 +88,47 @@ class _DesktopShellState extends State<DesktopShell> {
   /// while looking at a window other than 7D.
   void _consumeDigestRequest(BuildContext context) {
     if (_handlingDigestRequest) return;
-    if (!context.read<DigestRouter>().showSevenDayList) return;
+    if (!context.read<DigestRouter>().hasPendingRoute) return;
     _handlingDigestRequest = true;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       _handlingDigestRequest = false;
       if (!mounted) return;
       final router = context.read<DigestRouter>();
-      if (!router.showSevenDayList) return;
-      router.consume();
-      context.read<AppState>().selectWindow(GrowthWindow.sevenDays);
-      setState(() => _section = AppSection.markets);
+      final route = router.consume();
+      if (route == null) return;
+      final appState = context.read<AppState>();
+      if (route.market != null) appState.selectMarket(route.market!);
+      if (route.window != null) appState.selectWindow(route.window!);
+
+      switch (route.destination) {
+        case NotificationDestination.dataSources:
+          setState(() => _section = AppSection.settings);
+        case NotificationDestination.screen:
+          setState(() {
+            _section = AppSection.markets;
+            _pendingSearch = null;
+            _selected = null;
+          });
+        case NotificationDestination.stock:
+          final rows = await appState
+              .databaseOf(route.market!)
+              ?.ticker(route.ticker!);
+          if (!mounted) return;
+          StockRow? selected;
+          for (final row in rows ?? const <StockRow>[]) {
+            selected ??= row;
+            if (row.window == route.window) {
+              selected = row;
+              break;
+            }
+          }
+          setState(() {
+            _section = AppSection.markets;
+            _pendingSearch = route.ticker;
+            _selected = selected;
+          });
+      }
     });
   }
 

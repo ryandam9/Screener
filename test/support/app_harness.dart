@@ -496,6 +496,7 @@ class FakeNotifier implements Notifier {
 
   final List<AppNotification> posted = [];
   int permissionRequests = 0;
+  int settingsRequests = 0;
 
   AppNotification? get last => posted.isEmpty ? null : posted.last;
 
@@ -503,6 +504,17 @@ class FakeNotifier implements Notifier {
   Future<bool> ensurePermission() async {
     permissionRequests++;
     return permitted;
+  }
+
+  @override
+  Future<NotificationPermissionStatus> permissionStatus() async => permitted
+      ? NotificationPermissionStatus.enabled
+      : NotificationPermissionStatus.blocked;
+
+  @override
+  Future<bool> openSettings() async {
+    settingsRequests++;
+    return true;
   }
 
   @override

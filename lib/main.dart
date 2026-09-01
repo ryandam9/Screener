@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data/db_sync_service.dart';
 import 'data/sqlite_platform.dart';
+import 'models/market.dart';
 import 'services/digest_scheduler.dart';
 import 'services/digest_service.dart';
 import 'services/notifier.dart';
@@ -20,11 +21,7 @@ Future<void> main() async {
   final preferences = await SharedPreferences.getInstance();
 
   final router = DigestRouter();
-  final notifier = LocalNotifier(
-    onTapPayload: (payload) {
-      if (payload == DigestService.tapPayload) router.requestSevenDayList();
-    },
-  );
+  final notifier = LocalNotifier(onTapPayload: router.requestPayload);
   // None of this is worth failing to start over: a desktop with no
   // notification daemon, or a platform the scheduler does not cover, should
   // still get the app.
@@ -38,9 +35,7 @@ Future<void> main() async {
       await notifier.initialise();
       // The app may have been started by tapping the digest itself, which
       // arrives as a launch detail rather than through the tap callback.
-      if (await notifier.launchPayload() == DigestService.tapPayload) {
-        router.requestSevenDayList();
-      }
+      router.requestPayload(await notifier.launchPayload());
     }
   } on Object catch (error) {
     debugPrint('Notifications unavailable: $error');
@@ -139,13 +134,17 @@ class _DigestOnLaunchState extends State<_DigestOnLaunch> {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final settings = context.watch<SettingsController>();
+    final allFresh = Market.values.every(
+      (market) => !appState.stateOf(market).usingCache,
+    );
 
     // Only once the files are open: a comparison run mid-download would be
     // against yesterday's rows, and would then be recorded as the baseline.
     if (!_ran &&
         settings.digestEnabled &&
         appState.allReady &&
-        !appState.anyBusy) {
+        !appState.anyBusy &&
+        allFresh) {
       _ran = true;
       final digest = context.read<DigestService>();
       WidgetsBinding.instance.addPostFrameCallback((_) async {
