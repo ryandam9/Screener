@@ -6,8 +6,8 @@ import 'home_shell.dart';
 
 /// The sections reachable from the navigation, in sidebar order.
 ///
-/// The handset layout shows the first three plus Settings in its bottom bar;
-/// the desktop sidebar shows all of them.
+/// The handset promotes History alongside Dashboard, Markets and Watchlist;
+/// the desktop sidebar also exposes Reports and Settings directly.
 enum AppSection {
   dashboard('Dashboard', Icons.dashboard_outlined, Icons.dashboard),
   markets('Markets', Icons.public_outlined, Icons.public),
