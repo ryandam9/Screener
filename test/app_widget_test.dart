@@ -5,7 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:screener/models/market.dart';
 import 'package:screener/ui/screens/stock_detail_screen.dart';
+import 'package:screener/ui/widgets/google_finance_button.dart';
 import 'package:screener/ui/widgets/refresh_stamp.dart';
+import 'package:screener/ui/widgets/stock_tile.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -95,6 +97,27 @@ void main() {
     expect(
       tester.getTopLeft(find.text('Top Gainers (7 Day)')).dy,
       lessThan(300),
+    );
+  });
+
+  testWidgets('the dashboard uses ranked, focused gainer tiles', (
+    tester,
+  ) async {
+    await launch(tester);
+
+    final tiles = find.byType(GainerTile);
+    expect(tiles, findsWidgets);
+    expect(tester.widget<GainerTile>(tiles.first).rank, 1);
+    expect(tester.widget<GainerTile>(tiles.at(1)).rank, 2);
+
+    // The whole row opens the stock detail page. A second external-link icon
+    // made every compact row look like an action toolbar and is redundant here.
+    expect(
+      find.descendant(
+        of: tiles.first,
+        matching: find.byType(GoogleFinanceButton),
+      ),
+      findsNothing,
     );
   });
 
