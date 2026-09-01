@@ -1,8 +1,7 @@
-import 'dart:math' as math;
-
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 
+import '../../models/facets.dart';
 import '../../models/stock_row.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
@@ -281,11 +280,13 @@ class StockTile extends StatelessWidget {
   }
 }
 
-/// Dashboard variant: name on the left, price above the signed change.
+/// Dashboard variant: ranked identity on the left and the screen's sorting
+/// measure before the secondary price on the right.
 class GainerTile extends StatelessWidget {
   const GainerTile({
     super.key,
     required this.row,
+    this.rank,
     this.onTap,
     this.opensTo,
     this.selected = false,
@@ -293,6 +294,11 @@ class GainerTile extends StatelessWidget {
   });
 
   final StockRow row;
+
+  /// One-based position in a ranked list. Watchlist snapshots omit this and
+  /// keep the ticker monogram instead.
+  final int? rank;
+
   final VoidCallback? onTap;
 
   /// Screen this row grows into. See [StockTile.opensTo].
@@ -337,158 +343,115 @@ class GainerTile extends StatelessWidget {
   Widget _content(BuildContext context) {
     final colors = context.colors;
     return LayoutBuilder(
-      builder: (context, constraints) => _row(context, colors, constraints),
+      builder: (context, constraints) {
+        final scaler = MediaQuery.textScalerOf(context);
+        final stackValues = constraints.maxWidth < scaler.scale(280);
+        return _row(context, colors, stackValues: stackValues);
+      },
     );
   }
 
   Widget _row(
     BuildContext context,
-    ScreenerColors colors,
-    BoxConstraints constraints,
-  ) {
-    // "+75.33 (+117.9%)" needs 188px, and the row also carries a star, a link
-    // and the ticker's market badge. Under about 400px that leaves the company
-    // name nothing, so the percentage alone carries the row — it is what the
-    // list is ranked on, and the absolute change is one tap away.
-    final scaler = MediaQuery.textScalerOf(context);
-    final tight = constraints.maxWidth < scaler.scale(400);
-
-    // What the row spends before the ticker and the numbers: padding, the
-    // monogram, the gaps and the two actions.
-    final chrome = 16 + 38 + 12 + 8 + StockTile.actionsWidth(context) + 16;
-    // The numbers take what they want, but never more than the row can spare
-    // once the ticker has a readable minimum. Reserving a fixed width for
-    // them overflowed the row at 320dp with large text, where a touch
-    // device's actions are 88px of the 256 the row actually has.
-    final numbers = math.max(
-      0.0,
-      math.min(
-        scaler.scale(tight ? 72 : 188),
-        constraints.maxWidth - chrome - 40,
-      ),
-    );
-    // At 320dp with large text even the badge has to go.
-    final space = constraints.maxWidth - chrome - numbers;
-    final showBadge = showMarketBadge && space >= 124;
-
-    // See StockTile: a name squeezed beside the numbers is cut mid-word, so
-    // below a comfortable width it takes a line of its own.
-    final nameBelow = space < StockTile.comfortableNameWidth;
+    ScreenerColors colors, {
+    required bool stackValues,
+  }) {
+    final showBadge = showMarketBadge && !stackValues;
+    final category = row.category == kMiscLabel
+        ? null
+        : CategoryChip.maybe(row.category, dense: true);
     final name = _NameLine(
       name: row.shortName,
       maxLines: 3,
       fontSize: 12.5,
       color: colors.textName,
-      chip: CategoryChip.maybe(row.category, dense: nameBelow),
-      showChip: space >= StockTile.comfortableNameWidth || nameBelow,
+      chip: category,
+      showChip: true,
+    );
+
+    final identity = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Flexible(
+              child: Text(
+                row.ticker,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                  color: colors.textPrimary,
+                ),
+              ),
+            ),
+            if (showBadge) ...[
+              const SizedBox(width: 6),
+              TagBadge(
+                label: row.market.label,
+                foreground: colors.neutral,
+                background: colors.neutralSurface,
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 2),
+        name,
+      ],
+    );
+
+    final values = Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ChangeChip(pctChange: row.pctChange),
+        const SizedBox(height: 4),
+        Text(
+          Fmt.price(row.latestPrice),
+          maxLines: 1,
+          softWrap: false,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w500,
+            color: colors.textSecondary,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
+    );
+
+    final leading = rank == null
+        ? TickerAvatar(ticker: row.ticker, size: 32)
+        : _RankBadge(rank: rank!);
+
+    final star = WatchlistStar(
+      market: row.market,
+      ticker: row.ticker,
+      dense: true,
     );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              TickerAvatar(ticker: row.ticker, size: 38),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            row.ticker,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w700,
-                              color: colors.textPrimary,
-                            ),
-                          ),
-                        ),
-                        if (showBadge) ...[
-                          const SizedBox(width: 6),
-                          TagBadge(
-                            label: row.market.label,
-                            foreground: colors.neutral,
-                            background: colors.neutralSurface,
-                          ),
-                        ],
-                      ],
-                    ),
-                    if (!nameBelow) ...[const SizedBox(height: 1), name],
-                  ],
-                ),
-              ),
+              leading,
+              const SizedBox(width: 10),
+              Expanded(child: identity),
               const SizedBox(width: 8),
-              // Bounded to the width the row above reserved for it. Left to
-              // size itself it took whatever its widest line needed, which at
-              // 320dp and 1.6x text was more than the row had left.
-              SizedBox(
-                width: numbers,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        Fmt.price(row.latestPrice),
-                        style: TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w600,
-                          color: colors.textPrimary,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        tight
-                            ? Fmt.signedPercent(row.pctChange, decimals: 1)
-                            : '${Fmt.signedPrice(row.priceChange)} '
-                                  '(${Fmt.signedPercent(row.pctChange, decimals: 1)})',
-                        maxLines: 1,
-                        softWrap: false,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: colors.forChange(row.pctChange),
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              WatchlistStar(
-                market: row.market,
-                ticker: row.ticker,
-                dense: true,
-              ),
-              // The link's slot is held even when a row has no URL: a row that
-              // dropped it would pull its price and change 26px to the right of
-              // every other row, and out from under the headings.
-              if (row.googleFinanceUrl != null)
-                GoogleFinanceButton(
-                  url: row.googleFinanceUrl,
-                  ticker: row.ticker,
-                  dense: true,
-                )
-              else
-                SizedBox(width: StockTile.actionWidth(context)),
+              if (!stackValues) values,
+              star,
             ],
           ),
-          // The name on its own line, indented to sit under the ticker.
-          if (nameBelow)
+          if (stackValues)
             Padding(
-              padding: const EdgeInsets.only(left: 38 + 12, top: 2),
-              child: name,
+              padding: const EdgeInsets.only(left: 42, top: 8, right: 44),
+              child: Align(alignment: Alignment.centerRight, child: values),
             ),
         ],
       ),
@@ -496,10 +459,43 @@ class GainerTile extends StatelessWidget {
   }
 }
 
+class _RankBadge extends StatelessWidget {
+  const _RankBadge({required this.rank}) : assert(rank > 0);
+
+  final int rank;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Semantics(
+      label: 'Rank $rank',
+      excludeSemantics: true,
+      child: Container(
+        width: 32,
+        height: 32,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: colors.interactiveSurface,
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: Text(
+          '$rank',
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            color: colors.interactive,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// A company name with the instrument's category chip beside it.
 ///
-/// One widget for both tiles, and for both places the name can land: beside
-/// the numbers when the row is wide, or on a line of its own when it is not.
+/// Shared by the standard list tile and the dashboard's ranked tile. It also
+/// handles the standard tile moving the name onto a full-width line.
 ///
 /// A [Wrap] rather than a [Row]. A Row lays its inflexible children out
 /// first and gives a `Flexible` only what is left, so when the chip alone is
