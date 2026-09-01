@@ -54,7 +54,7 @@ void main() {
   testWidgets('the dashboard offers NSE and switches to it', (tester) async {
     await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
 
-    // The third file is a segment in the overview, not a third card.
+    // The third file is a segment on the context bar, not a third card.
     final segment = find.descendant(
       of: find.byType(SegmentedButton<Market>),
       matching: find.text('NSE'),
@@ -77,7 +77,7 @@ void main() {
       devicePixelRatio: 1.0,
     );
 
-    // Three stacked market cards put the rows below the fold. The overview is one
+    // Three stacked market cards put the rows below the fold. The strip is one
     // market's, so the gainers start in the first screenful whatever the
     // bucket grows to.
     final gainers = tester.getTopLeft(find.text('Top Gainers (7 Day)'));

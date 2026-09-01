@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -26,9 +25,7 @@ import '../widgets/info_dialog.dart';
 class _DashboardData {
   const _DashboardData({
     required this.market,
-    required this.window,
     required this.summary,
-    required this.growthTrend,
     required this.topGainers,
     required this.starred,
     required this.starredTotal,
@@ -36,15 +33,9 @@ class _DashboardData {
   });
 
   final Market market;
-  final GrowthWindow window;
 
   /// Null while the file for [market] has not been opened.
   final MarketSummary? summary;
-
-  /// Chronological, chain-linked median market growth from the published
-  /// weekly price series. Unlike the window summaries, these points form a
-  /// real time series and are safe to draw as a sparkline.
-  final List<double> growthTrend;
 
   final List<StockRow> topGainers;
 
@@ -91,9 +82,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (database == null) {
       return _DashboardData(
         market: market,
-        window: window,
         summary: null,
-        growthTrend: const [],
         topGainers: const [],
         starred: const [],
         starredTotal: starredTotal,
@@ -101,44 +90,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
 
-    // Start the two dashboard-wide reads together. SQLite may serialize work
-    // within a database, but neither request now waits for the other to be
-    // created, and the cached growth series makes subsequent loads cheap.
-    final summaryFuture = database.summary();
-    final growthFuture = database.medianGrowthSeries();
     final hasWindow = database.availableWindows.contains(window);
-    final tickers = watchlist.tickersFor(market);
-    final gainersFuture = hasWindow
-        ? database.stocks(window, const StockQuery(limit: 6))
-        : Future<List<StockRow>>.value(const []);
-    final starredFuture = tickers.isEmpty || !hasWindow
-        ? Future<List<StockRow>>.value(const [])
-        : database.stocks(window, StockQuery(tickers: tickers));
-    final runsFuture = database.allRuns();
+    final gainers = hasWindow
+        ? await database.stocks(window, const StockQuery(limit: 6))
+        : <StockRow>[];
 
-    final gainers = await gainersFuture;
-    // Both fallback futures deliberately return const empty lists. Copy all
-    // query results before ordering them so an empty watchlist remains a
-    // valid dashboard state rather than trying to mutate an immutable list.
-    final starred = [...await starredFuture];
+    final tickers = watchlist.tickersFor(market);
+    final starred = tickers.isEmpty || !hasWindow
+        ? <StockRow>[]
+        : await database.stocks(window, StockQuery(tickers: tickers));
     starred.sort((a, b) => b.pctChange.compareTo(a.pctChange));
 
-    final runs = [...await runsFuture];
-    runs.sort((a, b) {
-      final left = a.runStartedAt;
-      final right = b.runStartedAt;
-      if (left == null || right == null) {
-        return a.window.approximateDays.compareTo(b.window.approximateDays);
-      }
-      return right.compareTo(left);
-    });
+    final runs = await database.allRuns()
+      ..sort((a, b) {
+        final left = a.runStartedAt;
+        final right = b.runStartedAt;
+        if (left == null || right == null) {
+          return a.window.approximateDays.compareTo(b.window.approximateDays);
+        }
+        return right.compareTo(left);
+      });
 
-    final growth = await growthFuture;
     return _DashboardData(
       market: market,
-      window: window,
-      summary: await summaryFuture,
-      growthTrend: [for (final point in growth) point.pctChange],
+      summary: await database.summary(),
       topGainers: gainers,
       starred: starred,
       starredTotal: starredTotal,
@@ -185,6 +160,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               MaterialPageRoute<void>(builder: (_) => const SearchScreen()),
             ),
           ),
+          IconButton(
+            tooltip: 'Window',
+            icon: const Icon(Icons.tune),
+            onPressed: () => _showWindowPicker(context, appState),
+          ),
           const InfoButton(info: PageInfos.dashboard),
           const SizedBox(width: 4),
         ],
@@ -219,7 +199,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 if (data.summary == null) return const _DashboardSkeleton();
                 return _DashboardBody(
                   data: data,
-                  window: data.window,
+                  window: appState.selectedWindow,
                   onSeeAllMarkets: widget.onSeeAllMarkets,
                   onSeeWatchlist: widget.onSeeWatchlist,
                 );
@@ -236,6 +216,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _showWindowPicker(BuildContext context, AppState appState) {
+    return showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: context.colors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              const SectionHeader(
+                title: 'Analysis window',
+                padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
+              ),
+              for (final window in GrowthWindow.values)
+                ListTile(
+                  title: Text('${window.longLabel} analysis'),
+                  trailing: window == appState.selectedWindow
+                      ? Icon(Icons.check, color: context.colors.interactive)
+                      : null,
+                  onTap: () {
+                    appState.selectWindow(window);
+                    Navigator.of(sheetContext).pop();
+                  },
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -257,38 +273,18 @@ class _DashboardBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final market = data.market;
-    final motionDuration = AppMotion.contentDuration(context);
-
-    Widget fadeThrough({
-      required String key,
-      required Color fillColor,
-      required Widget child,
-    }) => PageTransitionSwitcher(
-      duration: motionDuration,
-      transitionBuilder: (child, animation, secondaryAnimation) =>
-          FadeThroughTransition(
-            animation: animation,
-            secondaryAnimation: secondaryAnimation,
-            fillColor: fillColor,
-            child: child,
-          ),
-      child: KeyedSubtree(key: ValueKey(key), child: child),
-    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 12),
-        fadeThrough(
-          key: 'overview-${market.id}-${window.name}',
-          fillColor: colors.pageBackground,
-          child: _MarketOverview(
-            market: market,
-            summary: data.summary,
-            trend: data.growthTrend,
-            window: window,
-            state: context.watch<AppState>().stateOf(market),
-          ),
+        _ContextBar(market: market, window: window),
+        const SizedBox(height: 10),
+        _MarketStrip(
+          market: market,
+          summary: data.summary,
+          window: window,
+          state: context.watch<AppState>().stateOf(market),
         ),
         SectionHeader(
           title: 'Top Gainers (${window.longLabel})',
@@ -296,18 +292,47 @@ class _DashboardBody extends StatelessWidget {
           onAction: onSeeAllMarkets,
         ),
         Panel(
-          child: fadeThrough(
-            key: 'gainers-${market.id}-${window.name}',
-            fillColor: colors.card,
-            child: data.topGainers.isEmpty
+          child: data.topGainers.isEmpty
+              ? StatusView(
+                  icon: Icons.trending_flat,
+                  title: 'No ${market.label} rows in this window',
+                  compact: true,
+                )
+              : Column(
+                  children: [
+                    for (final row in data.topGainers) ...[
+                      GainerTile(
+                        row: row,
+                        showMarketBadge: false,
+                        opensTo: (_) => StockDetailScreen(
+                          market: row.market,
+                          ticker: row.ticker,
+                          initialWindow: window,
+                        ),
+                      ),
+                      if (row != data.topGainers.last)
+                        Divider(height: 1, color: colors.divider, indent: 66),
+                    ],
+                  ],
+                ),
+        ),
+        if (data.starredTotal > 0) ...[
+          SectionHeader(
+            title: 'Watchlist',
+            actionLabel: 'See all',
+            onAction: onSeeWatchlist,
+          ),
+          Panel(
+            child: data.starred.isEmpty
                 ? StatusView(
-                    icon: Icons.trending_flat,
-                    title: 'No ${market.label} rows in this window',
+                    icon: Icons.star_border_rounded,
+                    title:
+                        'None of your ${market.label} stars are in this window',
                     compact: true,
                   )
                 : Column(
                     children: [
-                      for (final row in data.topGainers) ...[
+                      for (final row in data.starred.take(3)) ...[
                         GainerTile(
                           row: row,
                           showMarketBadge: false,
@@ -317,52 +342,11 @@ class _DashboardBody extends StatelessWidget {
                             initialWindow: window,
                           ),
                         ),
-                        if (row != data.topGainers.last)
+                        if (row != data.starred.take(3).last)
                           Divider(height: 1, color: colors.divider, indent: 66),
                       ],
                     ],
                   ),
-          ),
-        ),
-        if (data.starredTotal > 0) ...[
-          SectionHeader(
-            title: 'Watchlist',
-            actionLabel: 'See all',
-            onAction: onSeeWatchlist,
-          ),
-          Panel(
-            child: fadeThrough(
-              key: 'watchlist-${market.id}-${window.name}',
-              fillColor: colors.card,
-              child: data.starred.isEmpty
-                  ? StatusView(
-                      icon: Icons.star_border_rounded,
-                      title:
-                          'None of your ${market.label} stars are in this window',
-                      compact: true,
-                    )
-                  : Column(
-                      children: [
-                        for (final row in data.starred.take(3)) ...[
-                          GainerTile(
-                            row: row,
-                            showMarketBadge: false,
-                            opensTo: (_) => StockDetailScreen(
-                              market: row.market,
-                              ticker: row.ticker,
-                              initialWindow: window,
-                            ),
-                          ),
-                          if (row != data.starred.take(3).last)
-                            Divider(
-                              height: 1,
-                              color: colors.divider,
-                              indent: 66,
-                            ),
-                        ],
-                      ],
-                    ),
-            ),
           ),
           // The snapshot only shows what this window lists. Saying how many
           // are starred altogether keeps it from reading as the whole list —
@@ -380,18 +364,14 @@ class _DashboardBody extends StatelessWidget {
         ],
         const SectionHeader(title: 'Recent Analyses'),
         Panel(
-          child: fadeThrough(
-            key: 'runs-${market.id}',
-            fillColor: colors.card,
-            child: Column(
-              children: [
-                for (final run in data.runs.take(4)) ...[
-                  _RunTile(run: run),
-                  if (run != data.runs.take(4).last)
-                    Divider(height: 1, color: colors.divider, indent: 16),
-                ],
+          child: Column(
+            children: [
+              for (final run in data.runs.take(4)) ...[
+                _RunTile(run: run),
+                if (run != data.runs.take(4).last)
+                  Divider(height: 1, color: colors.divider, indent: 16),
               ],
-            ),
+            ],
           ),
         ),
       ],
@@ -399,20 +379,69 @@ class _DashboardBody extends StatelessWidget {
   }
 }
 
-/// Market context, performance and filters in one compact card. This keeps
-/// the primary rankings visible in the first phone viewport.
-class _MarketOverview extends StatelessWidget {
-  const _MarketOverview({
+/// Which file, and which window of it, the page below is about.
+///
+/// One bar rather than a title menu and a toolbar icon: the two choices that
+/// decide every number on the screen were the two that took the most taps to
+/// find.
+class _ContextBar extends StatelessWidget {
+  const _ContextBar({required this.market, required this.window});
+
+  final Market market;
+  final GrowthWindow window;
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    final windows = appState.availableWindows;
+
+    return Panel(
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SegmentedButton<Market>(
+            segments: [
+              for (final value in Market.values)
+                ButtonSegment(value: value, label: Text(value.label)),
+            ],
+            selected: {market},
+            showSelectedIcon: false,
+            style: const ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            onSelectionChanged: (selection) =>
+                appState.selectMarket(selection.first),
+          ),
+          const SizedBox(height: 8),
+          PeriodSelector<GrowthWindow>(
+            values: windows,
+            selected: windows.contains(window) ? window : windows.first,
+            labelOf: (value) => value.label,
+            onChanged: appState.selectWindow,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The selected market in one strip: what the window did, and how fresh it is.
+///
+/// The old page stacked a full-height card per file above the rows. Three
+/// files made that 430dp on a 400dp-wide phone — the whole first screen spent
+/// on summaries, with the movers below the fold.
+class _MarketStrip extends StatelessWidget {
+  const _MarketStrip({
     required this.market,
     required this.summary,
-    required this.trend,
     required this.window,
     required this.state,
   });
 
   final Market market;
   final MarketSummary? summary;
-  final List<double> trend;
   final GrowthWindow window;
 
   /// The download behind this strip, for the refresh stamp.
@@ -421,148 +450,77 @@ class _MarketOverview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final appState = context.watch<AppState>();
-    final windows = appState.availableWindows;
     final summary = this.summary;
     final stat = summary?.statFor(window);
-    final preserveMetricSpace = MediaQuery.sizeOf(context).width < 360;
+    final trend = [
+      for (final entry in summary?.stats ?? const <WindowStat>[])
+        if (entry.count > 0) entry.medianPctChange,
+    ];
 
     return Panel(
-      padding: EdgeInsets.zero,
+      padding: const EdgeInsets.fromLTRB(14, 11, 14, 10),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: colors.interactiveSurface,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    market.emoji,
-                    style: const TextStyle(fontSize: 18),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (stat == null || stat.count == 0)
                       Text(
-                        '${market.label} · ${window.longLabel}',
+                        summary == null ? 'Loading…' : 'No rows',
                         style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: colors.textSecondary,
+                          fontSize: 20,
+                          color: colors.textTertiary,
+                        ),
+                      )
+                    else ...[
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          Fmt.signedPercent(stat.medianPctChange, decimals: 2),
+                          maxLines: 1,
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.6,
+                            color: colors.forChange(stat.medianPctChange),
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 1),
-                      if (stat == null || stat.count == 0)
-                        Text(
-                          summary == null ? 'Loading…' : 'No rows',
-                          style: TextStyle(
-                            fontSize: 20,
-                            color: colors.textTertiary,
-                          ),
-                        )
-                      else
-                        Row(
-                          children: [
-                            Text(
-                              Fmt.signedPercent(
-                                stat.medianPctChange,
-                                decimals: 2,
-                              ),
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -0.5,
-                                color: colors.forChange(stat.medianPctChange),
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures(),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 7),
-                            Flexible(
-                              child: Text(
-                                'median · ${Fmt.integer(stat.count)} '
-                                '${market.instrumentNoun}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  color: colors.textTertiary,
-                                ),
-                              ),
-                            ),
-                          ],
+                      Text(
+                        'median ${window.label} · '
+                        '${Fmt.integer(stat.count)} ${market.instrumentNoun}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: colors.textSecondary,
                         ),
+                      ),
                     ],
-                  ),
-                ),
-                // The chart is supporting context. On the narrowest phones,
-                // give that space to the metric instead of shrinking or
-                // clipping its actual value.
-                if (trend.length >= 2 && !preserveMetricSpace) ...[
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 72,
-                    height: 32,
-                    child: Sparkline(
-                      values: trend,
-                      color: colors.forChange(trend.last),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: RefreshStamp(state: state, dense: true),
-            ),
-          ),
-          Divider(height: 1, color: colors.divider),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(10, 9, 10, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SegmentedButton<Market>(
-                  segments: [
-                    for (final value in Market.values)
-                      ButtonSegment(value: value, label: Text(value.label)),
                   ],
-                  selected: {market},
-                  showSelectedIcon: false,
-                  style: const ButtonStyle(
-                    minimumSize: WidgetStatePropertyAll(Size(0, 44)),
-                    tapTargetSize: MaterialTapTargetSize.padded,
-                  ),
-                  onSelectionChanged: (selection) =>
-                      appState.selectMarket(selection.first),
                 ),
-                const SizedBox(height: 8),
-                PeriodSelector<GrowthWindow>(
-                  values: windows,
-                  selected: windows.contains(window) ? window : windows.first,
-                  labelOf: (value) => value.label,
-                  onChanged: appState.selectWindow,
+              ),
+              if (trend.length >= 2) ...[
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 92,
+                  height: 36,
+                  child: Sparkline(values: trend, color: colors.positive),
                 ),
               ],
-            ),
+            ],
           ),
+          const SizedBox(height: 6),
+          RefreshStamp(state: state, dense: true),
         ],
       ),
     );
@@ -758,7 +716,7 @@ class _DashboardSkeleton extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadii.panel),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: colors.cardBorder),
       ),
     );
@@ -767,12 +725,15 @@ class _DashboardSkeleton extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: Column(
         children: [
-          // Match the loaded page: one market overview, then the ranked list
-          // and recent analyses. A two-card skeleton implied a layout that no
-          // longer exists and made the page visibly jump when data arrived.
-          block(190),
-          block(320),
-          block(180),
+          Row(
+            children: [
+              Expanded(child: block(150)),
+              const SizedBox(width: 12),
+              Expanded(child: block(150)),
+            ],
+          ),
+          block(220),
+          block(150),
         ],
       ),
     );

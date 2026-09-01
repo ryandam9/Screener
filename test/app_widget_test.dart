@@ -1,14 +1,11 @@
 import 'dart:io';
 
-import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:screener/models/market.dart';
-import 'package:screener/theme/app_theme.dart';
 import 'package:screener/ui/screens/stock_detail_screen.dart';
 import 'package:screener/ui/widgets/refresh_stamp.dart';
-import 'package:screener/ui/widgets/sparkline.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -57,15 +54,7 @@ void main() {
 
     expect(find.text('Stocks Analysis'), findsOneWidget);
 
-    final contentTransitions = tester
-        .widgetList<PageTransitionSwitcher>(find.byType(PageTransitionSwitcher))
-        .toList();
-    expect(contentTransitions, hasLength(3));
-    for (final transition in contentTransitions) {
-      expect(transition.duration, AppMotion.content);
-    }
-
-    // Every file is a segment in the market overview; one is on screen.
+    // Every file is a segment on the context bar; one of them is on screen.
     for (final market in Market.values) {
       expect(
         find.descendant(
@@ -81,13 +70,6 @@ void main() {
     expect(find.text('MRNA'), findsWidgets);
     expect(find.text('139.22'), findsWidgets);
     expect(find.text('QETH'), findsNothing);
-
-    // The overview visualizes the actual weekly market series. Window medians
-    // are unrelated look-back aggregates and must never be connected as if
-    // they were chronological points.
-    final sparkline = tester.widget<Sparkline>(find.byType(Sparkline));
-    expect(sparkline.values.length, greaterThan(2));
-    expect(sparkline.values.first, 0);
 
     await tester.tap(
       find.descendant(
@@ -109,7 +91,7 @@ void main() {
   ) async {
     await launch(tester);
 
-    // Three stacked market summaries spent the whole first viewport here.
+    // Three stacked market cards spent the whole first viewport on summaries.
     expect(
       tester.getTopLeft(find.text('Top Gainers (7 Day)')).dy,
       lessThan(300),

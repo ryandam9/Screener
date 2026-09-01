@@ -73,9 +73,7 @@ class Panel extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = EdgeInsets.zero,
-    this.margin = const EdgeInsets.symmetric(
-      horizontal: AppSpacing.mobilePage,
-    ),
+    this.margin = const EdgeInsets.symmetric(horizontal: 16),
   });
 
   final Widget child;
@@ -94,7 +92,7 @@ class Panel extends StatelessWidget {
         color: colors.card,
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadii.panel),
+          borderRadius: BorderRadius.circular(14),
           side: BorderSide(color: colors.cardBorder),
         ),
         child: Padding(padding: padding, child: child),
@@ -440,7 +438,7 @@ class _PeriodPill extends StatelessWidget {
     final colors = context.colors;
 
     return AnimatedContainer(
-      duration: AppMotion.selectionDuration(context),
+      duration: const Duration(milliseconds: 160),
       decoration: BoxDecoration(
         color: selected ? colors.interactive : colors.pageBackground,
         borderRadius: BorderRadius.circular(20),

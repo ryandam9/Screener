@@ -213,7 +213,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                     _header(context, row),
                     Expanded(
                       child: PageTransitionSwitcher(
-                        duration: AppMotion.contentDuration(context),
+                        duration: const Duration(milliseconds: 200),
                         transitionBuilder:
                             (child, animation, secondaryAnimation) =>
                                 FadeThroughTransition(
