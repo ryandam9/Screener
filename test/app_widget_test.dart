@@ -364,12 +364,15 @@ void main() {
       await settle(tester);
     }
 
+    await tester.tap(find.text('History'));
+    await settle(tester);
+    expect(find.text('ASX Price History'), findsOneWidget);
+
     await tester.tap(find.text('More'));
     await settle(tester);
     expect(find.text('Data sources'), findsOneWidget);
     expect(find.textContaining('us.db'), findsWidgets);
   });
-
 
   testWidgets('data-source details use the space below the refresh button', (
     tester,

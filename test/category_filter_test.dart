@@ -134,13 +134,9 @@ void main() {
     expect(find.text('Apply'), findsOneWidget);
   });
 
-  /// The price history page, reached from More.
+  /// The price history page, reached from primary navigation.
   Future<void> openHistory(WidgetTester tester) async {
-    await tester.tap(find.text('More').last);
-    await settle(tester);
-    await tester.scrollUntilVisible(find.text('Price history'), 200);
-    await settle(tester, frames: 4);
-    await tester.tap(find.text('Price history'));
+    await tester.tap(find.text('History').last);
     await settle(tester);
   }
 

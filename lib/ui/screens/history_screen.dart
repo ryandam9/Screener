@@ -108,10 +108,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final markets = _marketsWith(appState);
     final desktop = context.layoutSize.hasSidebar;
 
-    // Whichever market is chosen, falling back to the first that publishes
-    // history: today that is the ASX, but the page follows the files rather
-    // than naming a market of its own.
-    final market = markets.contains(_market) ? _market! : markets.firstOrNull;
+    // Follow the app's selected market on first open. If that file does not
+    // publish history, fall back to the first one that does.
+    final preferredMarket = _market ?? appState.selectedMarket;
+    final market = markets.contains(preferredMarket)
+        ? preferredMarket
+        : markets.firstOrNull;
 
     final body = market == null
         ? const StatusView(
@@ -133,21 +135,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
             onQuery: (value) => setState(() => _query = value),
             onFacets: (value) => setState(() => _facets = value),
             onSelect: (ticker) => setState(() => _selected = ticker),
-            onMarket: (value) => setState(() {
-              _market = value;
-              // The selection and the facets both belong to the market they
-              // came from: another file labels its funds differently, if at
-              // all.
-              _selected = null;
-              _facets = const FacetSelection();
-            }),
+            onMarket: (value) {
+              appState.selectMarket(value);
+              setState(() {
+                _market = value;
+                // The selection and the facets both belong to the market they
+                // came from: another file labels its funds differently, if at
+                // all.
+                _selected = null;
+                _facets = const FacetSelection();
+              });
+            },
           );
 
     if (widget.embedded) return body;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Price history'),
+        title: Text(
+          market == null ? 'Price History' : '${market.label} Price History',
+        ),
         actions: const [
           InfoButton(info: PageInfos.history),
           SizedBox(width: 4),
@@ -236,7 +243,11 @@ class _Body extends StatelessWidget {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => Scaffold(
-                        appBar: AppBar(title: Text(ticker.ticker)),
+                        appBar: AppBar(
+                          title: Text(
+                            '${ticker.ticker} · ${database.market.label}',
+                          ),
+                        ),
                         body: SafeArea(
                           bottom: false,
                           child: _Detail(

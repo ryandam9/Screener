@@ -5,6 +5,7 @@ import '../../state/app_state.dart';
 import '../../state/digest_router.dart';
 import '../../theme/app_theme.dart';
 import 'dashboard_screen.dart';
+import 'history_screen.dart';
 import 'market_list_screen.dart';
 import 'more_screen.dart';
 import 'stock_detail_screen.dart';
@@ -25,7 +26,7 @@ class _HomeShellState extends State<HomeShell> {
   bool _handlingDigestRequest = false;
 
   void _goToMarkets() => setState(() => _index = 1);
-  void _goToWatchlist() => setState(() => _index = 2);
+  void _goToWatchlist() => setState(() => _index = 3);
 
   /// Opens the exact screen described by a notification tap.
   ///
@@ -52,7 +53,7 @@ class _HomeShellState extends State<HomeShell> {
 
       switch (route.destination) {
         case NotificationDestination.dataSources:
-          setState(() => _index = 3);
+          setState(() => _index = 4);
         case NotificationDestination.screen:
           setState(() => _index = 1);
         case NotificationDestination.stock:
@@ -83,6 +84,7 @@ class _HomeShellState extends State<HomeShell> {
         onSeeWatchlist: _goToWatchlist,
       ),
       MarketListScreen(market: appState.selectedMarket),
+      const HistoryScreen(),
       const WatchlistScreen(),
       const MoreScreen(),
     ];
@@ -106,6 +108,11 @@ class _HomeShellState extends State<HomeShell> {
               icon: Icon(Icons.bar_chart_outlined),
               selectedIcon: Icon(Icons.bar_chart),
               label: 'Markets',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.candlestick_chart_outlined),
+              selectedIcon: Icon(Icons.candlestick_chart),
+              label: 'History',
             ),
             NavigationDestination(
               icon: Icon(Icons.star_border_rounded),
