@@ -360,22 +360,72 @@ class _MarketStatusTile extends StatelessWidget {
       _ => (Icons.sync, colors.neutral, 'Checking'),
     };
 
-    return ListTile(
-      leading: Icon(icon, color: tint),
-      title: Text('${market.label} — ${market.objectKey}'),
-      subtitle: Text(
-        [
-          status,
-          if (asset != null) Fmt.bytes(asset.sizeBytes),
-          if (asset != null) 'synced ${Fmt.relativeStamp(asset.syncedAt)}',
-          if (state.error != null) state.error!,
-        ].join(' · '),
-        maxLines: 3,
-      ),
-      trailing: IconButton(
-        tooltip: 'Check for updates',
-        icon: const Icon(Icons.refresh),
-        onPressed: state.isBusy ? null : () => appState.refresh(market),
+    final detailStyle = Theme.of(
+      context,
+    ).textTheme.bodyMedium?.copyWith(color: colors.textSecondary);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 8, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: tint),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  '${market.label} — ${market.objectKey}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Check for updates',
+                icon: const Icon(Icons.refresh),
+                onPressed: state.isBusy ? null : () => appState.refresh(market),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 40, right: 8),
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              runSpacing: 2,
+              spacing: 12,
+              children: [
+                Text(
+                  [
+                    status,
+                    if (asset != null) Fmt.bytes(asset.sizeBytes),
+                  ].join(' · '),
+                  maxLines: 1,
+                  style: detailStyle,
+                ),
+                if (asset != null)
+                  Text(
+                    'Synced ${Fmt.relativeStamp(asset.syncedAt)}',
+                    maxLines: 1,
+                    style: detailStyle,
+                  ),
+              ],
+            ),
+          ),
+          if (state.error != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(40, 4, 8, 0),
+              child: Text(
+                state.error!,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: detailStyle?.copyWith(color: colors.negative),
+              ),
+            ),
+        ],
       ),
     );
   }
