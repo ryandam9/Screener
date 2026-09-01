@@ -53,9 +53,7 @@ class MoreScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: appState.anyBusy
-                        ? null
-                        : () => appState.refreshAll(force: true),
+                    onPressed: appState.anyBusy ? null : appState.redownloadAll,
                     icon: const Icon(Icons.refresh, size: 18),
                     label: const Text('Re-download'),
                   ),
@@ -330,7 +328,7 @@ class MoreScreen extends StatelessWidget {
     for (final market in Market.values) {
       await sync.deleteCache(market);
     }
-    await appState.refreshAll(force: true);
+    await appState.refreshAll();
   }
 }
 
@@ -375,11 +373,9 @@ class _MarketStatusTile extends StatelessWidget {
         maxLines: 3,
       ),
       trailing: IconButton(
-        tooltip: 'Refresh',
+        tooltip: 'Check for updates',
         icon: const Icon(Icons.refresh),
-        onPressed: state.isBusy
-            ? null
-            : () => appState.refresh(market, force: true),
+        onPressed: state.isBusy ? null : () => appState.refresh(market),
       ),
     );
   }

@@ -160,12 +160,24 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<void> refreshAll({bool force = false}) async {
-    await Future.wait(Market.values.map((m) => refresh(m, force: force)));
+  /// Checks every remote file with its cached ETag or Last-Modified value.
+  /// Unchanged databases stay on disk and are not downloaded again.
+  Future<void> refreshAll() async {
+    await Future.wait(Market.values.map(refresh));
   }
 
-  /// Fetches [market] and reopens it if the bytes changed.
-  Future<void> refresh(Market market, {bool force = false}) async {
+  /// Explicit recovery action used by Settings > Re-download.
+  ///
+  /// Normal UI refreshes must use [refreshAll] so navigating, retrying or
+  /// pulling to refresh cannot consume bandwidth for unchanged databases.
+  Future<void> redownloadAll() async {
+    await Future.wait(Market.values.map((market) => _refresh(market, true)));
+  }
+
+  /// Revalidates [market] and reopens it only when the remote bytes changed.
+  Future<void> refresh(Market market) => _refresh(market, false);
+
+  Future<void> _refresh(Market market, bool forceDownload) async {
     final previous = stateOf(market);
     if (previous.isBusy) return;
 
@@ -177,7 +189,7 @@ class AppState extends ChangeNotifier {
     try {
       final asset = await _sync.sync(
         market,
-        force: force,
+        force: forceDownload,
         onProgress: (progress) {
           final current = stateOf(market);
           switch (progress.stage) {

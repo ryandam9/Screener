@@ -132,7 +132,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 title: 'No runs available',
                 message: 'Download the databases to see their runs.',
                 actionLabel: 'Download',
-                onAction: () => appState.refreshAll(force: true),
+                onAction: appState.refreshAll,
               );
             }
 

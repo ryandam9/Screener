@@ -211,7 +211,7 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
                   title: 'Could not read the databases',
                   message: '${snapshot.error}',
                   actionLabel: 'Retry',
-                  onAction: () => appState.refreshAll(force: true),
+                  onAction: appState.refreshAll,
                 );
               }
               final data = snapshot.data;
@@ -224,7 +224,7 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
                           title: 'No data yet',
                           message: 'The databases have not been downloaded.',
                           actionLabel: 'Download',
-                          onAction: () => appState.refreshAll(force: true),
+                          onAction: appState.refreshAll,
                         ),
                 );
               }
@@ -465,7 +465,7 @@ class _SyncButton extends StatelessWidget {
     final busy = appState.anyBusy;
 
     return OutlinedButton.icon(
-      onPressed: busy ? null : () => appState.refreshAll(force: true),
+      onPressed: busy ? null : appState.refreshAll,
       style: OutlinedButton.styleFrom(
         foregroundColor: colors.textSecondary,
         side: BorderSide(color: colors.cardBorder),
@@ -479,7 +479,7 @@ class _SyncButton extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : const Icon(Icons.refresh, size: 17),
-      label: Text(busy ? 'Syncing…' : 'Refresh'),
+      label: Text(busy ? 'Checking…' : 'Check updates'),
     );
   }
 }
