@@ -15,7 +15,6 @@ import '../../services/notifier.dart';
 import '../../services/digest_service.dart';
 import '../widgets/panels.dart';
 import '../widgets/watchlist_star.dart';
-import 'history_screen.dart';
 import 'reports_screen.dart';
 import '../info/page_info.dart';
 import '../widgets/info_dialog.dart';
@@ -146,23 +145,6 @@ class MoreScreen extends StatelessWidget {
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => const ReportsScreen(),
-                    ),
-                  ),
-                ),
-                Divider(height: 1, color: colors.divider, indent: 16),
-                ListTile(
-                  leading: Icon(
-                    Icons.candlestick_chart_outlined,
-                    color: colors.interactive,
-                  ),
-                  title: const Text('Price history'),
-                  subtitle: const Text(
-                    'Every ticker the run collected, charted',
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const HistoryScreen(),
                     ),
                   ),
                 ),
