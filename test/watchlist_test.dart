@@ -284,11 +284,7 @@ void main() {
     await tapStar(tester, 'QETH');
     final tint = starredSurface(tester);
 
-    await tester.tap(find.text('More').last);
-    await settle(tester);
-    await tester.scrollUntilVisible(find.text('Price history'), 200);
-    await settle(tester, frames: 4);
-    await tester.tap(find.text('Price history'));
+    await tester.tap(find.text('History').last);
     await settle(tester);
 
     expect(rowColour(tester, 'QETH'), tint);
