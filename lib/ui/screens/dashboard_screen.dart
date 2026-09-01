@@ -13,7 +13,6 @@ import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../widgets/panels.dart';
 import '../widgets/refresh_stamp.dart';
-import '../widgets/sparkline.dart';
 import '../widgets/stock_tile.dart';
 import 'market_list_screen.dart';
 import 'search_screen.dart';
@@ -25,7 +24,6 @@ import '../widgets/info_dialog.dart';
 class _DashboardData {
   const _DashboardData({
     required this.market,
-    required this.summary,
     required this.topGainers,
     required this.starred,
     required this.starredTotal,
@@ -33,9 +31,6 @@ class _DashboardData {
   });
 
   final Market market;
-
-  /// Null while the file for [market] has not been opened.
-  final MarketSummary? summary;
 
   final List<StockRow> topGainers;
 
@@ -82,7 +77,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (database == null) {
       return _DashboardData(
         market: market,
-        summary: null,
         topGainers: const [],
         starred: const [],
         starredTotal: starredTotal,
@@ -113,7 +107,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return _DashboardData(
       market: market,
-      summary: await database.summary(),
       topGainers: gainers,
       starred: starred,
       starredTotal: starredTotal,
@@ -196,7 +189,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Center(child: CircularProgressIndicator()),
                   );
                 }
-                if (data.summary == null) return const _DashboardSkeleton();
+                if (!appState.stateOf(data.market).isReady) {
+                  return const _DashboardSkeleton();
+                }
                 return _DashboardBody(
                   data: data,
                   window: appState.selectedWindow,
@@ -279,13 +274,6 @@ class _DashboardBody extends StatelessWidget {
       children: [
         const SizedBox(height: 12),
         _ContextBar(market: market, window: window),
-        const SizedBox(height: 10),
-        _MarketStrip(
-          market: market,
-          summary: data.summary,
-          window: window,
-          state: context.watch<AppState>().stateOf(market),
-        ),
         SectionHeader(
           title: 'Top Gainers (${window.longLabel})',
           actionLabel: 'View all',
@@ -426,106 +414,8 @@ class _ContextBar extends StatelessWidget {
             labelOf: (value) => value.label,
             onChanged: appState.selectWindow,
           ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The selected market in one strip: what the window did, and how fresh it is.
-///
-/// The old page stacked a full-height card per file above the rows. Three
-/// files made that 430dp on a 400dp-wide phone — the whole first screen spent
-/// on summaries, with the movers below the fold.
-class _MarketStrip extends StatelessWidget {
-  const _MarketStrip({
-    required this.market,
-    required this.summary,
-    required this.window,
-    required this.state,
-  });
-
-  final Market market;
-  final MarketSummary? summary;
-  final GrowthWindow window;
-
-  /// The download behind this strip, for the refresh stamp.
-  final MarketState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final summary = this.summary;
-    final stat = summary?.statFor(window);
-    final trend = [
-      for (final entry in summary?.stats ?? const <WindowStat>[])
-        if (entry.count > 0) entry.medianPctChange,
-    ];
-
-    return Panel(
-      padding: const EdgeInsets.fromLTRB(14, 11, 14, 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (stat == null || stat.count == 0)
-                      Text(
-                        summary == null ? 'Loading…' : 'No rows',
-                        style: TextStyle(
-                          fontSize: 20,
-                          color: colors.textTertiary,
-                        ),
-                      )
-                    else ...[
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          Fmt.signedPercent(stat.medianPctChange, decimals: 2),
-                          maxLines: 1,
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.6,
-                            color: colors.forChange(stat.medianPctChange),
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        'median ${window.label} · '
-                        '${Fmt.integer(stat.count)} ${market.instrumentNoun}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: colors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              if (trend.length >= 2) ...[
-                const SizedBox(width: 12),
-                SizedBox(
-                  width: 92,
-                  height: 36,
-                  child: Sparkline(values: trend, color: colors.positive),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 6),
-          RefreshStamp(state: state, dense: true),
+          const SizedBox(height: 8),
+          RefreshStamp(state: appState.stateOf(market), dense: true),
         ],
       ),
     );

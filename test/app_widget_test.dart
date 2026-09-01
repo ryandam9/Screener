@@ -68,10 +68,11 @@ void main() {
       );
     }
 
-    // US is the default: its rows and its summary, not the ASX file's.
+    // US is the default: its rows, not the ASX file's.
     expect(find.text('MRNA'), findsWidgets);
     expect(find.text('139.22'), findsWidgets);
     expect(find.text('QETH'), findsNothing);
+    expect(find.textContaining('median 7D'), findsNothing);
 
     await tester.tap(
       find.descendant(
@@ -88,7 +89,7 @@ void main() {
     expect(find.textContaining('7 Day Analysis'), findsWidgets);
   });
 
-  testWidgets('the gainers are on the first screen, not below the summary', (
+  testWidgets('the gainers are on the first screen beneath the controls', (
     tester,
   ) async {
     await launch(tester);
