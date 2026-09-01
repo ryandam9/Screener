@@ -175,13 +175,10 @@ void main() {
     await openAndCloseInfo(tester);
     await goBack(tester);
 
-    // Price history, also from More. Its rows carry the most in a single
-    // line of any list in the app — avatar, ticker, price, change, star and
-    // link — so 320dp is where they run out of room first.
-    final history = find.text('Price history');
-    await tester.scrollUntilVisible(history, 200);
-    await settle(tester, frames: 4);
-    await tester.tap(history);
+    // Price history, promoted to primary navigation. Its rows carry the most
+    // in a single line of any list in the app — avatar, ticker, price, change,
+    // star and link — so 320dp is where they run out of room first.
+    await tester.tap(find.text('History').last);
     await settle(tester);
     await sweep(tester);
     await openAndCloseInfo(tester);
@@ -190,7 +187,6 @@ void main() {
     await tester.tap(find.text('QETH').first);
     await settle(tester);
     await sweep(tester);
-    await goBack(tester);
     await goBack(tester);
   }
 
