@@ -137,13 +137,13 @@ void main() {
       clock: () => DateTime(2026, 8, 24, 9),
     ).run();
 
-    final alert = notifier.posted.firstWhere(
-      (n) => n.title.contains('TATAMOTORS'),
+    final alert = notifier.posted.single;
+    final nseLine = alert.lines.singleWhere(
+      (line) => line.startsWith('TATAMOTORS '),
     );
-    expect(alert.title, '📈 TATAMOTORS — Tata Motors Limited');
     expect(
-      alert.body,
-      contains('Current price ₹1,043.60'),
+      nseLine,
+      contains('₹1,043.60'),
       reason: 'a plain \$ in front of an NSE price reads as US dollars',
     );
   });
