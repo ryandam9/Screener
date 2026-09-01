@@ -469,6 +469,12 @@ void main() {
     });
 
     setUp(() async {
+      // A widget test reports Android, so the scheduler would really call the
+      // host's WorkManager plugin — `workmanager_linux`, which shells out with
+      // Process.run once per registration. The screen under test is the
+      // toggle, not the scheduling; see DigestScheduler.debugSupportedOverride.
+      DigestScheduler.debugSupportedOverride = false;
+      addTearDown(() => DigestScheduler.debugSupportedOverride = null);
       SharedPreferences.setMockInitialValues({});
       cacheDir = await Directory.systemTemp.createTemp('screener_dui_cache');
       serveDir = await Directory.systemTemp.createTemp('screener_dui_serve');
@@ -540,7 +546,17 @@ void main() {
       await settle(tester);
 
       expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
-      expect(find.textContaining('blocked'), findsOneWidget);
+      // Twice over: the snackbar says it now, and the status chip keeps
+      // saying it after the snackbar has gone.
+      expect(
+        find.text(
+          'Notifications are blocked. Open system settings to allow '
+          'them.',
+        ),
+        findsOneWidget,
+        reason: 'the snackbar',
+      );
+      expect(find.text('System blocked'), findsOneWidget, reason: 'the chip');
     });
 
     testWidgets('"Check now" previews without posting', (tester) async {

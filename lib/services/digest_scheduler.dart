@@ -36,7 +36,18 @@ class DigestScheduler {
 
   /// True where a scheduled wake-up is actually available.
   static bool get isSupported =>
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+      debugSupportedOverride ??
+      (!kIsWeb && defaultTargetPlatform == TargetPlatform.android);
+
+  /// Forces [isSupported] in tests.
+  ///
+  /// A widget test reports [TargetPlatform.android] while running on the
+  /// host, so `Workmanager()` resolves to whatever plugin the host registers
+  /// — on Linux that is `workmanager_linux`, which really shells out with
+  /// `Process.run`. Configuring the schedule from a test then spawns a
+  /// subprocess per registration, and their timers outlive the widget tree.
+  @visibleForTesting
+  static bool? debugSupportedOverride;
 
   /// How long from [now] until the next [at], never zero — a delay of zero
   /// would fire the moment the setting is saved.
