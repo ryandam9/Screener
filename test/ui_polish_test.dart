@@ -76,7 +76,7 @@ void main() {
   ) async {
     await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
 
-    for (final tab in ['Markets', 'Watchlist', 'More']) {
+    for (final tab in ['Markets', 'History', 'Watchlist', 'More']) {
       await tester.tap(find.text(tab).last);
       await settle(tester);
       expect(
