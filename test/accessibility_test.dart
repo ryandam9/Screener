@@ -64,6 +64,22 @@ void main() {
     }
   });
 
+  test('content and selection motion follow reduced-motion preference', () {
+    // The settings panels reach for these when they animate; a reader who
+    // has asked the system for less motion gets the state change without
+    // the transition, not a shorter one.
+    const reduced = MediaQueryData(disableAnimations: true);
+    const standard = MediaQueryData();
+
+    expect(AppMotion.forMedia(reduced, AppMotion.content), Duration.zero);
+    expect(AppMotion.forMedia(reduced, AppMotion.selection), Duration.zero);
+    expect(AppMotion.forMedia(standard, AppMotion.content), AppMotion.content);
+    expect(
+      AppMotion.forMedia(standard, AppMotion.selection),
+      AppMotion.selection,
+    );
+  });
+
   testWidgets('a dense row action is a real tap target on a phone', (
     tester,
   ) async {

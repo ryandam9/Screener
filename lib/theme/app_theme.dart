@@ -7,6 +7,39 @@ import 'package:flutter/material.dart';
 /// `TextPainter` has no ancestor to inherit from), so they name it explicitly.
 const String kFontFamily = 'Inter';
 
+/// Shared shape tokens for the app's panels and controls.
+///
+/// Keeping these outside [AppTheme] lets custom `Material` panels use the
+/// same geometry as themed cards instead of repeating almost-identical
+/// hard-coded radii.
+class AppRadii {
+  const AppRadii._();
+
+  static const double panel = 12;
+  static const double control = 10;
+}
+
+/// Motion tokens for interaction, content replacement and navigation.
+///
+/// Package transitions and implicit animations share these durations. System
+/// reduced-motion preferences turn them into immediate state changes.
+class AppMotion {
+  const AppMotion._();
+
+  static const Duration selection = Duration(milliseconds: 160);
+  static const Duration content = Duration(milliseconds: 220);
+  static const Duration navigation = Duration(milliseconds: 240);
+
+  static Duration forMedia(MediaQueryData media, Duration duration) =>
+      media.disableAnimations ? Duration.zero : duration;
+
+  static Duration selectionDuration(BuildContext context) =>
+      forMedia(MediaQuery.of(context), selection);
+
+  static Duration contentDuration(BuildContext context) =>
+      forMedia(MediaQuery.of(context), content);
+}
+
 /// Colours the design uses that Material's scheme has no slot for.
 @immutable
 class ScreenerColors extends ThemeExtension<ScreenerColors> {

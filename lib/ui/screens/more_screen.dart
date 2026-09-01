@@ -427,7 +427,11 @@ class _DigestPanelState extends State<_DigestPanel> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshPermission());
+    // Guarded: the callback runs a frame later, and a screen torn down in
+    // between leaves this State without a context to read the notifier from.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _refreshPermission();
+    });
   }
 
   Future<void> _refreshPermission() async {
@@ -638,11 +642,15 @@ class _DigestPanelState extends State<_DigestPanel> {
               ),
               PageTransitionSwitcher(
                 duration: AppMotion.contentDuration(context),
+                // Transparent, not the card colour: the fill is painted as a
+                // ColoredBox around the child, and one between this Panel's
+                // Material and the ListTiles inside it swallows their
+                // background and ink splashes. The Panel paints the surface.
                 transitionBuilder: (child, animation, secondaryAnimation) =>
                     FadeThroughTransition(
                       animation: animation,
                       secondaryAnimation: secondaryAnimation,
-                      fillColor: colors.card,
+                      fillColor: Colors.transparent,
                       child: child,
                     ),
                 child: enabled
@@ -708,10 +716,13 @@ class _DigestPanelState extends State<_DigestPanel> {
         ),
         PageTransitionSwitcher(
           duration: AppMotion.contentDuration(context),
+          // See above: the default fill is the canvas colour, which is a
+          // ColoredBox all the same.
           transitionBuilder: (child, animation, secondaryAnimation) =>
               FadeThroughTransition(
                 animation: animation,
                 secondaryAnimation: secondaryAnimation,
+                fillColor: Colors.transparent,
                 child: child,
               ),
           child: _preview == null
@@ -876,6 +887,10 @@ class _AlertPreferences extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: DropdownButtonFormField<double>(
             initialValue: settings.minimumAlertMove,
+            // Without this the button's Row sizes to the widest item and
+            // overflows the field: "Use screen cut-off" wants 53px more than
+            // a 320dp phone leaves it.
+            isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Minimum weekly move',
               helperText: 'Applied after the screen’s published cut-off',
