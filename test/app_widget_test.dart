@@ -370,6 +370,29 @@ void main() {
     expect(find.textContaining('us.db'), findsWidgets);
   });
 
+
+  testWidgets('data-source details use the space below the refresh button', (
+    tester,
+  ) async {
+    await launch(tester);
+    await tester.tap(find.text('More'));
+    await settle(tester);
+
+    final status = find.textContaining('Up to date ·');
+    final synced = find.textContaining('Synced Today');
+    expect(status, findsNWidgets(Market.values.length));
+    expect(synced, findsNWidgets(Market.values.length));
+
+    final statusRect = tester.getRect(status.first);
+    final syncedRect = tester.getRect(synced.first);
+    expect(
+      (statusRect.center.dy - syncedRect.center.dy).abs(),
+      lessThan(1),
+      reason: 'the metadata fits on one line at handset width',
+    );
+    expect(statusRect.right, lessThan(syncedRect.left));
+  });
+
   testWidgets('the dashboard dates the run, not the download', (tester) async {
     await launch(tester);
 
