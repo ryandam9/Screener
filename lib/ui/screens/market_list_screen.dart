@@ -1177,7 +1177,7 @@ class _NotReady extends StatelessWidget {
       title: '${market.label} data unavailable',
       message: state.error ?? 'The database has not been downloaded yet.',
       actionLabel: 'Try again',
-      onAction: () => context.read<AppState>().refresh(market, force: true),
+      onAction: () => context.read<AppState>().refresh(market),
     );
   }
 }
