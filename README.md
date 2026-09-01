@@ -23,7 +23,7 @@ navigation chrome and the dashboard differ.
 | **Watchlist** | Starred tickers from every market, swipe to remove. A starred ticker is tinted wherever else it is listed. |
 | **Analysis** | Run-level statistics: instrument count, median/strongest/weakest change, a distribution histogram, a per-exchange breakdown, and the most traded instruments. |
 | **Reports** | Every published run with its row count, `data_as_of` and `run_id`, and a CSV export per window; below each market, the run metadata behind that file and its screen funnel. Desktop shows it in the sidebar; the handset reaches it from More. |
-| **Price history** | Every ticker the run collected, not just what passed a screen, with a chart of its published bars. Search plus category and issuer filters where the file labels its tickers. Desktop shows it in the sidebar; the handset reaches it from More. |
+| **Price history** | Every ticker the run collected, not just what passed a screen, with a chart of its published bars. Search plus category and issuer filters where the file labels its tickers. It is a primary navigation area on both handset and desktop, and always names the selected market. |
 | **More / Settings** | Per-file sync status and size, re-download and cache controls, theme, and row density. |
 
 ## Data
