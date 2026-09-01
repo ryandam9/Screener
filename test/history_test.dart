@@ -344,14 +344,12 @@ void main() {
         payloads: payloads,
       );
 
-      await tester.tap(find.text('More'));
+      await tester.tap(find.text('History').last);
       await settle(tester);
-      await tester.scrollUntilVisible(find.text('Price history'), 200);
-      await settle(tester, frames: 4);
-      await tester.tap(find.text('Price history'));
-      await settle(tester);
+      expect(find.text('ASX Price History'), findsOneWidget);
       await tester.tap(find.text('QETH').first);
       await settle(tester);
+      expect(find.text('QETH · ASX'), findsOneWidget);
 
       // The list is a route behind now, so this is the chart page's own star.
       await tester.tap(find.byTooltip('Add QETH to watchlist'));
@@ -465,7 +463,9 @@ void main() {
       expect(find.text('QETH'), findsNothing);
     });
 
-    testWidgets('a second market with history gets a switch', (tester) async {
+    testWidgets('history names and follows the selected market', (
+      tester,
+    ) async {
       // Today only asx.db publishes the table. When us.db does too, the page
       // has to reach both rather than silently showing the first.
       await launchApp(
@@ -479,14 +479,17 @@ void main() {
       await tester.tap(find.text('History'));
       await settle(tester);
 
-      // The ASX comes first and charts by default; the US is one tap away.
-      expect(find.text('QETH'), findsWidgets);
-      await tester.tap(find.widgetWithText(InkWell, 'US').last);
-      await settle(tester);
-
+      // US is the app's selected market, so History opens there and names it.
+      expect(find.text('US Price History'), findsOneWidget);
       expect(find.text('NVDA'), findsWidgets);
       expect(find.text('NVIDIA Corporation'), findsWidgets);
-      expect(find.text('QETH'), findsNothing);
+      await tester.tap(find.widgetWithText(InkWell, 'ASX').last);
+      await settle(tester);
+
+      expect(find.text('ASX Price History'), findsOneWidget);
+      expect(find.text('QETH'), findsWidgets);
+      expect(find.text('NVDA'), findsNothing);
+      expect(find.text('NVIDIA Corporation'), findsNothing);
     });
 
     testWidgets('the handset pins the Google Finance link within reach', (
@@ -494,11 +497,7 @@ void main() {
     ) async {
       await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
 
-      await tester.tap(find.text('More'));
-      await settle(tester);
-      await tester.scrollUntilVisible(find.text('Price history'), 200);
-      await settle(tester, frames: 4);
-      await tester.tap(find.text('Price history'));
+      await tester.tap(find.text('History').last);
       await settle(tester);
       await tester.tap(find.text('QETH').first);
       await settle(tester);
@@ -527,11 +526,7 @@ void main() {
     testWidgets('a handset opens the chart as its own page', (tester) async {
       await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
 
-      await tester.tap(find.text('More'));
-      await settle(tester);
-      await tester.scrollUntilVisible(find.text('Price history'), 200);
-      await settle(tester, frames: 4);
-      await tester.tap(find.text('Price history'));
+      await tester.tap(find.text('History').last);
       await settle(tester);
 
       expect(find.byType(HistoryScreen), findsOneWidget);
