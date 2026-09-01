@@ -312,7 +312,13 @@ void main() {
 
     final selector = find.byType(PeriodSelector<GrowthWindow>).first;
     expect(tester.getSize(selector).width, greaterThanOrEqualTo(260));
-    for (final window in GrowthWindow.values) {
+    // The fixture publishes these three windows. The standalone selector test
+    // above covers the five-window production layout.
+    for (final window in const [
+      GrowthWindow.sevenDays,
+      GrowthWindow.oneMonth,
+      GrowthWindow.oneYear,
+    ]) {
       final label = find.descendant(
         of: selector,
         matching: find.text(window.label),

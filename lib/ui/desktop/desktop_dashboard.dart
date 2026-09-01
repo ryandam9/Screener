@@ -10,15 +10,16 @@ import '../../models/stock_row.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
-import '../screens/stock_detail_screen.dart';
-import '../widgets/panels.dart';
-import '../widgets/price_chart.dart';
-import 'widgets/desktop_cards.dart';
-import 'widgets/gainers_table.dart';
 import '../info/page_info.dart';
+import '../screens/stock_detail_screen.dart';
+import '../widgets/category_chip.dart';
 import '../widgets/google_finance_button.dart';
 import '../widgets/info_dialog.dart';
+import '../widgets/panels.dart';
+import '../widgets/price_chart.dart';
 import '../widgets/watchlist_star.dart';
+import 'widgets/desktop_cards.dart';
+import 'widgets/gainers_table.dart';
 
 /// Everything the desktop dashboard shows, gathered in one pass.
 class DesktopDashboardData {
@@ -74,10 +75,8 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
   Future<DesktopDashboardData>? _future;
   String _signature = '';
   String _databaseSignature = '';
-  final Map<
-    Market,
-    ({MarketDatabase database, MarketSummary summary})
-  > _summaryCache = {};
+  final Map<Market, ({MarketDatabase database, MarketSummary summary})>
+  _summaryCache = {};
 
   /// Which market the gainers table is showing, or null for both ranked
   /// together.
@@ -117,19 +116,20 @@ class _DesktopDashboardState extends State<DesktopDashboard> {
         List<StockRow> gainers,
         List<StockRow> movers,
       })
-    > loadMarket(Market market) async {
+    >
+    loadMarket(Market market) async {
       final database = appState.databaseOf(market);
       if (database == null) {
         return (
           market: market,
-          runs: const [],
+          runs: const <RunInfo>[],
           summary: MarketSummary(
             market: market,
             stats: const [],
             consistentCount: 0,
           ),
-          gainers: const [],
-          movers: const [],
+          gainers: const <StockRow>[],
+          movers: const <StockRow>[],
         );
       }
 
@@ -741,6 +741,7 @@ class _MarketPulseStrip extends StatelessWidget {
             Expanded(
               child: _MarketPulseCell(
                 market: Market.values[index],
+                window: window,
                 stat: summaries[Market.values[index]]?.statFor(window),
                 selected: selected == Market.values[index],
                 onTap: () => onSelect(
@@ -760,12 +761,14 @@ class _MarketPulseStrip extends StatelessWidget {
 class _MarketPulseCell extends StatelessWidget {
   const _MarketPulseCell({
     required this.market,
+    required this.window,
     required this.stat,
     required this.selected,
     required this.onTap,
   });
 
   final Market market;
+  final GrowthWindow window;
   final WindowStat? stat;
   final bool selected;
   final VoidCallback onTap;

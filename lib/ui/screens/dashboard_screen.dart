@@ -117,10 +117,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final runsFuture = database.allRuns();
 
     final gainers = await gainersFuture;
-    final starred = await starredFuture;
+    // Both fallback futures deliberately return const empty lists. Copy all
+    // query results before ordering them so an empty watchlist remains a
+    // valid dashboard state rather than trying to mutate an immutable list.
+    final starred = [...await starredFuture];
     starred.sort((a, b) => b.pctChange.compareTo(a.pctChange));
 
-    final runs = await runsFuture;
+    final runs = [...await runsFuture];
     runs.sort((a, b) {
       final left = a.runStartedAt;
       final right = b.runStartedAt;
@@ -235,7 +238,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
-
 }
 
 class _DashboardBody extends StatelessWidget {
@@ -316,11 +318,7 @@ class _DashboardBody extends StatelessWidget {
                           ),
                         ),
                         if (row != data.topGainers.last)
-                          Divider(
-                            height: 1,
-                            color: colors.divider,
-                            indent: 66,
-                          ),
+                          Divider(height: 1, color: colors.divider, indent: 66),
                       ],
                     ],
                   ),
@@ -427,6 +425,7 @@ class _MarketOverview extends StatelessWidget {
     final windows = appState.availableWindows;
     final summary = this.summary;
     final stat = summary?.statFor(window);
+    final preserveMetricSpace = MediaQuery.sizeOf(context).width < 360;
 
     return Panel(
       padding: EdgeInsets.zero,
@@ -446,7 +445,10 @@ class _MarketOverview extends StatelessWidget {
                     color: colors.interactiveSurface,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Text(market.emoji, style: const TextStyle(fontSize: 18)),
+                  child: Text(
+                    market.emoji,
+                    style: const TextStyle(fontSize: 18),
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -507,7 +509,10 @@ class _MarketOverview extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (trend.length >= 2) ...[
+                // The chart is supporting context. On the narrowest phones,
+                // give that space to the metric instead of shrinking or
+                // clipping its actual value.
+                if (trend.length >= 2 && !preserveMetricSpace) ...[
                   const SizedBox(width: 8),
                   SizedBox(
                     width: 72,
@@ -542,7 +547,7 @@ class _MarketOverview extends StatelessWidget {
                   selected: {market},
                   showSelectedIcon: false,
                   style: const ButtonStyle(
-                    visualDensity: VisualDensity.compact,
+                    minimumSize: WidgetStatePropertyAll(Size(0, 44)),
                     tapTargetSize: MaterialTapTargetSize.padded,
                   ),
                   onSelectionChanged: (selection) =>
