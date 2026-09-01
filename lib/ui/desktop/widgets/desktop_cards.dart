@@ -28,7 +28,7 @@ class DesktopPanel extends StatelessWidget {
       color: colors.card,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         side: BorderSide(color: colors.cardBorder),
       ),
       child: Column(

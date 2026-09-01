@@ -119,7 +119,10 @@ class StockTile extends StatelessWidget {
         closedColor: background ?? colors.card,
         openColor: colors.pageBackground,
         middleColor: colors.card,
-        transitionDuration: const Duration(milliseconds: 240),
+        transitionDuration: AppMotion.forMedia(
+          MediaQuery.of(context),
+          AppMotion.navigation,
+        ),
         closedShape: const RoundedRectangleBorder(),
         closedBuilder: (context, _) => _content(context),
         openBuilder: (context, _) => open(context),
@@ -322,7 +325,10 @@ class GainerTile extends StatelessWidget {
         closedColor: background ?? colors.card,
         openColor: colors.pageBackground,
         middleColor: colors.card,
-        transitionDuration: const Duration(milliseconds: 240),
+        transitionDuration: AppMotion.forMedia(
+          MediaQuery.of(context),
+          AppMotion.navigation,
+        ),
         closedShape: const RoundedRectangleBorder(),
         closedBuilder: (context, _) => _content(context),
         openBuilder: (context, _) => open(context),
