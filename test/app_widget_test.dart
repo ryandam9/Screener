@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
+import 'package:screener/main.dart';
 import 'package:screener/models/market.dart';
 import 'package:screener/ui/screens/stock_detail_screen.dart';
 import 'package:screener/ui/widgets/google_finance_button.dart';
@@ -48,6 +49,37 @@ void main() {
         payloads: payloads,
         shouldFail: shouldFail,
       ).then((_) {});
+
+  testWidgets('the first frame explains what the dashboard is preparing', (
+    tester,
+  ) async {
+    late SharedPreferences preferences;
+    await tester.runAsync(() async {
+      preferences = await SharedPreferences.getInstance();
+    });
+
+    await tester.pumpWidget(
+      ScreenerApp(
+        preferences: preferences,
+        notifier: FakeNotifier(),
+        syncService: fixtureSyncService(
+          preferences: preferences,
+          cacheDir: tempDir,
+          payloads: payloads,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Preparing dashboard'), findsOneWidget);
+    expect(find.text('Top Gainers (7 Day)'), findsOneWidget);
+    expect(find.text('Recent Analyses'), findsOneWidget);
+
+    // Let the asynchronous file work finish before the temporary directories
+    // are removed by tearDown.
+    await settle(tester, frames: 50);
+    expect(find.text('MRNA'), findsWidgets);
+  });
 
   testWidgets('the dashboard shows one market and switches between them', (
     tester,
