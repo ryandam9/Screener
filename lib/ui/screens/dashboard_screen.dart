@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -172,31 +173,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
             FutureBuilder<_DashboardData>(
               future: _future,
               builder: (context, snapshot) {
+                late final String transitionKey;
+                late final Widget child;
                 if (snapshot.hasError) {
-                  return StatusView(
+                  transitionKey = 'error';
+                  child = StatusView(
                     icon: Icons.error_outline,
                     title: 'Could not read the databases',
                     message: '${snapshot.error}',
                     actionLabel: 'Retry',
                     onAction: appState.refreshAll,
                   );
+                } else {
+                  final data = snapshot.data;
+                  if (data == null || !appState.stateOf(data.market).isReady) {
+                    transitionKey =
+                        'loading-${appState.selectedMarket.id}-'
+                        '${appState.selectedWindow.name}';
+                    child = _DashboardSkeleton(window: appState.selectedWindow);
+                  } else {
+                    transitionKey =
+                        'ready-${data.market.id}-'
+                        '${appState.selectedWindow.name}';
+                    child = _DashboardBody(
+                      data: data,
+                      window: appState.selectedWindow,
+                      onSeeAllMarkets: widget.onSeeAllMarkets,
+                      onSeeWatchlist: widget.onSeeWatchlist,
+                    );
+                  }
                 }
-                final data = snapshot.data;
-                if (data == null) {
-                  if (!appState.anyReady) return const _DashboardSkeleton();
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 60),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                if (!appState.stateOf(data.market).isReady) {
-                  return const _DashboardSkeleton();
-                }
-                return _DashboardBody(
-                  data: data,
-                  window: appState.selectedWindow,
-                  onSeeAllMarkets: widget.onSeeAllMarkets,
-                  onSeeWatchlist: widget.onSeeWatchlist,
+
+                return PageTransitionSwitcher(
+                  duration: AppMotion.contentDuration(context),
+                  transitionBuilder: (child, animation, secondaryAnimation) =>
+                      FadeThroughTransition(
+                        animation: animation,
+                        secondaryAnimation: secondaryAnimation,
+                        fillColor: colors.pageBackground,
+                        child: child,
+                      ),
+                  child: KeyedSubtree(
+                    key: ValueKey(transitionKey),
+                    child: child,
+                  ),
                 );
               },
             ),
@@ -600,37 +620,189 @@ class _SyncBanner extends StatelessWidget {
   }
 }
 
-class _DashboardSkeleton extends StatelessWidget {
-  const _DashboardSkeleton();
+class _DashboardSkeleton extends StatefulWidget {
+  const _DashboardSkeleton({required this.window});
+
+  final GrowthWindow window;
+
+  @override
+  State<_DashboardSkeleton> createState() => _DashboardSkeletonState();
+}
+
+class _DashboardSkeletonState extends State<_DashboardSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  );
+  bool? _animationsDisabled;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disabled = MediaQuery.disableAnimationsOf(context);
+    if (_animationsDisabled == disabled) return;
+    _animationsDisabled = disabled;
+    if (disabled) {
+      _pulse
+        ..stop()
+        ..value = 0.55;
+    } else {
+      _pulse.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    Widget block(double height) => Container(
-      height: height,
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.cardBorder),
-      ),
-    );
+    return AnimatedBuilder(
+      animation: _pulse,
+      builder: (context, _) {
+        final boneColor = Color.lerp(
+          colors.neutralSurface,
+          colors.interactiveSurface,
+          0.12 + (_pulse.value * 0.28),
+        )!;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: Column(
-        children: [
-          Row(
+        Widget bone({
+          required double height,
+          double? width,
+          bool round = false,
+        }) {
+          return Container(
+            width: width,
+            height: height,
+            decoration: BoxDecoration(
+              color: boneColor,
+              shape: round ? BoxShape.circle : BoxShape.rectangle,
+              borderRadius: round ? null : BorderRadius.circular(height / 2),
+            ),
+          );
+        }
+
+        Widget row({bool compact = false}) {
+          return Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: compact ? 10 : 12,
+            ),
+            child: Row(
+              children: [
+                bone(
+                  height: compact ? 30 : 36,
+                  width: compact ? 30 : 36,
+                  round: true,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      FractionallySizedBox(
+                        widthFactor: compact ? 0.42 : 0.34,
+                        child: bone(height: 12),
+                      ),
+                      const SizedBox(height: 8),
+                      FractionallySizedBox(
+                        widthFactor: compact ? 0.62 : 0.76,
+                        child: bone(height: 9),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                bone(height: 12, width: compact ? 48 : 58),
+              ],
+            ),
+          );
+        }
+
+        return Semantics(
+          liveRegion: true,
+          label: 'Preparing dashboard',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(child: block(150)),
-              const SizedBox(width: 12),
-              Expanded(child: block(150)),
+              Panel(
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: colors.interactiveSurface,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.auto_graph_rounded,
+                        size: 20,
+                        color: colors.interactive,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Preparing dashboard',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: colors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Building the ${widget.window.longLabel.toLowerCase()} rankings',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SectionHeader(
+                title: 'Top Gainers (${widget.window.longLabel})',
+                caption: 'Loading',
+              ),
+              Panel(
+                child: Column(
+                  children: [
+                    for (var index = 0; index < 4; index++) ...[
+                      row(),
+                      if (index < 3)
+                        Divider(height: 1, color: colors.divider, indent: 62),
+                    ],
+                  ],
+                ),
+              ),
+              const SectionHeader(title: 'Recent Analyses'),
+              Panel(
+                child: Column(
+                  children: [
+                    row(compact: true),
+                    Divider(height: 1, color: colors.divider, indent: 16),
+                    row(compact: true),
+                  ],
+                ),
+              ),
             ],
           ),
-          block(220),
-          block(150),
-        ],
-      ),
+        );
+      },
     );
   }
 }
