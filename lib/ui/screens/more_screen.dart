@@ -375,25 +375,39 @@ class _MarketStatusTile extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.only(left: 40, right: 8),
-            child: Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              runSpacing: 2,
-              spacing: 12,
+            // A Row rather than a Wrap: these two belong on one line, and a
+            // Wrap's idea of not fitting is to drop the stamp onto a second
+            // one, which is exactly the tall tile this panel replaced. Here
+            // the status gives up characters instead.
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  [
-                    status,
-                    if (asset != null) Fmt.bytes(asset.sizeBytes),
-                  ].join(' · '),
-                  maxLines: 1,
-                  style: detailStyle,
-                ),
-                if (asset != null)
-                  Text(
-                    'Synced ${Fmt.relativeStamp(asset.syncedAt)}',
+                // Both flexible, because either one can be the long one: a
+                // failed sync writes a sentence into the status, and a stamp
+                // reads "Yesterday, 11:37 AM" the day after a run.
+                Flexible(
+                  child: Text(
+                    [
+                      status,
+                      if (asset != null) Fmt.bytes(asset.sizeBytes),
+                    ].join(' · '),
                     maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: detailStyle,
                   ),
+                ),
+                if (asset != null) ...[
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Synced ${Fmt.relativeStamp(asset.syncedAt)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: detailStyle,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

@@ -310,7 +310,10 @@ void main() {
       reason: 'it starts beside the title rather than floating in the middle',
     );
     // The controls that act on the page stay pinned to the right of it.
-    expect(tester.getRect(find.text('Refresh')).left, greaterThan(box.right));
+    expect(
+      tester.getRect(find.text('Check updates')).left,
+      greaterThan(box.right),
+    );
   });
 
   testWidgets('ctrl+F puts the caret in the search box from any section', (
