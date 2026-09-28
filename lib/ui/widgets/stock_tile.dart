@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 
@@ -345,8 +347,28 @@ class GainerTile extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final scaler = MediaQuery.textScalerOf(context);
-        final stackValues = constraints.maxWidth < scaler.scale(280);
-        return _row(context, colors, stackValues: stackValues);
+        // What the row spends before the name: its padding, the rank badge or
+        // monogram, the gaps either side of the identity column, and the star.
+        final chrome = 12 + 32 + 10 + 8 + StockTile.actionWidth(context) + 8;
+        // The change chip over the price, right-aligned. It takes what it
+        // wants but never more than the row can spare.
+        final values = math.min(
+          scaler.scale(78),
+          math.max(
+            0.0,
+            constraints.maxWidth - chrome - StockTile._minNameWidth,
+          ),
+        );
+        // Decided from the space the name actually gets rather than from the
+        // row's own width: a threshold on the row cannot know how much of it
+        // the rank badge, the star and the numbers have already taken, and a
+        // name squeezed beside the numbers is cut off mid-word.
+        final space = constraints.maxWidth - chrome - values;
+        return _row(
+          context,
+          colors,
+          stackValues: space < StockTile.comfortableNameWidth,
+        );
       },
     );
   }

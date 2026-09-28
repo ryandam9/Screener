@@ -283,29 +283,41 @@ class _TopBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 13, 18, 13),
       child: Row(
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Dashboard',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.3,
-                  color: colors.textPrimary,
+          // Capped rather than flexed: the bar also carries a search field, a
+          // window picker and two buttons, and at an 800px window the title
+          // block's own width pushed their total past the row. A Flexible
+          // here would instead split the free space with the search field,
+          // which is the one thing on the bar that wants all of it.
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 260),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Dashboard',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                    color: colors.textPrimary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 1),
-              Text(
-                // Named rather than counted: the reader wants to know which
-                // screens are in front of them, and the list is short enough
-                // to say. It grows with the enum.
-                '${[for (final market in Market.values) market.label].join(', ')} '
-                'growth screens',
-                style: TextStyle(fontSize: 12, color: colors.textSecondary),
-              ),
-            ],
+                const SizedBox(height: 1),
+                Text(
+                  // Named rather than counted: the reader wants to know which
+                  // screens are in front of them, and the list is short enough
+                  // to say. It grows with the enum.
+                  '${[for (final market in Market.values) market.label].join(', ')} '
+                  'growth screens',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                ),
+              ],
+            ),
           ),
           const SizedBox(width: 28),
           Expanded(

@@ -53,6 +53,13 @@ void main() {
   testWidgets('the first frame explains what the dashboard is preparing', (
     tester,
   ) async {
+    // The skeleton this asserts is the handset one. Without a size the test
+    // view is 800x600, which is wide enough for the desktop shell, so it was
+    // looking for it on a screen that never draws it.
+    tester.view.physicalSize = const Size(400, 820);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
     late SharedPreferences preferences;
     await tester.runAsync(() async {
       preferences = await SharedPreferences.getInstance();
