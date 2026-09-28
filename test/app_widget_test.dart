@@ -6,9 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:screener/main.dart';
 import 'package:screener/models/market.dart';
 import 'package:screener/ui/screens/stock_detail_screen.dart';
-import 'package:screener/ui/widgets/google_finance_button.dart';
 import 'package:screener/ui/widgets/refresh_stamp.dart';
-import 'package:screener/ui/widgets/stock_tile.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
