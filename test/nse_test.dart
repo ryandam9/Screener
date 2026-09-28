@@ -54,15 +54,12 @@ void main() {
   testWidgets('the dashboard offers NSE and switches to it', (tester) async {
     await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
 
-    // The third file is a segment on the context bar, not a third card.
-    final segment = find.descendant(
-      of: find.byType(SegmentedButton<Market>),
-      matching: find.text('NSE'),
-    );
-    expect(segment, findsOneWidget);
+    // The third file is a block on the context bar, not a third card.
+    final block = find.byKey(const ValueKey('market-block-nse'));
+    expect(block, findsOneWidget);
     expect(find.text('TATAMOTORS'), findsNothing, reason: 'US is selected');
 
-    await tester.tap(segment);
+    await tester.tap(block);
     await settle(tester);
     expect(find.text('TATAMOTORS'), findsWidgets);
     expect(find.text('MRNA'), findsNothing, reason: 'one file at a time');
@@ -77,13 +74,12 @@ void main() {
       devicePixelRatio: 1.0,
     );
 
-    // Three stacked market cards put the rows below the fold. The strip is one
-    // market's, so the gainers start in the first screenful whatever the
-    // bucket grows to.
-    final gainers = tester.getTopLeft(find.text('Top Gainers (7 Day)'));
+    // Three stacked market cards put the rows below the fold. The page is one
+    // market's, so the leader is on the first screen whatever the bucket
+    // grows to.
     expect(
-      gainers.dy,
-      lessThan(300),
+      tester.getTopLeft(find.text('MRNA')).dy,
+      lessThan(400),
       reason: 'the rows people opened the app for are on the first screen',
     );
   });

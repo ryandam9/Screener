@@ -12,9 +12,11 @@ import '../../state/app_state.dart';
 import '../../state/watchlist_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
+import '../widgets/brutal.dart';
 import '../widgets/panels.dart';
 import '../widgets/refresh_stamp.dart';
-import '../widgets/stock_tile.dart';
+import '../widgets/watchlist_highlight.dart';
+import '../widgets/watchlist_star.dart';
 import 'market_list_screen.dart';
 import 'search_screen.dart';
 import 'stock_detail_screen.dart';
@@ -154,11 +156,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               MaterialPageRoute<void>(builder: (_) => const SearchScreen()),
             ),
           ),
-          IconButton(
-            tooltip: 'Window',
-            icon: const Icon(Icons.tune),
-            onPressed: () => _showWindowPicker(context, appState),
-          ),
           const InfoButton(info: PageInfos.dashboard),
           const SizedBox(width: 4),
         ],
@@ -233,42 +230,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
-
-  Future<void> _showWindowPicker(BuildContext context, AppState appState) {
-    return showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: context.colors.card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 8),
-              const SectionHeader(
-                title: 'Analysis window',
-                padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
-              ),
-              for (final window in GrowthWindow.values)
-                ListTile(
-                  title: Text('${window.longLabel} analysis'),
-                  trailing: window == appState.selectedWindow
-                      ? Icon(Icons.check, color: context.colors.interactive)
-                      : null,
-                  onTap: () {
-                    appState.selectWindow(window);
-                    Navigator.of(sheetContext).pop();
-                  },
-                ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
-  }
 }
 
 class _DashboardBody extends StatelessWidget {
@@ -288,101 +249,91 @@ class _DashboardBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final market = data.market;
+    final gainers = data.topGainers;
+    // Every bar on the page is drawn against the strongest move on it, so the
+    // leader's bar is always full and the rest read as fractions of it.
+    final peak = gainers.isEmpty
+        ? 1.0
+        : gainers.map((row) => row.pctChange.abs()).reduce(math.max);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: 12),
+        _Masthead(market: market, window: window),
         _ContextBar(market: market, window: window),
-        SectionHeader(
-          title: 'Top Gainers (${window.longLabel})',
-          actionLabel: 'View all',
-          onAction: onSeeAllMarkets,
-        ),
-        Panel(
-          child: data.topGainers.isEmpty
-              ? StatusView(
-                  icon: Icons.trending_flat,
-                  title: 'No ${market.label} rows in this window',
-                  compact: true,
-                )
-              : Column(
-                  children: [
-                    for (
-                      var index = 0;
-                      index < data.topGainers.length;
-                      index++
-                    ) ...[
-                      GainerTile(
-                        row: data.topGainers[index],
-                        rank: index + 1,
-                        showMarketBadge: false,
-                        opensTo: (_) => StockDetailScreen(
-                          market: data.topGainers[index].market,
-                          ticker: data.topGainers[index].ticker,
-                          initialWindow: window,
-                        ),
-                      ),
-                      if (index < data.topGainers.length - 1)
-                        Divider(height: 1, color: colors.divider, indent: 54),
-                    ],
-                  ],
-                ),
-        ),
+        if (gainers.isEmpty)
+          BrutalBox(
+            margin: const EdgeInsets.fromLTRB(16, 20, 16, 4),
+            padding: const EdgeInsets.symmetric(vertical: 28),
+            child: StatusView(
+              icon: Icons.trending_flat,
+              title: 'No ${market.label} rows in this window',
+              compact: true,
+            ),
+          )
+        else ...[
+          _HeroGainer(row: gainers.first, window: window),
+          if (gainers.length > 1) ...[
+            BrutalHeading(
+              title: 'Runners-up',
+              actionLabel: 'All',
+              onAction: onSeeAllMarkets,
+            ),
+            for (var index = 1; index < gainers.length; index++)
+              _RankRow(
+                row: gainers[index],
+                rank: index + 1,
+                peak: peak,
+                window: window,
+              ),
+          ],
+        ],
         if (data.starredTotal > 0) ...[
-          SectionHeader(
+          BrutalHeading(
             title: 'Watchlist',
-            actionLabel: 'See all',
+            actionLabel: 'All',
             onAction: onSeeWatchlist,
           ),
-          Panel(
-            child: data.starred.isEmpty
-                ? StatusView(
-                    icon: Icons.star_border_rounded,
-                    title:
-                        'None of your ${market.label} stars are in this window',
-                    compact: true,
-                  )
-                : Column(
-                    children: [
-                      for (final row in data.starred.take(3)) ...[
-                        GainerTile(
-                          row: row,
-                          showMarketBadge: false,
-                          opensTo: (_) => StockDetailScreen(
-                            market: row.market,
-                            ticker: row.ticker,
-                            initialWindow: window,
-                          ),
-                        ),
-                        if (row != data.starred.take(3).last)
-                          Divider(height: 1, color: colors.divider, indent: 66),
-                      ],
-                    ],
-                  ),
-          ),
+          if (data.starred.isEmpty)
+            BrutalBox(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              padding: const EdgeInsets.symmetric(vertical: 22),
+              child: StatusView(
+                icon: Icons.star_border_rounded,
+                title: 'None of your ${market.label} stars are in this window',
+                compact: true,
+              ),
+            )
+          else
+            for (final row in data.starred.take(3))
+              _RankRow(row: row, peak: peak, window: window, starred: true),
           // The snapshot only shows what this window lists. Saying how many
           // are starred altogether keeps it from reading as the whole list —
           // the watchlist tab is the one that shows every star.
           if (data.starred.length < data.starredTotal)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
               child: Text(
                 '${data.starred.length} of ${data.starredTotal} starred '
                 '${market.label} ${market.instrumentNoun} are in the '
                 '${window.longLabel.toLowerCase()} window.',
-                style: TextStyle(fontSize: 11.5, color: colors.textTertiary),
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: colors.textTertiary,
+                ),
               ),
             ),
         ],
-        const SectionHeader(title: 'Recent Analyses'),
-        Panel(
+        const BrutalHeading(title: 'Recent analyses'),
+        BrutalBox(
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 4),
           child: Column(
             children: [
               for (final run in data.runs.take(4)) ...[
                 _RunTile(run: run),
                 if (run != data.runs.take(4).last)
-                  Divider(height: 1, color: colors.divider, indent: 16),
+                  Container(height: AppBrut.hairline, color: colors.ink),
               ],
             ],
           ),
@@ -392,11 +343,383 @@ class _DashboardBody extends StatelessWidget {
   }
 }
 
+/// The top of the poster: what file you are reading, in the largest type on
+/// the screen.
+///
+/// The app bar carries only the actions. A market's name set at 44px against a
+/// rule is what tells you where you are — a 20px title in a bar is what every
+/// other app does.
+class _Masthead extends StatelessWidget {
+  const _Masthead({required this.market, required this.window});
+
+  final Market market;
+  final GrowthWindow window;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(height: AppBrut.border + 1.5, color: colors.ink),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    market.label.toUpperCase(),
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: 44,
+                      height: 1,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -2.4,
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              BrutalTag(
+                label: '${window.label} screen',
+                fill: colors.warningSurface,
+                foreground: colors.onAccent,
+                fontSize: 10.5,
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            market.longName.toUpperCase(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.1,
+              color: colors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(height: AppBrut.hairline, color: colors.ink),
+        ],
+      ),
+    );
+  }
+}
+
+/// The leader, given the whole width and the biggest type on the page.
+///
+/// A ranked list whose first row looks like its fourth wastes the one thing
+/// the screener actually produces: a single name that moved more than anything
+/// else this week. Here that name is the poster.
+class _HeroGainer extends StatelessWidget {
+  const _HeroGainer({required this.row, required this.window});
+
+  final StockRow row;
+  final GrowthWindow window;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return BrutalPressable(
+      margin: const EdgeInsets.fromLTRB(16, 18, 16, 4),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      // A starred ticker is marked wherever it is listed, so the wash belongs
+      // here too — it is the card's fill rather than a tint laid over it.
+      fill: starredRowColor(context, row.market, row.ticker) ?? colors.card,
+      semanticLabel:
+          'Top gainer ${row.ticker}, ${row.shortName}, '
+          'up ${row.pctChange.toStringAsFixed(1)} percent',
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => StockDetailScreen(
+            market: row.market,
+            ticker: row.ticker,
+            initialWindow: window,
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              BrutalTag(
+                label: 'No. 1 this ${window.label}',
+                fill: colors.interactive,
+                foreground: colors.onInteractive,
+              ),
+              const Spacer(),
+              WatchlistStar(
+                market: row.market,
+                ticker: row.ticker,
+                dense: true,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              row.ticker,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 52,
+                height: 1,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -2.6,
+                color: colors.textPrimary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            row.shortName,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.25,
+              fontWeight: FontWeight.w600,
+              color: colors.textName,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: DeltaBlock(pctChange: row.pctChange, fontSize: 24),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    row.market.money(row.latestPrice),
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: 24,
+                      height: 1.1,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.8,
+                      color: colors.textPrimary,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One of the runners-up: rank, ticker, name, and a bar drawn to scale against
+/// the strongest move on the page.
+class _RankRow extends StatelessWidget {
+  const _RankRow({
+    required this.row,
+    required this.peak,
+    required this.window,
+    this.rank,
+    this.starred = false,
+  });
+
+  final StockRow row;
+  final double peak;
+  final GrowthWindow window;
+  final int? rank;
+
+  /// Drawn on the watchlist strip, where a rank would be meaningless.
+  final bool starred;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final share = peak <= 0
+        ? 0.0
+        : (row.pctChange.abs() / peak).clamp(0.0, 1.0);
+
+    return BrutalPressable(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.fromLTRB(0, 0, 6, 0),
+      fill: starredRowColor(context, row.market, row.ticker) ?? colors.card,
+      semanticLabel:
+          '${row.ticker}, ${row.shortName}, '
+          'up ${row.pctChange.toStringAsFixed(1)} percent',
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => StockDetailScreen(
+            market: row.market,
+            ticker: row.ticker,
+            initialWindow: window,
+          ),
+        ),
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // The rank sits in its own inked column rather than floating in the
+            // row, so the list reads as a numbered chart down the left edge.
+            Container(
+              width: 42,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: starred ? colors.warningSurface : colors.neutralSurface,
+                border: Border(
+                  right: BorderSide(color: colors.ink, width: AppBrut.hairline),
+                ),
+              ),
+              child: starred
+                  ? Icon(Icons.star_rounded, size: 18, color: colors.onAccent)
+                  : Text(
+                      '${rank ?? ''}',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.6,
+                        color: colors.onAccent,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 9, 0, 9),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            row.ticker,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 16,
+                              height: 1.1,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.4,
+                              color: colors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          row.market.money(row.latestPrice),
+                          maxLines: 1,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: colors.textPrimary,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        // Starring from a list row, without opening it, is the
+                        // fastest thing this app does. It survives the redesign.
+                        WatchlistStar(
+                          market: row.market,
+                          ticker: row.ticker,
+                          dense: true,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      row.shortName,
+                      // Three lines, not one: the name is often the only way
+                      // to tell what a four-letter ticker is, and this row is
+                      // narrow enough that one line would cut most of them
+                      // mid-word. The row grows instead.
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        height: 1.25,
+                        fontWeight: FontWeight.w600,
+                        color: colors.textName,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Row(
+                      children: [
+                        DeltaBlock(pctChange: row.pctChange, dense: true),
+                        const SizedBox(width: 8),
+                        // The bar is what makes the ranks worth reading as a
+                        // group: second place being a third of first place is
+                        // invisible in a column of percentages.
+                        Expanded(
+                          child: _MagnitudeBar(
+                            share: share,
+                            fill: row.pctChange >= 0
+                                ? colors.positiveSurface
+                                : colors.negativeSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A hard-edged bar: an inked track with a saturated fill across [share] of it.
+class _MagnitudeBar extends StatelessWidget {
+  const _MagnitudeBar({required this.share, required this.fill});
+
+  final double share;
+  final Color fill;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Container(
+      height: 10,
+      decoration: BoxDecoration(
+        border: Border.all(color: colors.ink, width: AppBrut.hairline),
+      ),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: FractionallySizedBox(
+          widthFactor: share.clamp(0.02, 1.0),
+          heightFactor: 1,
+          child: ColoredBox(color: fill),
+        ),
+      ),
+    );
+  }
+}
+
 /// Which file, and which window of it, the page below is about.
 ///
-/// One bar rather than a title menu and a toolbar icon: the two choices that
-/// decide every number on the screen were the two that took the most taps to
-/// find.
+/// Blocks rather than a segmented control and a row of pills: the two choices
+/// that decide every number on the screen are the two loudest controls on it.
 class _ContextBar extends StatelessWidget {
   const _ContextBar({required this.market, required this.window});
 
@@ -406,37 +729,107 @@ class _ContextBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
+    final colors = context.colors;
     final windows = appState.availableWindows;
+    final selected = windows.contains(window) ? window : windows.first;
 
-    return Panel(
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SegmentedButton<Market>(
-            segments: [
-              for (final value in Market.values)
-                ButtonSegment(value: value, label: Text(value.label)),
+          Row(
+            children: [
+              for (final value in Market.values) ...[
+                if (value != Market.values.first) const SizedBox(width: 7),
+                Expanded(
+                  child: _Block(
+                    key: ValueKey('market-block-${value.id}'),
+                    label: value.label,
+                    selected: value == market,
+                    fill: colors.interactive,
+                    foreground: colors.onInteractive,
+                    onTap: () => appState.selectMarket(value),
+                  ),
+                ),
+              ],
             ],
-            selected: {market},
-            showSelectedIcon: false,
-            style: const ButtonStyle(
-              visualDensity: VisualDensity.compact,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            onSelectionChanged: (selection) =>
-                appState.selectMarket(selection.first),
           ),
-          const SizedBox(height: 8),
-          PeriodSelector<GrowthWindow>(
-            values: windows,
-            selected: windows.contains(window) ? window : windows.first,
-            labelOf: (value) => value.label,
-            onChanged: appState.selectWindow,
+          const SizedBox(height: 7),
+          Row(
+            children: [
+              for (final value in windows) ...[
+                if (value != windows.first) const SizedBox(width: 6),
+                Expanded(
+                  child: _Block(
+                    key: ValueKey('window-block-${value.name}'),
+                    label: value.label,
+                    selected: value == selected,
+                    fill: colors.ink,
+                    foreground: colors.card,
+                    dense: true,
+                    onTap: () => appState.selectWindow(value),
+                  ),
+                ),
+              ],
+            ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           RefreshStamp(state: appState.stateOf(market), dense: true),
         ],
+      ),
+    );
+  }
+}
+
+/// One square control. Selected means filled; unselected means outlined.
+class _Block extends StatelessWidget {
+  const _Block({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.fill,
+    required this.foreground,
+    required this.onTap,
+    this.dense = false,
+  });
+
+  final String label;
+  final bool selected;
+  final Color fill;
+  final Color foreground;
+  final VoidCallback onTap;
+  final bool dense;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return GestureDetector(
+      onTap: onTap,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: AnimatedContainer(
+          duration: AppMotion.selectionDuration(context),
+          curve: Curves.easeOut,
+          padding: EdgeInsets.symmetric(vertical: dense ? 6 : 9),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? fill : colors.card,
+            border: Border.all(color: colors.ink, width: AppBrut.border),
+          ),
+          child: Text(
+            label.toUpperCase(),
+            maxLines: 1,
+            softWrap: false,
+            style: TextStyle(
+              fontSize: dense ? 11.5 : 13,
+              height: 1.15,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.3,
+              color: selected ? foreground : colors.textPrimary,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -774,10 +1167,7 @@ class _DashboardSkeletonState extends State<_DashboardSkeleton>
                   ],
                 ),
               ),
-              SectionHeader(
-                title: 'Top Gainers (${widget.window.longLabel})',
-                caption: 'Loading',
-              ),
+              const BrutalHeading(title: 'Runners-up'),
               Panel(
                 child: Column(
                   children: [
@@ -789,7 +1179,7 @@ class _DashboardSkeletonState extends State<_DashboardSkeleton>
                   ],
                 ),
               ),
-              const SectionHeader(title: 'Recent Analyses'),
+              const BrutalHeading(title: 'Recent analyses'),
               Panel(
                 child: Column(
                   children: [
