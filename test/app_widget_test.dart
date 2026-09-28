@@ -6,9 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:screener/main.dart';
 import 'package:screener/models/market.dart';
 import 'package:screener/ui/screens/stock_detail_screen.dart';
-import 'package:screener/ui/widgets/google_finance_button.dart';
 import 'package:screener/ui/widgets/refresh_stamp.dart';
-import 'package:screener/ui/widgets/stock_tile.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -79,8 +77,8 @@ void main() {
     await tester.pump();
 
     expect(find.text('Preparing dashboard'), findsOneWidget);
-    expect(find.text('Top Gainers (7 Day)'), findsOneWidget);
-    expect(find.text('Recent Analyses'), findsOneWidget);
+    expect(find.text('RUNNERS-UP'), findsOneWidget);
+    expect(find.text('RECENT ANALYSES'), findsOneWidget);
 
     // Let the asynchronous file work finish before the temporary directories
     // are removed by tearDown.
@@ -95,36 +93,28 @@ void main() {
 
     expect(find.text('Stocks Analysis'), findsOneWidget);
 
-    // Every file is a segment on the context bar; one of them is on screen.
+    // Every file is a block on the context bar; one of them is on screen.
     for (final market in Market.values) {
       expect(
-        find.descendant(
-          of: find.byType(SegmentedButton<Market>),
-          matching: find.text(market.label),
-        ),
+        find.byKey(ValueKey('market-block-${market.id}')),
         findsOneWidget,
-        reason: '${market.label} segment',
+        reason: '${market.label} block',
       );
     }
 
     // US is the default: its rows, not the ASX file's.
     expect(find.text('MRNA'), findsWidgets);
-    expect(find.text('139.22'), findsWidgets);
+    expect(find.text(r'$139.22'), findsWidgets);
     expect(find.text('QETH'), findsNothing);
     expect(find.textContaining('median 7D'), findsNothing);
 
-    await tester.tap(
-      find.descendant(
-        of: find.byType(SegmentedButton<Market>),
-        matching: find.text('ASX'),
-      ),
-    );
+    await tester.tap(find.byKey(const ValueKey('market-block-asx')));
     await settle(tester);
     expect(find.text('QETH'), findsWidgets);
     expect(find.text('MRNA'), findsNothing, reason: 'one file at a time');
 
-    // Recent Analyses is built from the run metadata inside the file.
-    expect(find.text('Recent Analyses'), findsOneWidget);
+    // Recent analyses is built from the run metadata inside the file.
+    expect(find.text('RECENT ANALYSES'), findsOneWidget);
     expect(find.textContaining('7 Day Analysis'), findsWidgets);
   });
 
@@ -133,32 +123,30 @@ void main() {
   ) async {
     await launch(tester);
 
-    // Three stacked market cards spent the whole first viewport on summaries.
-    expect(
-      tester.getTopLeft(find.text('Top Gainers (7 Day)')).dy,
-      lessThan(300),
-    );
+    // Three stacked market cards once spent the whole first viewport on
+    // summaries. The leader is now the first thing under the controls.
+    expect(tester.getTopLeft(find.text('MRNA')).dy, lessThan(400));
   });
 
-  testWidgets('the dashboard uses ranked, focused gainer tiles', (
+  testWidgets('the leader is the poster and the rest are numbered', (
     tester,
   ) async {
     await launch(tester);
 
-    final tiles = find.byType(GainerTile);
-    expect(tiles, findsWidgets);
-    expect(tester.widget<GainerTile>(tiles.first).rank, 1);
-    expect(tester.widget<GainerTile>(tiles.at(1)).rank, 2);
-
-    // The whole row opens the stock detail page. A second external-link icon
-    // made every compact row look like an action toolbar and is redundant here.
+    // The strongest mover gets the whole width and the biggest type on the
+    // page; a ranked list whose first row looks like its fourth wastes the
+    // one thing the screener actually produces.
+    final hero = tester.getSize(find.text('MRNA').first);
+    final second = tester.getSize(find.text('AMLX').first);
     expect(
-      find.descendant(
-        of: tiles.first,
-        matching: find.byType(GoogleFinanceButton),
-      ),
-      findsNothing,
+      hero.height,
+      greaterThan(second.height * 2),
+      reason: 'the leader is set much larger than the runners-up',
     );
+
+    // And the runners-up carry their position, starting at two.
+    expect(find.text('2'), findsOneWidget);
+    expect(find.text('1'), findsNothing, reason: 'the hero is rank one');
   });
 
   testWidgets('the watchlist snapshot counts what the window leaves out', (

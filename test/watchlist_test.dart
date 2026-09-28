@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:screener/models/market.dart';
 import 'package:screener/theme/app_theme.dart';
 import 'package:screener/ui/screens/stock_detail_screen.dart';
-import 'package:screener/ui/widgets/stock_tile.dart';
 import 'package:screener/ui/widgets/watchlist_star.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -41,29 +40,22 @@ void main() {
   ///
   /// Scrolls back to the top first: starring a row scrolls the list, and the
   /// context bar is the first thing on it.
-  Future<void> selectMarket(WidgetTester tester, String market) async {
-    await tester.drag(find.byType(GainerTile).first, const Offset(0, 1200));
+  Future<void> selectMarket(WidgetTester tester, Market market) async {
+    await tester.drag(find.byType(WatchlistStar).first, const Offset(0, 1200));
     await settle(tester, frames: 6);
-    await tester.tap(
-      find.descendant(
-        of: find.byType(SegmentedButton<Market>),
-        matching: find.text(market),
-      ),
-    );
+    await tester.tap(find.byKey(ValueKey('market-block-${market.id}')));
     await settle(tester);
   }
 
-  /// The star inside the dashboard's Top Gainers row for [ticker].
+  /// The dashboard's star for [ticker], wherever it is drawn.
   ///
-  /// `.first` because a starred ticker shows up twice on the dashboard: in the
-  /// gainers list and again in the watchlist snapshot below it.
+  /// Matched on the star's own market and ticker rather than on the row around
+  /// it: the leader is drawn as a hero card and the rest as ranked rows, and
+  /// this should not care which one it found. `.first` because a starred
+  /// ticker shows up twice — in the gainers and again in the snapshot below.
   Finder starFor(String ticker) => find
-      .descendant(
-        of: find.ancestor(
-          of: find.text(ticker),
-          matching: find.byType(GainerTile),
-        ),
-        matching: find.byType(WatchlistStar),
+      .byWidgetPredicate(
+        (widget) => widget is WatchlistStar && widget.ticker == ticker,
       )
       .first;
 
@@ -97,7 +89,7 @@ void main() {
 
   /// The tint a starred row carries, in whichever theme is showing.
   Color starredSurface(WidgetTester tester) => Theme.of(
-    tester.element(find.byType(GainerTile).first),
+    tester.element(find.byType(WatchlistStar).first),
   ).extension<ScreenerColors>()!.starredSurface;
 
   /// Opens the market list on [market], via the sheet behind the title.
@@ -205,7 +197,7 @@ void main() {
     );
 
     await tapStar(tester, 'MRNA');
-    await selectMarket(tester, 'ASX');
+    await selectMarket(tester, Market.asx);
     await tapStar(tester, 'QETH');
 
     expect(prefs.getStringList('watchlist'), ['asx:QETH', 'us:MRNA']);
@@ -280,7 +272,7 @@ void main() {
 
   testWidgets('the price history page marks a starred ticker', (tester) async {
     await launchApp(tester, cacheDir: cacheDir, payloads: payloads);
-    await selectMarket(tester, 'ASX');
+    await selectMarket(tester, Market.asx);
     await tapStar(tester, 'QETH');
     final tint = starredSurface(tester);
 
