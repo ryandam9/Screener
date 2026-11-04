@@ -509,25 +509,34 @@ void main() {
       await settle(tester, frames: 4);
     }
 
+    // The checkbox on the "Screen alerts" row: the nearest one below the
+    // label's row, found through the row's InkWell.
+    Finder alertsCheckbox() => find
+        .descendant(
+          of: find
+              .ancestor(
+                of: find.text('Screen alerts'),
+                matching: find.byType(InkWell),
+              )
+              .first,
+          matching: find.byType(Checkbox),
+        )
+        .first;
+
     testWidgets('turning it on asks for permission and remembers', (
       tester,
     ) async {
       final notifier = FakeNotifier();
       await openSettings(tester, notifier);
 
-      final toggle = find.ancestor(
-        of: find.text('Screen alerts'),
-        matching: find.byType(SwitchListTile),
-      );
-      expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+      final toggle = alertsCheckbox();
+      expect(tester.widget<Checkbox>(toggle).value, isFalse);
 
-      await tester.tap(
-        find.descendant(of: toggle, matching: find.byType(Switch)),
-      );
+      await tester.tap(toggle);
       await settle(tester);
 
       expect(notifier.permissionRequests, 1);
-      expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
+      expect(tester.widget<Checkbox>(alertsCheckbox()).value, isTrue);
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getBool('digest_enabled'), isTrue);
     });
@@ -536,16 +545,10 @@ void main() {
       final notifier = FakeNotifier(permitted: false);
       await openSettings(tester, notifier);
 
-      final toggle = find.ancestor(
-        of: find.text('Screen alerts'),
-        matching: find.byType(SwitchListTile),
-      );
-      await tester.tap(
-        find.descendant(of: toggle, matching: find.byType(Switch)),
-      );
+      await tester.tap(alertsCheckbox());
       await settle(tester);
 
-      expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+      expect(tester.widget<Checkbox>(alertsCheckbox()).value, isFalse);
       // Twice over: the snackbar says it now, and the status chip keeps
       // saying it after the snackbar has gone.
       expect(
@@ -556,7 +559,11 @@ void main() {
         findsOneWidget,
         reason: 'the snackbar',
       );
-      expect(find.text('System blocked'), findsOneWidget, reason: 'the chip');
+      expect(
+        find.text('System blocked'),
+        findsOneWidget,
+        reason: 'the status line',
+      );
     });
 
     testWidgets('"Check now" previews without posting', (tester) async {
@@ -567,8 +574,11 @@ void main() {
       await settle(tester, frames: 4);
       await tester.tap(find.text('Check now'));
       // "Check now" downloads before it compares, so the fake clock and the
-      // real one have to take turns until the file lands.
-      for (var i = 0; i < 6; i++) {
+      // real one have to take turns until the file lands. Wait for the
+      // observable result, with a bound for a failed refresh, rather than
+      // assuming concurrent suite I/O completes in a fixed six turns.
+      final preview = find.text('In-app preview — nothing was sent');
+      for (var i = 0; i < 30 && preview.evaluate().isEmpty; i++) {
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 300)),
         );

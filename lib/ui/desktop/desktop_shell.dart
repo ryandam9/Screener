@@ -217,7 +217,7 @@ class _DesktopShellState extends State<DesktopShell> {
                 // Sections fade through one another rather than cutting, so the
                 // sidebar selection and the content stay visibly connected.
                 child: PageTransitionSwitcher(
-                  duration: const Duration(milliseconds: 200),
+                  duration: AppMotion.selectionDuration(context),
                   transitionBuilder: (child, animation, secondaryAnimation) =>
                       FadeThroughTransition(
                         animation: animation,
@@ -277,7 +277,7 @@ class _Sidebar extends StatelessWidget {
     final colors = context.colors;
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: AppMotion.selectionDuration(context),
       curve: Curves.easeOutCubic,
       width: collapsed ? collapsedWidth : expandedWidth,
       color: colors.card,
@@ -306,13 +306,13 @@ class _Sidebar extends StatelessWidget {
                         width: 32,
                         height: 32,
                         decoration: BoxDecoration(
-                          color: colors.positiveSurface,
+                          color: colors.interactiveSurface,
                           borderRadius: BorderRadius.circular(9),
                         ),
                         child: Icon(
                           Icons.trending_up,
                           size: 19,
-                          color: colors.positive,
+                          color: colors.interactive,
                         ),
                       ),
                       if (showLabels) ...[
@@ -403,7 +403,7 @@ class _CollapseButton extends StatelessWidget {
                     : MainAxisAlignment.center,
                 children: [
                   AnimatedRotation(
-                    duration: const Duration(milliseconds: 200),
+                    duration: AppMotion.selectionDuration(context),
                     turns: collapsed ? 0.5 : 0,
                     child: Icon(
                       Icons.keyboard_double_arrow_left,
@@ -569,7 +569,7 @@ class _DataStatusCardState extends State<_DataStatusCard> {
       padding: const EdgeInsets.fromLTRB(13, 12, 13, 13),
       decoration: BoxDecoration(
         color: colors.pageBackground,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         border: Border.all(color: colors.cardBorder),
       ),
       child: Column(
@@ -735,7 +735,7 @@ class _Pane extends StatelessWidget {
         color: colors.card,
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadii.panel),
           side: BorderSide(color: colors.cardBorder),
         ),
         child: child,

@@ -384,6 +384,49 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   }
 }
 
+/// Identity remains visible in each stock section, including standalone routes.
+class _SecurityHeading extends StatelessWidget {
+  const _SecurityHeading({required this.row});
+
+  final StockRow row;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Wrap(
+      spacing: 12,
+      runSpacing: 3,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text(
+          row.ticker,
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.6,
+            color: colors.textPrimary,
+          ),
+        ),
+        Text(
+          row.name,
+          style: TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w500,
+            color: colors.textName,
+          ),
+        ),
+        Text(
+          '${row.exchange} · ${_prettyAssetType(row.assetType)}',
+          style: TextStyle(fontSize: 12, color: colors.textTertiary),
+        ),
+        // Published for the ASX ETFs only, so the line carries the
+        // chip only where the row is labelled.
+        if (CategoryChip.maybe(row.category) case final chip?) chip,
+      ],
+    );
+  }
+}
+
 class _OverviewTab extends StatelessWidget {
   const _OverviewTab({
     required this.data,
@@ -451,44 +494,11 @@ class _OverviewTab extends StatelessWidget {
       children: [
         Container(
           color: colors.card,
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Ticker, name and listing on one line, wrapping only where the
-              // row is too narrow to hold them: three stacked lines pushed
-              // the price and its tiles down the screen for nothing.
-              Wrap(
-                spacing: 12,
-                runSpacing: 3,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text(
-                    row.ticker,
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.6,
-                      color: colors.textPrimary,
-                    ),
-                  ),
-                  Text(
-                    row.name,
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w500,
-                      color: colors.textName,
-                    ),
-                  ),
-                  Text(
-                    '${row.exchange} · ${_prettyAssetType(row.assetType)}',
-                    style: TextStyle(fontSize: 12, color: colors.textTertiary),
-                  ),
-                  // Published for the ASX ETFs only, so the line carries the
-                  // chip only where the row is labelled.
-                  if (CategoryChip.maybe(row.category) case final chip?) chip,
-                ],
-              ),
+              _SecurityHeading(row: row),
               const SizedBox(height: 14),
               _Quote(
                 price: Fmt.price(shownLastPrice),
@@ -526,7 +536,10 @@ class _OverviewTab extends StatelessWidget {
         ),
         if (row.threshold != null) ...[
           const SizedBox(height: 12),
-          ScreenReason(row: row),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ScreenReason(row: row),
+          ),
         ],
         const SizedBox(height: 12),
         Panel(
@@ -710,6 +723,10 @@ class _MetricsTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+          child: _SecurityHeading(row: row),
+        ),
         const SectionHeader(
           title: 'Key Metrics',
           padding: EdgeInsets.fromLTRB(16, 16, 16, 10),
@@ -808,121 +825,117 @@ class _MetricsTab extends StatelessWidget {
           ),
         ),
         const SectionHeader(title: 'Detailed Metrics'),
-        Panel(
-          child: Column(
-            children: [
-              MetricRow(label: 'Ticker', value: row.ticker),
-              _divider(colors),
-              MetricRow(label: 'Exchange', value: row.exchange),
-              _divider(colors),
-              MetricRow(
-                label: 'Asset Type',
-                value: _prettyAssetType(row.assetType),
-              ),
-              if (row.issuer case final issuer?) ...[
-                _divider(colors),
-                MetricRow(label: 'Issuer', value: issuer),
-              ],
-              if (CategoryChip.maybe(row.category) case final chip?) ...[
-                _divider(colors),
-                MetricRow(label: 'Category', value: '', trailing: chip),
-              ],
-              _divider(colors),
-              MetricRow(
-                label: 'Screener first price',
-                value:
-                    '${Fmt.price(row.firstPrice)}'
-                    ' · ${Fmt.date(row.firstDate)}',
-              ),
-              _divider(colors),
-              MetricRow(
-                label: 'Screener last price',
-                value:
-                    '${Fmt.price(row.latestPrice)}'
-                    ' · ${Fmt.date(row.lastDate)}',
-              ),
-              _divider(colors),
-              MetricRow(
-                label: 'Screener change',
-                value: Fmt.signedPercent(row.pctChange),
-                valueColor: colors.forChange(row.pctChange),
-              ),
-              if (row.threshold case final cutOff?) ...[
-                _divider(colors),
+        MetricGroups(
+          groups: [
+            (
+              'Security',
+              <Widget>[
+                MetricRow(label: 'Ticker', value: row.ticker),
+                MetricRow(label: 'Exchange', value: row.exchange),
                 MetricRow(
-                  label: 'Screen cut-off',
-                  value: Fmt.percent(cutOff, decimals: 1),
+                  label: 'Asset Type',
+                  value: _prettyAssetType(row.assetType),
                 ),
-                _divider(colors),
+                if (row.issuer case final issuer?) ...[
+                  MetricRow(label: 'Issuer', value: issuer),
+                ],
+                if (CategoryChip.maybe(row.category) case final chip?) ...[
+                  MetricRow(label: 'Category', value: '', trailing: chip),
+                ],
+              ],
+            ),
+            (
+              'Screener window',
+              <Widget>[
                 MetricRow(
-                  label: 'Margin over cut-off',
-                  value: Fmt.signedPercent(
-                    row.marginOverThreshold ?? 0,
-                    decimals: 1,
+                  label: 'Screener first price',
+                  value:
+                      '${Fmt.price(row.firstPrice)}'
+                      ' · ${Fmt.date(row.firstDate)}',
+                ),
+                MetricRow(
+                  label: 'Screener last price',
+                  value:
+                      '${Fmt.price(row.latestPrice)}'
+                      ' · ${Fmt.date(row.lastDate)}',
+                ),
+                MetricRow(
+                  label: 'Screener change',
+                  value: Fmt.signedPercent(row.pctChange),
+                  valueColor: colors.forChange(row.pctChange),
+                ),
+                if (row.threshold case final cutOff?) ...[
+                  MetricRow(
+                    label: 'Screen cut-off',
+                    value: Fmt.percent(cutOff, decimals: 1),
                   ),
-                  valueColor: colors.forChange(row.marginOverThreshold ?? 0),
+                  MetricRow(
+                    label: 'Margin over cut-off',
+                    value: Fmt.signedPercent(
+                      row.marginOverThreshold ?? 0,
+                      decimals: 1,
+                    ),
+                    valueColor: colors.forChange(row.marginOverThreshold ?? 0),
+                  ),
+                ],
+              ],
+            ),
+            (
+              'Weekly observations',
+              <Widget>[
+                if (bars.length >= 2) ...[
+                  MetricRow(
+                    label: 'Weekly first close',
+                    value:
+                        '${Fmt.price(bars.first.plotPrice)}'
+                        ' · ${Fmt.date(bars.first.date.toIso8601String())}',
+                  ),
+                  MetricRow(
+                    label: 'Weekly last close',
+                    value:
+                        '${Fmt.price(bars.last.plotPrice)}'
+                        ' · ${Fmt.date(bars.last.date.toIso8601String())}',
+                  ),
+                  MetricRow(
+                    label: 'Weekly change',
+                    value: Fmt.signedPercent(weeklyPct),
+                    valueColor: colors.forChange(weeklyPct),
+                  ),
+                ],
+                MetricRow(
+                  label: 'Observations',
+                  value: Fmt.integer(row.observations),
+                ),
+                MetricRow(
+                  label: 'Days Covered',
+                  value: Fmt.integer(row.daysCovered),
                 ),
               ],
-              if (bars.length >= 2) ...[
-                _divider(colors),
+            ),
+            (
+              'Data quality & basis',
+              <Widget>[
+                MetricRow(label: 'Coverage', value: Fmt.coverage(row.coverage)),
                 MetricRow(
-                  label: 'Weekly first close',
-                  value:
-                      '${Fmt.price(bars.first.plotPrice)}'
-                      ' · ${Fmt.date(bars.first.date.toIso8601String())}',
+                  label: 'Observation Ratio',
+                  value: Fmt.coverage(row.observationRatio),
                 ),
-                _divider(colors),
                 MetricRow(
-                  label: 'Weekly last close',
-                  value:
-                      '${Fmt.price(bars.last.plotPrice)}'
-                      ' · ${Fmt.date(bars.last.date.toIso8601String())}',
+                  label: 'Median Volume',
+                  value: Fmt.integer(row.medianVolume),
                 ),
-                _divider(colors),
                 MetricRow(
-                  label: 'Weekly change',
-                  value: Fmt.signedPercent(weeklyPct),
-                  valueColor: colors.forChange(weeklyPct),
+                  label: 'Price Band',
+                  value: row.priceBasis.isEmpty ? '—' : row.priceBasis,
                 ),
+                MetricRow(label: 'Data As Of', value: Fmt.date(row.dataAsOf)),
               ],
-              _divider(colors),
-              MetricRow(
-                label: 'Observations',
-                value: Fmt.integer(row.observations),
-              ),
-              _divider(colors),
-              MetricRow(
-                label: 'Days Covered',
-                value: Fmt.integer(row.daysCovered),
-              ),
-              _divider(colors),
-              MetricRow(label: 'Coverage', value: Fmt.coverage(row.coverage)),
-              _divider(colors),
-              MetricRow(
-                label: 'Observation Ratio',
-                value: Fmt.coverage(row.observationRatio),
-              ),
-              _divider(colors),
-              MetricRow(
-                label: 'Median Volume',
-                value: Fmt.integer(row.medianVolume),
-              ),
-              _divider(colors),
-              MetricRow(
-                label: 'Price Band',
-                value: row.priceBasis.isEmpty ? '—' : row.priceBasis,
-              ),
-              _divider(colors),
-              MetricRow(label: 'Data As Of', value: Fmt.date(row.dataAsOf)),
-            ],
-          ),
+            ),
+          ],
         ),
       ],
     );
   }
-
-  static Widget _divider(ScreenerColors colors) =>
-      Divider(height: 1, color: colors.divider, indent: 14, endIndent: 14);
 
   static String _volumeBand(double percentile) {
     if (percentile >= 0.8) return 'High';
@@ -946,6 +959,10 @@ class _PerformanceTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+          child: _SecurityHeading(row: data.rows.first),
+        ),
         const SectionHeader(
           title: 'Every window',
           padding: EdgeInsets.fromLTRB(16, 16, 16, 10),
@@ -1126,21 +1143,6 @@ class _Quote extends StatelessWidget {
   final String? screener;
   final List<_Stat> tiles;
 
-  /// How much has to be left for the tiles, after the headline and the gap,
-  /// before the two share a row.
-  ///
-  /// Measured against what is left rather than against the whole width: a
-  /// detail pane on a 1240px window is only about 550px wide once the
-  /// sidebar and the list beside it have theirs, and a threshold on the
-  /// window's width stacked the quote on exactly the layout it was meant to
-  /// fix. Two tiles of ~120 fit in this, and [_StatTiles] deals four across
-  /// when it is given enough for them.
-  static const _minTiles = 250.0;
-
-  /// What the headline is allowed to take when they share a row, so the
-  /// tiles get the rest rather than splitting it.
-  static const _headlineWidth = 230.0;
-
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -1152,7 +1154,7 @@ class _Quote extends StatelessWidget {
         Text(
           price,
           style: TextStyle(
-            fontSize: 34,
+            fontSize: 38,
             fontWeight: FontWeight.w600,
             letterSpacing: -1,
             height: 1.05,
@@ -1175,32 +1177,13 @@ class _Quote extends StatelessWidget {
       ],
     );
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final forTiles = constraints.maxWidth - _headlineWidth - 20;
-        if (forTiles < _minTiles) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              headline,
-              const SizedBox(height: 14),
-              _StatTiles(tiles: tiles),
-            ],
-          );
-        }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: _headlineWidth),
-              child: headline,
-            ),
-            const SizedBox(width: 20),
-            Expanded(child: _StatTiles(tiles: tiles)),
-          ],
-        );
-      },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        headline,
+        const SizedBox(height: 24),
+        _StatTiles(tiles: tiles),
+      ],
     );
   }
 }
@@ -1254,8 +1237,8 @@ class _StatTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 9, 12, 11),
       decoration: BoxDecoration(
-        color: colors.pageBackground,
-        borderRadius: BorderRadius.circular(11),
+        color: colors.card,
+        borderRadius: BorderRadius.circular(AppRadii.control),
         border: Border.all(color: colors.cardBorder),
       ),
       child: Column(

@@ -164,7 +164,7 @@ class _Header extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: colors.positiveSurface,
+              color: colors.interactiveSurface,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(info.icon, size: 21, color: colors.positive),
@@ -267,7 +267,7 @@ class _BlockView extends StatelessWidget {
                         child: Icon(
                           icon,
                           size: icon == Icons.circle ? 6 : 15,
-                          color: colors.positive,
+                          color: colors.interactive,
                         ),
                       ),
                       Expanded(

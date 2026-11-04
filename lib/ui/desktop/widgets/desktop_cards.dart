@@ -28,7 +28,7 @@ class DesktopPanel extends StatelessWidget {
       color: colors.card,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         side: BorderSide(color: colors.cardBorder),
       ),
       child: Column(
@@ -86,28 +86,14 @@ class TickerChip extends StatelessWidget {
 
   final String ticker;
 
-  static const _palette = <(Color, Color)>[
-    (Color(0xFF1F6F5C), Color(0xFFD9EFE8)),
-    (Color(0xFF2C5AA0), Color(0xFFDDE7F7)),
-    (Color(0xFF8A5A2B), Color(0xFFF6E7D5)),
-    (Color(0xFF6A4C93), Color(0xFFEBE2F6)),
-    (Color(0xFF9C2C4E), Color(0xFFF8DFE6)),
-    (Color(0xFF2F6E8F), Color(0xFFDCECF4)),
-  ];
-
   @override
   Widget build(BuildContext context) {
-    var hash = 0;
-    for (final unit in ticker.codeUnits) {
-      hash = (hash * 31 + unit) & 0x7fffffff;
-    }
-    final (foreground, background) = _palette[hash % _palette.length];
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colors = context.colors;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: isDark ? foreground.withValues(alpha: 0.3) : background,
+        color: colors.neutralSurface,
         borderRadius: BorderRadius.circular(7),
       ),
       child: Text(
@@ -121,7 +107,7 @@ class TickerChip extends StatelessWidget {
         style: TextStyle(
           fontSize: 11.5,
           fontWeight: FontWeight.w700,
-          color: isDark ? background : foreground,
+          color: colors.textSecondary,
         ),
       ),
     );

@@ -9,6 +9,7 @@ import '../../models/stock_row.dart';
 import '../../state/app_state.dart';
 import '../../state/watchlist_controller.dart';
 import '../../theme/app_theme.dart';
+import '../widgets/workspace_header.dart';
 import '../../utils/formatters.dart';
 import '../screens/stock_detail_screen.dart';
 import '../widgets/category_chip.dart';
@@ -597,6 +598,11 @@ class _DashboardBody extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const WorkspaceHeader(
+            title: 'The market, in focus.',
+            subtitle:
+                'Explore the strongest movers across your published screens.',
+          ),
           if (split)
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,

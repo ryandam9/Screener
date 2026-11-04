@@ -36,7 +36,7 @@ class ScreenReason extends StatelessWidget {
       decoration: BoxDecoration(
         color: surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: tint.withValues(alpha: 0.35)),
+        border: Border(left: BorderSide(color: tint, width: 3)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

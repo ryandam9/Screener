@@ -455,30 +455,27 @@ void main() {
     expect(metals.single.issuer, 'VanEck');
   });
 
-  test(
-    'a file without the column offers no facet and ignores one',
-    () async {
-      final us = await openUsFixture();
-      addTearDown(us.close);
+  test('a file without the column offers no facet and ignores one', () async {
+    final us = await openUsFixture();
+    addTearDown(us.close);
 
-      expect(us.hasCategories, isFalse);
-      expect(await us.categories(GrowthWindow.sevenDays), isEmpty);
+    expect(us.hasCategories, isFalse);
+    expect(await us.categories(GrowthWindow.sevenDays), isEmpty);
 
-      // A filter carried over from the ASX list must not take the US query down
-      // with a "no such column" error.
-      final rows = await us.stocks(
-        GrowthWindow.sevenDays,
-        const StockQuery(categories: {'crypto'}),
-      );
-      expect([for (final r in rows) r.ticker], ['MRNA', 'AMLX', 'SCTX']);
-      expect(
-        rows.first.category,
-        isNull,
-        reason: 'no column at all reads as null, never as the catch-all label',
-      );
-      expect(rows.first.issuer, isNull);
-    },
-  );
+    // A filter carried over from the ASX list must not take the US query down
+    // with a "no such column" error.
+    final rows = await us.stocks(
+      GrowthWindow.sevenDays,
+      const StockQuery(categories: {'crypto'}),
+    );
+    expect([for (final r in rows) r.ticker], ['MRNA', 'AMLX', 'SCTX']);
+    expect(
+      rows.first.category,
+      isNull,
+      reason: 'no column at all reads as null, never as the catch-all label',
+    );
+    expect(rows.first.issuer, isNull);
+  });
 
   test('distinct exchanges', () async {
     final us = await openUsFixture();

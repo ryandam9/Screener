@@ -9,6 +9,7 @@ import '../../state/app_state.dart';
 import '../../state/watchlist_controller.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/panels.dart';
+import '../widgets/workspace_header.dart';
 import '../widgets/stock_tile.dart';
 import '../widgets/ticker_avatar.dart';
 import '../widgets/watchlist_star.dart';
@@ -258,6 +259,21 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 72,
+        bottom: MediaQuery.sizeOf(context).width < 900
+            ? null
+            : PreferredSize(
+                preferredSize: Size.fromHeight(
+                  80 * MediaQuery.textScalerOf(context).scale(1) + 44,
+                ),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: WorkspaceHeader(
+                    title: 'Your watchlist',
+                    subtitle: 'Follow the instruments that matter to you.',
+                  ),
+                ),
+              ),
         title: const Text('Watchlist'),
         actions: [
           if (!watchlist.isEmpty)
