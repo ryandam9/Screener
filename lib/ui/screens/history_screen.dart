@@ -17,6 +17,7 @@ import '../widgets/facet_filter.dart';
 import '../widgets/google_finance_button.dart';
 import '../widgets/info_dialog.dart';
 import '../widgets/panels.dart';
+import '../widgets/workspace_header.dart';
 import '../widgets/price_chart.dart';
 import '../widgets/stock_tile.dart';
 import '../widgets/table_frame.dart';
@@ -152,6 +153,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 72,
+        bottom: MediaQuery.sizeOf(context).width < 900
+            ? null
+            : PreferredSize(
+                preferredSize: Size.fromHeight(
+                  80 * MediaQuery.textScalerOf(context).scale(1) + 44,
+                ),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: WorkspaceHeader(
+                    title: 'Price history',
+                    subtitle:
+                        'Explore the full published history, beyond the current screen.',
+                  ),
+                ),
+              ),
         title: Text(
           market == null ? 'Price History' : '${market.label} Price History',
         ),
@@ -631,7 +648,7 @@ class _GoogleFinanceAction extends StatelessWidget {
         label: Text('${ticker.ticker} on Google Finance'),
         style: FilledButton.styleFrom(
           backgroundColor: context.colors.interactive,
-          foregroundColor: Colors.white,
+          foregroundColor: context.colors.onInteractive,
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),

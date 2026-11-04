@@ -46,7 +46,7 @@ class TableFrame extends StatelessWidget {
         color: colors.card,
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadii.panel),
           side: BorderSide(color: colors.cardBorder),
         ),
         child: Column(
@@ -117,7 +117,7 @@ class PageFrame extends StatelessWidget {
         color: colors.pageBackground,
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadii.panel),
           side: BorderSide(color: colors.cardBorder),
         ),
         child: child,

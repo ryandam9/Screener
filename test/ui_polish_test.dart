@@ -302,14 +302,14 @@ void main() {
     await settle(tester);
 
     final dataSources = tester.getTopLeft(find.text('Data sources'));
-    final appearance = tester.getTopLeft(find.text('Appearance'));
+    final digest = tester.getTopLeft(find.text('Daily digest'));
     expect(
-      appearance.dx,
+      digest.dx,
       greaterThan(dataSources.dx),
       reason: 'the second section should start a second column',
     );
     expect(
-      (appearance.dy - dataSources.dy).abs(),
+      (digest.dy - dataSources.dy).abs(),
       lessThan(1),
       reason: 'both columns should start at the same height',
     );

@@ -591,27 +591,31 @@ void main() {
     }
   });
 
-  testWidgets('settings deal into three columns on a wide window', (
-    tester,
-  ) async {
-    await launchDesktop(tester);
-    await tester.tap(find.text('Settings').first);
-    await settle(tester);
+  testWidgets(
+    'settings group general controls beside the digest on a wide window',
+    (tester) async {
+      await launchDesktop(tester);
+      await tester.tap(find.text('Settings').first);
+      await settle(tester);
 
-    // Sections are dealt round-robin, so the first three headings share a row
-    // and the fourth starts the next one under the first.
-    final dataSources = tester.getTopLeft(find.text('Data sources'));
-    final appearance = tester.getTopLeft(find.text('Appearance'));
-    final digest = tester.getTopLeft(find.text('Daily digest'));
-    final reports = tester.getTopLeft(find.text('Reports').last);
+      // General settings stay together; digest controls have their own column.
+      final dataSources = tester.getTopLeft(find.text('Data sources'));
+      final appearance = tester.getTopLeft(find.text('Appearance'));
+      final digest = tester.getTopLeft(find.text('Daily digest'));
+      final reports = tester.getTopLeft(find.text('Reports').last);
 
-    expect(appearance.dx, greaterThan(dataSources.dx));
-    expect(digest.dx, greaterThan(appearance.dx));
-    expect((appearance.dy - dataSources.dy).abs(), lessThan(1));
-    expect((digest.dy - dataSources.dy).abs(), lessThan(1));
-    expect(reports.dx, dataSources.dx, reason: 'the fourth wraps around');
-    expect(reports.dy, greaterThan(dataSources.dy));
-  });
+      expect(appearance.dx, dataSources.dx);
+      expect(appearance.dy, greaterThan(dataSources.dy));
+      expect(digest.dx, greaterThan(dataSources.dx));
+      expect((digest.dy - dataSources.dy).abs(), lessThan(1));
+      expect(
+        reports.dx,
+        dataSources.dx,
+        reason: 'reports stay with general settings',
+      );
+      expect(reports.dy, greaterThan(dataSources.dy));
+    },
+  );
 
   testWidgets('the desktop dashboard carries its own info button', (
     tester,

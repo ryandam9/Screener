@@ -64,6 +64,24 @@ void main() {
     }
   });
 
+  test(
+    'semantic badges and selected controls remain readable in both themes',
+    () {
+      for (final colors in [ScreenerColors.light, ScreenerColors.dark]) {
+        for (final (text, fill) in [
+          (colors.positive, colors.positiveSurface),
+          (colors.negative, colors.negativeSurface),
+          (colors.warning, colors.warningSurface),
+          (colors.interactive, colors.interactiveSurface),
+          (colors.onInteractive, colors.interactive),
+          (colors.textSecondary, colors.neutralSurface),
+        ]) {
+          expect(contrast(text, fill), greaterThanOrEqualTo(4.5));
+        }
+      }
+    },
+  );
+
   test('content and selection motion follow reduced-motion preference', () {
     // The settings panels reach for these when they animate; a reader who
     // has asked the system for less motion gets the state change without

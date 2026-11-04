@@ -77,8 +77,8 @@ void main() {
     await tester.pump();
 
     expect(find.text('Preparing dashboard'), findsOneWidget);
-    expect(find.text('RUNNERS-UP'), findsOneWidget);
-    expect(find.text('RECENT ANALYSES'), findsOneWidget);
+    expect(find.text('Runners-up'), findsOneWidget);
+    expect(find.text('Recent analyses'), findsOneWidget);
 
     // Let the asynchronous file work finish before the temporary directories
     // are removed by tearDown.
@@ -114,7 +114,7 @@ void main() {
     expect(find.text('MRNA'), findsNothing, reason: 'one file at a time');
 
     // Recent analyses is built from the run metadata inside the file.
-    expect(find.text('RECENT ANALYSES'), findsOneWidget);
+    expect(find.text('Recent analyses'), findsOneWidget);
     expect(find.textContaining('7 Day Analysis'), findsWidgets);
   });
 
@@ -128,7 +128,7 @@ void main() {
     expect(tester.getTopLeft(find.text('MRNA')).dy, lessThan(400));
   });
 
-  testWidgets('the leader is the poster and the rest are numbered', (
+  testWidgets('the leader is prominent and the rest are numbered', (
     tester,
   ) async {
     await launch(tester);
@@ -140,8 +140,8 @@ void main() {
     final second = tester.getSize(find.text('AMLX').first);
     expect(
       hero.height,
-      greaterThan(second.height * 2),
-      reason: 'the leader is set much larger than the runners-up',
+      greaterThan(second.height * 1.5),
+      reason: 'the leader stays distinct from the runners-up',
     );
 
     // And the runners-up carry their position, starting at two.
@@ -240,10 +240,12 @@ void main() {
     expect(name.center.dy, closeTo(ticker.center.dy, 4));
   });
 
-  testWidgets('a wide quote puts the tiles beside the price', (tester) async {
-    // 640dp: the handset shell, so the pushed detail is the whole window and
-    // the width under test is the header's own. A threshold on the window's
-    // width stacked the quote on panes far wider than this.
+  testWidgets('a wide quote keeps the tiles in a strip under the price', (
+    tester,
+  ) async {
+    // 640dp: the handset shell, so the pushed detail is the whole window.
+    // The redesign gives the price a headline of its own at every width, with
+    // the tiles as one strip beneath it rather than squeezed in beside it.
     tester.view.physicalSize = const Size(640, 900);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -266,14 +268,22 @@ void main() {
     );
 
     expect(
-      tile.left,
-      greaterThan(headline.right),
-      reason: 'the tiles sit beside the headline, not under it',
+      tile.top,
+      greaterThan(headline.bottom),
+      reason: 'the tiles sit under the headline, not beside it',
+    );
+    final change = find.descendant(
+      of: find.byType(StockDetailScreen),
+      matching: find.text('Change'),
+    );
+    final siblings = find.descendant(
+      of: find.byType(StockDetailScreen),
+      matching: find.text('Price Change'),
     );
     expect(
-      tile.top,
-      lessThan(headline.top),
-      reason: 'and on the price line rather than below the window it names',
+      (tester.getRect(siblings.first).top - tester.getRect(change).top).abs(),
+      lessThan(1),
+      reason: 'and as one strip at this width, not a column',
     );
   });
 
@@ -401,7 +411,7 @@ void main() {
     expect(find.textContaining('us.db'), findsWidgets);
   });
 
-  testWidgets('data-source details use the space below the refresh button', (
+  testWidgets('a data source reads status, then its sync stamp under it', (
     tester,
   ) async {
     await launch(tester);
@@ -413,14 +423,20 @@ void main() {
     expect(status, findsNWidgets(Market.values.length));
     expect(synced, findsNWidgets(Market.values.length));
 
+    // The mockup's two lines: "Up to date · 2.2 MB" over "Synced today",
+    // aligned on the same left edge under the market's name.
     final statusRect = tester.getRect(status.first);
     final syncedRect = tester.getRect(synced.first);
+    expect(syncedRect.top, greaterThanOrEqualTo(statusRect.bottom - 1));
+    expect((statusRect.left - syncedRect.left).abs(), lessThan(1));
+    // And Re-download sits inside the same card, not loose under it.
+    final card = find
+        .ancestor(of: status.first, matching: find.byType(Material))
+        .first;
     expect(
-      (statusRect.center.dy - syncedRect.center.dy).abs(),
-      lessThan(1),
-      reason: 'the metadata fits on one line at handset width',
+      find.descendant(of: card, matching: find.text('Re-download')),
+      findsOneWidget,
     );
-    expect(statusRect.right, lessThan(syncedRect.left));
   });
 
   testWidgets('the dashboard dates the run, not the download', (tester) async {

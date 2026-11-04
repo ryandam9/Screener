@@ -144,9 +144,9 @@ Future<FacetSelection?> showFacetFilterSheet(
                         const SizedBox(width: 12),
                         Expanded(
                           child: FilledButton(
-                            onPressed: () => Navigator.of(sheetContext).pop(
-                              FacetSelection(categories: chosenCategories),
-                            ),
+                            onPressed: () => Navigator.of(
+                              sheetContext,
+                            ).pop(FacetSelection(categories: chosenCategories)),
                             child: const Text('Apply'),
                           ),
                         ),

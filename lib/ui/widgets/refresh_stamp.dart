@@ -16,11 +16,7 @@ import '../../utils/formatters.dart';
 /// written the ASX file finished at 08:00 UTC with prices as of the 25th,
 /// while the US file finished at 00:41 UTC with prices as of the 24th.
 class RefreshStamp extends StatelessWidget {
-  const RefreshStamp({
-    super.key,
-    required this.state,
-    this.dense = false,
-  });
+  const RefreshStamp({super.key, required this.state, this.dense = false});
 
   final MarketState state;
 

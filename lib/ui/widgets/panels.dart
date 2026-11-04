@@ -92,7 +92,7 @@ class Panel extends StatelessWidget {
         color: colors.card,
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadii.panel),
           side: BorderSide(color: colors.cardBorder),
         ),
         child: Padding(padding: padding, child: child),
@@ -208,7 +208,7 @@ class MetricCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(13, 12, 13, 13),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         border: Border.all(color: colors.cardBorder),
       ),
       child: Column(
@@ -301,10 +301,17 @@ class StatusView extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    icon,
-                    size: compact ? 30 : 38,
-                    color: colors.textTertiary,
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: colors.interactiveSurface,
+                      borderRadius: BorderRadius.circular(AppRadii.panel),
+                    ),
+                    child: Icon(
+                      icon,
+                      size: compact ? 26 : 32,
+                      color: colors.interactive,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -438,12 +445,12 @@ class _PeriodPill extends StatelessWidget {
     final colors = context.colors;
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 160),
+      duration: AppMotion.selectionDuration(context),
       decoration: BoxDecoration(
-        color: selected ? colors.interactive : colors.pageBackground,
-        borderRadius: BorderRadius.circular(20),
+        color: selected ? colors.interactiveSurface : colors.card,
+        borderRadius: BorderRadius.circular(AppRadii.control),
         border: Border.all(
-          color: selected ? colors.interactive : colors.cardBorder,
+          color: selected ? colors.interactiveSurface : colors.cardBorder,
         ),
       ),
       clipBehavior: Clip.antiAlias,
@@ -465,7 +472,7 @@ class _PeriodPill extends StatelessWidget {
               style: TextStyle(
                 fontSize: dense ? 12 : 13,
                 fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : colors.textSecondary,
+                color: selected ? colors.interactive : colors.textSecondary,
               ),
             ),
           ),
@@ -473,4 +480,52 @@ class _PeriodPill extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Related metrics stay together; wide detail panes show two groups per row.
+class MetricGroups extends StatelessWidget {
+  const MetricGroups({super.key, required this.groups});
+
+  final List<(String, List<Widget>)> groups;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 16.0;
+        final columns = constraints.maxWidth >= 640 ? 2 : 1;
+        final width = (constraints.maxWidth - gap * (columns - 1)) / columns;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final (title, rows) in groups)
+              SizedBox(
+                width: width,
+                child: Panel(
+                  margin: EdgeInsets.zero,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 16, 14, 10),
+                        child: Text(
+                          title,
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                      ),
+                      for (var i = 0; i < rows.length; i++) ...[
+                        if (i > 0) const Divider(indent: 14, endIndent: 14),
+                        rows[i],
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    ),
+  );
 }

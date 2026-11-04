@@ -12,6 +12,7 @@ import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../widgets/panels.dart';
+import '../widgets/workspace_header.dart';
 import '../widgets/run_panels.dart';
 import '../info/page_info.dart';
 import '../widgets/info_dialog.dart';
@@ -102,6 +103,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 72,
+        bottom: MediaQuery.sizeOf(context).width < 900
+            ? null
+            : PreferredSize(
+                preferredSize: Size.fromHeight(
+                  80 * MediaQuery.textScalerOf(context).scale(1) + 44,
+                ),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: WorkspaceHeader(
+                    title: 'Reports & exports',
+                    subtitle:
+                        'Inspect screening runs and export the published results.',
+                  ),
+                ),
+              ),
         title: const Text('Reports'),
         actions: const [
           InfoButton(info: PageInfos.reports),

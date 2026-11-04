@@ -7,42 +7,19 @@ import 'package:flutter/material.dart';
 /// `TextPainter` has no ancestor to inherit from), so they name it explicitly.
 const String kFontFamily = 'Inter';
 
-/// Shared shape tokens for the app's panels and controls.
-///
-/// Keeping these outside [AppTheme] lets custom `Material` panels use the
-/// same geometry as themed cards instead of repeating almost-identical
-/// hard-coded radii.
-///
-/// Both are zero: the design has no rounded surfaces. They stay as named
-/// tokens rather than being deleted so the handful of places that ask for a
-/// radius keep reading as "the panel shape" instead of a bare literal, and so
-/// softening the whole app again is a two-line change.
+/// Geometry shared by cards, tables, dialogs and controls.
 class AppRadii {
   const AppRadii._();
 
-  static const double panel = 0;
-  static const double control = 0;
+  static const double panel = 12;
+  static const double control = 8;
 }
 
-/// The poster language's geometry.
-///
-/// Three numbers carry the whole look: how thick the ink outline is, how far
-/// the solid shadow sits behind a surface, and the thinner outline used on
-/// small blocks where the full weight would swamp the label inside. Every
-/// surface reads them, so the app's heft is tuned here rather than in fifty
-/// `Border.all` calls.
-class AppBrut {
-  const AppBrut._();
+class AppBorders {
+  const AppBorders._();
 
-  /// Outline on a panel, card or row.
-  static const double border = 2.5;
-
-  /// Outline on a tag, chip or delta block.
-  static const double hairline = 1.5;
-
-  /// How far a surface's solid shadow sits down and to the right — and, since
-  /// a press slides the surface into it, how far a tap moves it.
-  static const double offset = 5;
+  static const double border = 1;
+  static const double hairline = 1;
 }
 
 /// Motion tokens for interaction, content replacement and navigation.
@@ -121,22 +98,13 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
   /// for by stale-data banners and is too strong to repeat down a list.
   final Color starredSurface;
 
-  /// Every outline in the app, and the rule under every heading.
-  ///
-  /// Near-black on paper and near-white in the dark theme: the outline is the
-  /// design, so it inverts with the page rather than fading into it the way a
-  /// hairline card border used to.
+  /// Primary ink, including text on neutral badges.
   final Color ink;
 
-  /// Text and outlines sitting on top of a saturated fill — a lime gain block,
-  /// an amber warning, a coral loss.
-  ///
-  /// Near-black in *both* themes, because the fills themselves do not invert:
-  /// lime is lime at midnight, and white text on lime is unreadable either way.
+  /// Text on semantic tinted surfaces.
   final Color onAccent;
 
-  /// Text sitting on [interactive]. Its own role because the violet is dark in
-  /// the light theme and light in the dark one, so what reads on it flips.
+  /// Text on the primary action fill.
   final Color onInteractive;
 
   final Color card;
@@ -165,65 +133,58 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
   Color surfaceForChange(double value) =>
       value >= 0 ? positiveSurface : negativeSurface;
 
-  /// Ink on paper, with four saturated fills doing the signalling.
-  ///
-  /// Gains and losses are no longer coloured *text* — they are blocks of lime
-  /// and coral with near-black type on them, which is both louder and a far
-  /// better contrast ratio than the green-on-white it replaces.
+  /// Semantic palette for the light workspace.
   static const light = ScreenerColors(
-    interactive: Color(0xFF6D4AFF),
-    interactiveSurface: Color(0xFFE9E3FF),
-    positive: Color(0xFF15803D),
-    positiveSurface: Color(0xFFC6F432),
-    negative: Color(0xFFBE2D14),
-    negativeSurface: Color(0xFFFF6B4A),
-    neutral: Color(0xFF3F3F3A),
-    neutralSurface: Color(0xFFEAE6D9),
-    warning: Color(0xFF7A4F00),
-    warningSurface: Color(0xFFFFD23F),
-    starredSurface: Color(0xFFFFF3C4),
-    ink: Color(0xFF0B0B0B),
-    onAccent: Color(0xFF0B0B0B),
+    interactive: Color(0xFF0F766E),
+    interactiveSurface: Color(0xFFE2F3F0),
+    positive: Color(0xFF137547),
+    positiveSurface: Color(0xFFE7F5ED),
+    negative: Color(0xFFB63342),
+    negativeSurface: Color(0xFFFCECEF),
+    neutral: Color(0xFF526075),
+    neutralSurface: Color(0xFFEEF1F6),
+    warning: Color(0xFF8A5B0A),
+    warningSurface: Color(0xFFFFF3D9),
+    starredSurface: Color(0xFFFFF9E9),
+    ink: Color(0xFF172235),
+    onAccent: Color(0xFF172235),
     onInteractive: Color(0xFFFFFFFF),
     card: Color(0xFFFFFFFF),
-    cardBorder: Color(0xFF0B0B0B),
-    pageBackground: Color(0xFFF5F1E6),
-    textPrimary: Color(0xFF0B0B0B),
-    textSecondary: Color(0xFF4A4A42),
-    textName: Color(0xFF1C1C18),
-    textTertiary: Color(0xFF5A5A51),
-    divider: Color(0xFF0B0B0B),
-    chartGrid: Color(0xFFD8D3C4),
+    cardBorder: Color(0xFFE0E5ED),
+    pageBackground: Color(0xFFF4F6FA),
+    textPrimary: Color(0xFF172235),
+    textSecondary: Color(0xFF526075),
+    textName: Color(0xFF29394F),
+    textTertiary: Color(0xFF616E82),
+    divider: Color(0xFFE5E9F0),
+    chartGrid: Color(0xFFE5E9F0),
   );
 
-  /// The same poster, printed white-on-black.
-  ///
-  /// The outline inverts with the page; the fills do not, because a lime that
-  /// dimmed at night would stop being the point.
+  /// Semantic palette for the dark workspace.
   static const dark = ScreenerColors(
-    interactive: Color(0xFFA78BFA),
-    interactiveSurface: Color(0xFF241B4D),
-    positive: Color(0xFF9BE04A),
-    positiveSurface: Color(0xFFC6F432),
-    negative: Color(0xFFFF8A6B),
-    negativeSurface: Color(0xFFFF6B4A),
-    neutral: Color(0xFFBDB8A8),
-    neutralSurface: Color(0xFF262626),
-    warning: Color(0xFFF2C14E),
-    warningSurface: Color(0xFFFFD23F),
-    starredSurface: Color(0xFF2A2410),
-    ink: Color(0xFFEDE9DC),
-    onAccent: Color(0xFF0B0B0B),
-    onInteractive: Color(0xFF0B0B0B),
-    card: Color(0xFF1A1A1A),
-    cardBorder: Color(0xFFEDE9DC),
-    pageBackground: Color(0xFF101010),
-    textPrimary: Color(0xFFF5F1E6),
-    textSecondary: Color(0xFFBDB8A8),
-    textName: Color(0xFFE2DDCC),
-    textTertiary: Color(0xFFA8A396),
-    divider: Color(0xFFEDE9DC),
-    chartGrid: Color(0xFF3A3A36),
+    interactive: Color(0xFF5ED3C4),
+    interactiveSurface: Color(0xFF173C39),
+    positive: Color(0xFF70D5A1),
+    positiveSurface: Color(0xFF193B2D),
+    negative: Color(0xFFFF9CA8),
+    negativeSurface: Color(0xFF492731),
+    neutral: Color(0xFFB4C0D2),
+    neutralSurface: Color(0xFF253145),
+    warning: Color(0xFFF1C66F),
+    warningSurface: Color(0xFF44371F),
+    starredSurface: Color(0xFF363225),
+    ink: Color(0xFFEDF2FA),
+    onAccent: Color(0xFFEDF2FA),
+    onInteractive: Color(0xFF04231F),
+    card: Color(0xFF192334),
+    cardBorder: Color(0xFF334156),
+    pageBackground: Color(0xFF111A28),
+    textPrimary: Color(0xFFEDF2FA),
+    textSecondary: Color(0xFFB4C0D2),
+    textName: Color(0xFFDEE6F2),
+    textTertiary: Color(0xFFA2B0C4),
+    divider: Color(0xFF2D3A4D),
+    chartGrid: Color(0xFF2D3A4D),
   );
 
   @override
@@ -321,17 +282,29 @@ class AppTheme {
 
   /// Material derives focus rings, ripples and text selection from this, so
   /// it follows the interactive colour rather than the gain colour.
-  static const _seed = Color(0xFF6D4AFF);
+  static const _seed = Color(0xFF0F766E);
 
   static ThemeData light() => _build(Brightness.light, ScreenerColors.light);
 
   static ThemeData dark() => _build(Brightness.dark, ScreenerColors.dark);
 
   static ThemeData _build(Brightness brightness, ScreenerColors colors) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: _seed,
-      brightness: brightness,
-    ).copyWith(surface: colors.pageBackground);
+    final scheme =
+        ColorScheme.fromSeed(seedColor: _seed, brightness: brightness).copyWith(
+          primary: colors.interactive,
+          onPrimary: colors.onInteractive,
+          primaryContainer: colors.interactiveSurface,
+          onPrimaryContainer: colors.interactive,
+          surface: colors.card,
+          onSurface: colors.textPrimary,
+          onSurfaceVariant: colors.textSecondary,
+          outline: colors.cardBorder,
+          outlineVariant: colors.divider,
+          error: colors.negative,
+          onError: brightness == Brightness.light
+              ? Colors.white
+              : colors.pageBackground,
+        );
 
     final base = ThemeData(
       useMaterial3: true,
@@ -380,20 +353,18 @@ class AppTheme {
               letterSpacing: 0.2,
             ),
           ),
-      // The bar sits on the page rather than on its own white plane, so the
-      // masthead below it reads as the top of one poster instead of a title
-      // bar with content under it. The rule is drawn by the screen.
       appBarTheme: AppBarTheme(
-        backgroundColor: colors.pageBackground,
+        backgroundColor: colors.card,
         surfaceTintColor: Colors.transparent,
         foregroundColor: colors.textPrimary,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
         titleTextStyle: TextStyle(
+          fontFamily: kFontFamily,
           color: colors.textPrimary,
           fontSize: 20,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w700,
           letterSpacing: -0.4,
         ),
       ),
@@ -403,13 +374,14 @@ class AppTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          side: BorderSide(color: colors.ink, width: AppBrut.border),
+          borderRadius: BorderRadius.circular(AppRadii.panel),
+          side: BorderSide(color: colors.cardBorder, width: AppBorders.border),
         ),
       ),
       dividerTheme: DividerThemeData(
         color: colors.divider,
         space: 1,
-        thickness: 1.5,
+        thickness: 1,
       ),
       tabBarTheme: TabBarThemeData(
         labelColor: colors.interactive,
@@ -417,8 +389,13 @@ class AppTheme {
         indicatorColor: colors.interactive,
         indicatorSize: TabBarIndicatorSize.tab,
         dividerColor: colors.divider,
-        labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        labelStyle: const TextStyle(
+          fontFamily: kFontFamily,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
         unselectedLabelStyle: const TextStyle(
+          fontFamily: kFontFamily,
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),
@@ -426,7 +403,7 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: colors.card,
         surfaceTintColor: Colors.transparent,
-        indicatorColor: Colors.transparent,
+        indicatorColor: colors.interactiveSurface,
         elevation: 0,
         height: 66,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
@@ -440,11 +417,12 @@ class AppTheme {
         ),
         labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => TextStyle(
-            fontSize: 10.5,
-            letterSpacing: 0.4,
+            fontFamily: kFontFamily,
+            fontSize: 11,
+            letterSpacing: 0,
             fontWeight: states.contains(WidgetState.selected)
-                ? FontWeight.w900
-                : FontWeight.w700,
+                ? FontWeight.w600
+                : FontWeight.w500,
             color: states.contains(WidgetState.selected)
                 ? colors.interactive
                 : colors.textTertiary,
@@ -453,45 +431,115 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: colors.neutralSurface,
+        fillColor: colors.pageBackground,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 12,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
-          borderSide: BorderSide(color: colors.ink, width: AppBrut.border),
+          borderRadius: BorderRadius.circular(AppRadii.control),
+          borderSide: BorderSide(
+            color: colors.cardBorder,
+            width: AppBorders.border,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
-          borderSide: BorderSide(color: colors.ink, width: AppBrut.border),
+          borderRadius: BorderRadius.circular(AppRadii.control),
+          borderSide: BorderSide(
+            color: colors.cardBorder,
+            width: AppBorders.border,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
-          borderSide: BorderSide(color: colors.interactive, width: 3),
+          borderRadius: BorderRadius.circular(AppRadii.control),
+          borderSide: BorderSide(color: colors.interactive, width: 2),
         ),
-        hintStyle: TextStyle(color: colors.textTertiary),
+        hintStyle: TextStyle(
+          fontFamily: kFontFamily,
+          color: colors.textTertiary,
+        ),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: colors.interactive,
         contentTextStyle: TextStyle(
+          fontFamily: kFontFamily,
           color: colors.onInteractive,
           fontWeight: FontWeight.w700,
         ),
         actionTextColor: colors.onInteractive,
         shape: RoundedRectangleBorder(
-          side: BorderSide(color: colors.ink, width: AppBrut.border),
+          borderRadius: BorderRadius.circular(AppRadii.panel),
+          side: BorderSide(color: colors.cardBorder, width: AppBorders.border),
         ),
       ),
       listTileTheme: ListTileThemeData(
         iconColor: colors.textSecondary,
         titleTextStyle: TextStyle(
+          fontFamily: kFontFamily,
           fontSize: 15,
           fontWeight: FontWeight.w700,
           color: colors.textPrimary,
         ),
-        subtitleTextStyle: TextStyle(fontSize: 13, color: colors.textSecondary),
+        subtitleTextStyle: TextStyle(
+          fontFamily: kFontFamily,
+          fontSize: 13,
+          color: colors.textSecondary,
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: colors.card,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.panel),
+          side: BorderSide(color: colors.cardBorder),
+        ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: colors.card,
+        surfaceTintColor: Colors.transparent,
+        showDragHandle: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: colors.card,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.control),
+          side: BorderSide(color: colors.cardBorder),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.control),
+          ),
+          textStyle: const TextStyle(
+            fontFamily: kFontFamily,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: colors.interactive,
+          side: BorderSide(color: colors.cardBorder),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.control),
+          ),
+        ),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          side: WidgetStatePropertyAll(BorderSide(color: colors.cardBorder)),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadii.control),
+            ),
+          ),
+        ),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
         color: colors.interactive,

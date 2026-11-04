@@ -12,7 +12,7 @@ import '../../state/app_state.dart';
 import '../../state/watchlist_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
-import '../widgets/brutal.dart';
+import '../widgets/surfaces.dart';
 import '../widgets/panels.dart';
 import '../widgets/refresh_stamp.dart';
 import '../widgets/watchlist_highlight.dart';
@@ -262,7 +262,7 @@ class _DashboardBody extends StatelessWidget {
         _Masthead(market: market, window: window),
         _ContextBar(market: market, window: window),
         if (gainers.isEmpty)
-          BrutalBox(
+          SurfaceCard(
             margin: const EdgeInsets.fromLTRB(16, 20, 16, 4),
             padding: const EdgeInsets.symmetric(vertical: 28),
             child: StatusView(
@@ -274,7 +274,7 @@ class _DashboardBody extends StatelessWidget {
         else ...[
           _HeroGainer(row: gainers.first, window: window),
           if (gainers.length > 1) ...[
-            BrutalHeading(
+            SectionHeader(
               title: 'Runners-up',
               actionLabel: 'All',
               onAction: onSeeAllMarkets,
@@ -289,13 +289,13 @@ class _DashboardBody extends StatelessWidget {
           ],
         ],
         if (data.starredTotal > 0) ...[
-          BrutalHeading(
+          SectionHeader(
             title: 'Watchlist',
             actionLabel: 'All',
             onAction: onSeeWatchlist,
           ),
           if (data.starred.isEmpty)
-            BrutalBox(
+            SurfaceCard(
               margin: const EdgeInsets.fromLTRB(16, 0, 16, 4),
               padding: const EdgeInsets.symmetric(vertical: 22),
               child: StatusView(
@@ -325,15 +325,18 @@ class _DashboardBody extends StatelessWidget {
               ),
             ),
         ],
-        const BrutalHeading(title: 'Recent analyses'),
-        BrutalBox(
+        const SectionHeader(title: 'Recent analyses'),
+        SurfaceCard(
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 4),
           child: Column(
             children: [
               for (final run in data.runs.take(4)) ...[
                 _RunTile(run: run),
                 if (run != data.runs.take(4).last)
-                  Container(height: AppBrut.hairline, color: colors.ink),
+                  Container(
+                    height: AppBorders.hairline,
+                    color: colors.cardBorder,
+                  ),
               ],
             ],
           ),
@@ -343,12 +346,7 @@ class _DashboardBody extends StatelessWidget {
   }
 }
 
-/// The top of the poster: what file you are reading, in the largest type on
-/// the screen.
-///
-/// The app bar carries only the actions. A market's name set at 44px against a
-/// rule is what tells you where you are — a 20px title in a bar is what every
-/// other app does.
+/// Market context above the mobile dashboard cards.
 class _Masthead extends StatelessWidget {
   const _Masthead({required this.market, required this.window});
 
@@ -363,7 +361,7 @@ class _Masthead extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(height: AppBrut.border + 1.5, color: colors.ink),
+          const SizedBox(height: 4),
           const SizedBox(height: 10),
           Row(
             children: [
@@ -372,20 +370,20 @@ class _Masthead extends StatelessWidget {
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    market.label.toUpperCase(),
+                    market.label,
                     maxLines: 1,
                     style: TextStyle(
-                      fontSize: 44,
+                      fontSize: 32,
                       height: 1,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -2.4,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -1,
                       color: colors.textPrimary,
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 10),
-              BrutalTag(
+              SurfaceTag(
                 label: '${window.label} screen',
                 fill: colors.warningSurface,
                 foreground: colors.onAccent,
@@ -395,29 +393,25 @@ class _Masthead extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            market.longName.toUpperCase(),
+            market.longName,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 10.5,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
               letterSpacing: 1.1,
               color: colors.textSecondary,
             ),
           ),
           const SizedBox(height: 10),
-          Container(height: AppBrut.hairline, color: colors.ink),
+          Container(height: AppBorders.hairline, color: colors.cardBorder),
         ],
       ),
     );
   }
 }
 
-/// The leader, given the whole width and the biggest type on the page.
-///
-/// A ranked list whose first row looks like its fourth wastes the one thing
-/// the screener actually produces: a single name that moved more than anything
-/// else this week. Here that name is the poster.
+/// The strongest mover in the selected market and window.
 class _HeroGainer extends StatelessWidget {
   const _HeroGainer({required this.row, required this.window});
 
@@ -428,7 +422,7 @@ class _HeroGainer extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    return BrutalPressable(
+    return ActionCard(
       margin: const EdgeInsets.fromLTRB(16, 18, 16, 4),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
       // A starred ticker is marked wherever it is listed, so the wash belongs
@@ -451,7 +445,7 @@ class _HeroGainer extends StatelessWidget {
         children: [
           Row(
             children: [
-              BrutalTag(
+              SurfaceTag(
                 label: 'No. 1 this ${window.label}',
                 fill: colors.interactive,
                 foreground: colors.onInteractive,
@@ -472,10 +466,10 @@ class _HeroGainer extends StatelessWidget {
               row.ticker,
               maxLines: 1,
               style: TextStyle(
-                fontSize: 52,
+                fontSize: 36,
                 height: 1,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -2.6,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -1,
                 color: colors.textPrimary,
               ),
             ),
@@ -500,7 +494,7 @@ class _HeroGainer extends StatelessWidget {
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: DeltaBlock(pctChange: row.pctChange, fontSize: 24),
+                  child: DeltaBadge(pctChange: row.pctChange, fontSize: 24),
                 ),
               ),
               const SizedBox(width: 10),
@@ -514,7 +508,7 @@ class _HeroGainer extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 24,
                       height: 1.1,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                       letterSpacing: -0.8,
                       color: colors.textPrimary,
                       fontFeatures: const [FontFeature.tabularFigures()],
@@ -556,7 +550,7 @@ class _RankRow extends StatelessWidget {
         ? 0.0
         : (row.pctChange.abs() / peak).clamp(0.0, 1.0);
 
-    return BrutalPressable(
+    return ActionCard(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       padding: const EdgeInsets.fromLTRB(0, 0, 6, 0),
       fill: starredRowColor(context, row.market, row.ticker) ?? colors.card,
@@ -584,7 +578,10 @@ class _RankRow extends StatelessWidget {
               decoration: BoxDecoration(
                 color: starred ? colors.warningSurface : colors.neutralSurface,
                 border: Border(
-                  right: BorderSide(color: colors.ink, width: AppBrut.hairline),
+                  right: BorderSide(
+                    color: colors.cardBorder,
+                    width: AppBorders.hairline,
+                  ),
                 ),
               ),
               child: starred
@@ -593,7 +590,7 @@ class _RankRow extends StatelessWidget {
                       '${rank ?? ''}',
                       style: TextStyle(
                         fontSize: 17,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: -0.6,
                         color: colors.onAccent,
                         fontFeatures: const [FontFeature.tabularFigures()],
@@ -617,7 +614,7 @@ class _RankRow extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 16,
                               height: 1.1,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w700,
                               letterSpacing: -0.4,
                               color: colors.textPrimary,
                             ),
@@ -629,7 +626,7 @@ class _RankRow extends StatelessWidget {
                           maxLines: 1,
                           style: TextStyle(
                             fontSize: 14,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                             color: colors.textPrimary,
                             fontFeatures: const [FontFeature.tabularFigures()],
                           ),
@@ -663,7 +660,7 @@ class _RankRow extends StatelessWidget {
                     const SizedBox(height: 7),
                     Row(
                       children: [
-                        DeltaBlock(pctChange: row.pctChange, dense: true),
+                        DeltaBadge(pctChange: row.pctChange, dense: true),
                         const SizedBox(width: 8),
                         // The bar is what makes the ranks worth reading as a
                         // group: second place being a third of first place is
@@ -689,7 +686,7 @@ class _RankRow extends StatelessWidget {
   }
 }
 
-/// A hard-edged bar: an inked track with a saturated fill across [share] of it.
+/// Relative magnitude of a mover compared with the leader.
 class _MagnitudeBar extends StatelessWidget {
   const _MagnitudeBar({required this.share, required this.fill});
 
@@ -702,7 +699,8 @@ class _MagnitudeBar extends StatelessWidget {
     return Container(
       height: 10,
       decoration: BoxDecoration(
-        border: Border.all(color: colors.ink, width: AppBrut.hairline),
+        color: colors.neutralSurface,
+        borderRadius: BorderRadius.circular(5),
       ),
       child: Align(
         alignment: Alignment.centerLeft,
@@ -729,7 +727,6 @@ class _ContextBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    final colors = context.colors;
     final windows = appState.availableWindows;
     final selected = windows.contains(window) ? window : windows.first;
 
@@ -747,8 +744,6 @@ class _ContextBar extends StatelessWidget {
                     key: ValueKey('market-block-${value.id}'),
                     label: value.label,
                     selected: value == market,
-                    fill: colors.interactive,
-                    foreground: colors.onInteractive,
                     onTap: () => appState.selectMarket(value),
                   ),
                 ),
@@ -765,8 +760,6 @@ class _ContextBar extends StatelessWidget {
                     key: ValueKey('window-block-${value.name}'),
                     label: value.label,
                     selected: value == selected,
-                    fill: colors.ink,
-                    foreground: colors.card,
                     dense: true,
                     onTap: () => appState.selectWindow(value),
                   ),
@@ -782,51 +775,50 @@ class _ContextBar extends StatelessWidget {
   }
 }
 
-/// One square control. Selected means filled; unselected means outlined.
+/// A market or window control with keyboard activation and focus feedback.
 class _Block extends StatelessWidget {
   const _Block({
     super.key,
     required this.label,
     required this.selected,
-    required this.fill,
-    required this.foreground,
     required this.onTap,
     this.dense = false,
   });
 
   final String label;
   final bool selected;
-  final Color fill;
-  final Color foreground;
   final VoidCallback onTap;
   final bool dense;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return GestureDetector(
-      onTap: onTap,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: AnimatedContainer(
-          duration: AppMotion.selectionDuration(context),
-          curve: Curves.easeOut,
-          padding: EdgeInsets.symmetric(vertical: dense ? 6 : 9),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: selected ? fill : colors.card,
-            border: Border.all(color: colors.ink, width: AppBrut.border),
+    return Semantics(
+      selected: selected,
+      child: Material(
+        color: selected ? colors.interactiveSurface : colors.card,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.control),
+          side: BorderSide(
+            color: selected ? colors.interactiveSurface : colors.cardBorder,
           ),
-          child: Text(
-            label.toUpperCase(),
-            maxLines: 1,
-            softWrap: false,
-            style: TextStyle(
-              fontSize: dense ? 11.5 : 13,
-              height: 1.15,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.3,
-              color: selected ? foreground : colors.textPrimary,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: dense ? 8 : 11),
+            child: Center(
+              child: Text(
+                label,
+                maxLines: 1,
+                softWrap: false,
+                style: TextStyle(
+                  fontSize: dense ? 11.5 : 13,
+                  fontWeight: FontWeight.w600,
+                  color: selected ? colors.interactive : colors.textSecondary,
+                ),
+              ),
             ),
           ),
         ),
@@ -1167,7 +1159,7 @@ class _DashboardSkeletonState extends State<_DashboardSkeleton>
                   ],
                 ),
               ),
-              const BrutalHeading(title: 'Runners-up'),
+              const SectionHeader(title: 'Runners-up'),
               Panel(
                 child: Column(
                   children: [
@@ -1179,7 +1171,7 @@ class _DashboardSkeletonState extends State<_DashboardSkeleton>
                   ],
                 ),
               ),
-              const BrutalHeading(title: 'Recent analyses'),
+              const SectionHeader(title: 'Recent analyses'),
               Panel(
                 child: Column(
                   children: [
