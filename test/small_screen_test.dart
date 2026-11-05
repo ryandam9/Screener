@@ -30,7 +30,7 @@ void main() {
     // The width of a real string is only meaningful in the app's own font;
     // the default test face is a fixed-width stand-in. Loaded here rather
     // than inside a test, where the fake-async zone never completes file I/O.
-    await loadInter();
+    await loadAppFont();
   });
 
   setUp(() async {

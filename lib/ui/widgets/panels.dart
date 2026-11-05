@@ -53,6 +53,7 @@ class SectionHeader extends StatelessWidget {
               style: TextButton.styleFrom(
                 foregroundColor: colors.interactive,
                 textStyle: const TextStyle(
+                  fontFamily: kFontFamily,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),

@@ -63,6 +63,7 @@ class DesktopPanel extends StatelessWidget {
                     style: TextButton.styleFrom(
                       foregroundColor: colors.interactive,
                       textStyle: const TextStyle(
+                        fontFamily: kFontFamily,
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
                       ),

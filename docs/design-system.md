@@ -6,7 +6,7 @@ surface, table, list, badge and dialog components. The HTML files in
 
 ## Visual rules
 
-- Inter typography, slate page backgrounds, opaque cards and teal navigation.
+- Roboto Condensed typography (the mockups' face), slate page backgrounds, opaque cards and teal navigation.
 - Rounded 12 dp panels and 8 dp controls, with subtle 1 dp dividers.
 - Green and red indicate movement; teal (`ScreenerColors.interactive`)
   indicates selection and actions.

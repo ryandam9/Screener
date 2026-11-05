@@ -265,10 +265,11 @@ place.
 
 ### Typography
 
-The app is set in **Inter**, bundled at four weights (400/500/600/700) in
-`assets/fonts` rather than fetched at runtime — it is offline-first, and the
-type has to render identically with no connection. Inter is under the SIL Open
-Font License; the licence travels with the files.
+The app is set in **Roboto Condensed**, the face of the approved design
+mockups, bundled at four weights (400/500/600/700) in `assets/fonts` rather
+than fetched at runtime — it is offline-first, and the type has to render
+identically with no connection. Roboto Condensed is under the SIL Open Font
+License; the licence travels with the files.
 
 | UI element | Weight |
 | --- | --- |
