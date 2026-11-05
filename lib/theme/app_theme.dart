@@ -12,8 +12,8 @@ const String kFontFamily = 'Roboto Condensed';
 /// The sizes across the app were chosen for Inter. Roboto Condensed has
 /// nearly the same letter height but is ~18% narrower, so at the same size
 /// it read as small type. Applied once, on top of the reader's own text
-/// scale, by [BoostedTextScaler] — and by the chart painters, which draw
-/// text outside the widget tree and so never see a text scale.
+/// scale, by [BoostedTextScaler]. Chart painters receive that same scaler
+/// from MediaQuery so labels and tooltips follow the reader’s preferences.
 const double kTypeScale = 1.15;
 
 /// The reader's text scale, with [kTypeScale] applied before it.
@@ -181,7 +181,7 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
   /// Semantic palette for the light workspace.
   static const light = ScreenerColors(
     interactive: Color(0xFF0F766E),
-    interactiveSurface: Color(0xFFE2F3F0),
+    interactiveSurface: Color(0xFFE5EEF9),
     positive: Color(0xFF137547),
     positiveSurface: Color(0xFFE7F5ED),
     negative: Color(0xFFB63342),
@@ -196,7 +196,7 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
     onInteractive: Color(0xFFFFFFFF),
     card: Color(0xFFFFFFFF),
     cardBorder: Color(0xFFE0E5ED),
-    pageBackground: Color(0xFFF4F6FA),
+    pageBackground: Color(0xFFEDF2F7),
     textPrimary: Color(0xFF172235),
     textSecondary: Color(0xFF526075),
     textName: Color(0xFF29394F),
@@ -208,7 +208,7 @@ class ScreenerColors extends ThemeExtension<ScreenerColors> {
   /// Semantic palette for the dark workspace.
   static const dark = ScreenerColors(
     interactive: Color(0xFF5ED3C4),
-    interactiveSurface: Color(0xFF173C39),
+    interactiveSurface: Color(0xFF20344D),
     positive: Color(0xFF70D5A1),
     positiveSurface: Color(0xFF193B2D),
     negative: Color(0xFFFF9CA8),
@@ -578,6 +578,18 @@ class AppTheme {
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
         style: ButtonStyle(
+          // The app's selection tint, not the seed palette's: left to
+          // Material, a selected segment came out green.
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected)
+                ? colors.interactiveSurface
+                : null,
+          ),
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected)
+                ? colors.interactive
+                : colors.textPrimary,
+          ),
           side: WidgetStatePropertyAll(BorderSide(color: colors.cardBorder)),
           shape: WidgetStatePropertyAll(
             RoundedRectangleBorder(

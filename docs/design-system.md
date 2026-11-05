@@ -24,7 +24,8 @@ time, each signed off against a render before the next starts.
 | Page | Status |
 | --- | --- |
 | Settings | Rebuilt to the mockup: compact title bar, checkboxes, inline theme pills, actions inside the data-source card |
-| Dashboard, Stock overview, Performance, Metrics | Restyled, not yet reviewed against the mockup |
+| Dashboard | Security/name column, compact heading, stacked movers and consistent phone gainers; rendered for review, awaiting acceptance |
+| Stock overview, Performance, Metrics | Restyled, not yet reviewed against the mockup |
 | Everything else | Restyled only |
 
 ## Screen coverage

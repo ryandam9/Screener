@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:screener/ui/widgets/price_chart.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -14,6 +15,44 @@ import 'package:screener/theme/app_theme.dart';
 /// text quietly falls back to the platform default, which is exactly the
 /// "colours changed, nothing else did" result the redesign was meant to fix.
 void main() {
+  testWidgets('chart applies the supplied text scale once to nominal sizes', (
+    tester,
+  ) async {
+    final scaler = _RecordingScaler();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: MediaQuery(
+          data: MediaQueryData(textScaler: scaler),
+          child: Scaffold(
+            body: PriceChart(
+              lineColor: Colors.green,
+              points: [
+                ChartPoint(
+                  date: DateTime(2026, 1, 1),
+                  price: 10,
+                  caption: 'close',
+                ),
+                ChartPoint(
+                  date: DateTime(2026, 1, 8),
+                  price: 12,
+                  caption: 'close',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(scaler.sizes, contains(10.0));
+    expect(scaler.sizes, isNot(contains(11.5)));
+    scaler.sizes.clear();
+    await tester.tap(find.byType(PriceChart));
+    await tester.pump();
+    expect(scaler.sizes, containsAll([12.5, 10.5]));
+    expect(tester.takeException(), isNull);
+  });
+
   test('the app font is Roboto Condensed and ships at every weight used', () {
     expect(kFontFamily, 'Roboto Condensed');
     expect(AppTheme.light().textTheme.bodyMedium?.fontFamily, kFontFamily);
@@ -138,4 +177,16 @@ Set<int> _bmpCoverage(List<int> bytes) {
     }
   }
   return covered;
+}
+
+class _RecordingScaler extends TextScaler {
+  final sizes = <double>[];
+  @override
+  double scale(double fontSize) {
+    sizes.add(fontSize);
+    return fontSize * 1.5;
+  }
+
+  @override
+  double get textScaleFactor => 1.5;
 }
