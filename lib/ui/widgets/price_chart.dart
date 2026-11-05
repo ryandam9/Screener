@@ -239,7 +239,7 @@ class _PriceChartPainter extends CustomPainter {
         Fmt.price(max - span * t),
         Offset(_leftPadding + plotWidth + 6, y - 6),
         color: labelColor,
-        fontSize: 10,
+        fontSize: 10 * kTypeScale,
       );
     }
 
@@ -315,7 +315,7 @@ class _PriceChartPainter extends CustomPainter {
         Fmt.shortDate(points[index].date),
         Offset(x, y),
         color: labelColor,
-        fontSize: 10,
+        fontSize: 10 * kTypeScale,
         centreOn: x,
         maxX: size.width - _rightPadding,
       );
@@ -345,7 +345,7 @@ class _PriceChartPainter extends CustomPainter {
             style: TextStyle(
               fontFamily: kFontFamily,
               color: tooltipForeground,
-              fontSize: 12.5,
+              fontSize: 12.5 * kTypeScale,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -354,7 +354,7 @@ class _PriceChartPainter extends CustomPainter {
             style: TextStyle(
               fontFamily: kFontFamily,
               color: tooltipForeground.withValues(alpha: 0.75),
-              fontSize: 10.5,
+              fontSize: 10.5 * kTypeScale,
             ),
           ),
         ],
@@ -395,7 +395,7 @@ class _PriceChartPainter extends CustomPainter {
         style: TextStyle(
           fontFamily: kFontFamily,
           color: color,
-          fontSize: fontSize,
+          fontSize: fontSize * kTypeScale,
         ),
       ),
       textDirection: textDirection,

@@ -7,6 +7,51 @@ import 'package:flutter/material.dart';
 /// `TextPainter` has no ancestor to inherit from), so they name it explicitly.
 const String kFontFamily = 'Roboto Condensed';
 
+/// How much larger than its nominal size every piece of text is drawn.
+///
+/// The sizes across the app were chosen for Inter. Roboto Condensed has
+/// nearly the same letter height but is ~18% narrower, so at the same size
+/// it read as small type. Applied once, on top of the reader's own text
+/// scale, by [BoostedTextScaler] — and by the chart painters, which draw
+/// text outside the widget tree and so never see a text scale.
+const double kTypeScale = 1.15;
+
+/// The reader's text scale, with [kTypeScale] applied before it.
+///
+/// Wraps rather than replaces, so a non-linear system scale (Android 14
+/// grows small text more than large) keeps its shape.
+@immutable
+class BoostedTextScaler extends TextScaler {
+  const BoostedTextScaler(this.inner);
+
+  final TextScaler inner;
+
+  @override
+  double scale(double fontSize) => inner.scale(fontSize * kTypeScale);
+
+  @override
+  // ignore: deprecated_member_use
+  double get textScaleFactor => inner.textScaleFactor * kTypeScale;
+
+  @override
+  TextScaler clamp({
+    double minScaleFactor = 0,
+    double maxScaleFactor = double.infinity,
+  }) => BoostedTextScaler(
+    inner.clamp(
+      minScaleFactor: minScaleFactor / kTypeScale,
+      maxScaleFactor: maxScaleFactor / kTypeScale,
+    ),
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is BoostedTextScaler && other.inner == inner;
+
+  @override
+  int get hashCode => Object.hash(BoostedTextScaler, inner);
+}
+
 /// Geometry shared by cards, tables, dialogs and controls.
 class AppRadii {
   const AppRadii._();
