@@ -9,10 +9,8 @@ import '../../models/stock_row.dart';
 import '../../state/app_state.dart';
 import '../../state/watchlist_controller.dart';
 import '../../theme/app_theme.dart';
-import '../widgets/workspace_header.dart';
 import '../../utils/formatters.dart';
 import '../screens/stock_detail_screen.dart';
-import '../widgets/category_chip.dart';
 import '../widgets/panels.dart';
 import '../widgets/price_chart.dart';
 import 'widgets/desktop_cards.dart';
@@ -450,6 +448,7 @@ class _WindowDropdown extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           icon: const Icon(Icons.keyboard_arrow_down, size: 18),
           style: TextStyle(
+            fontFamily: kFontFamily,
             fontSize: 13.5,
             fontWeight: FontWeight.w600,
             color: colors.textPrimary,
@@ -543,7 +542,7 @@ class _DashboardBody extends StatelessWidget {
             compact: true,
             values: [null, ...Market.values],
             selected: gainerMarket,
-            labelOf: (market) => market?.label ?? 'Both',
+            labelOf: (market) => market?.label ?? 'All',
             onChanged: onGainerMarket,
           ),
           actionLabel: 'View all',
@@ -598,18 +597,20 @@ class _DashboardBody extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const WorkspaceHeader(
-            title: 'The market, in focus.',
-            subtitle:
-                'Explore the strongest movers across your published screens.',
+          Padding(
+            padding: const EdgeInsets.only(bottom: 18),
+            child: Text(
+              'Market momentum, at a glance.',
+              style: TextStyle(fontSize: 13, color: colors.textSecondary),
+            ),
           ),
           if (split)
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(flex: 62, child: primary),
+                Expanded(flex: 59, child: primary),
                 const SizedBox(width: 18),
-                Expanded(flex: 38, child: secondary),
+                Expanded(flex: 41, child: secondary),
               ],
             )
           else ...[
@@ -722,10 +723,10 @@ class _RunRow extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: colors.positiveSurface,
+              color: colors.interactiveSurface,
               borderRadius: BorderRadius.circular(9),
             ),
-            child: Icon(Icons.insights, size: 17, color: colors.positive),
+            child: Icon(Icons.insights, size: 17, color: colors.interactive),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -734,7 +735,7 @@ class _RunRow extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '${run.market.label} - ${run.window.longLabel} Analysis',
+                  '${run.market.label} · ${run.window.longLabel}',
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 13.5,
@@ -778,41 +779,42 @@ class _MoverRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
         child: Row(
           children: [
-            TickerChip(ticker: row.ticker),
-            const SizedBox(width: 10),
             Expanded(
-              child: Row(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Flexible(
-                    child: Text(
-                      row.shortName,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        height: 1.25,
-                        fontWeight: FontWeight.w500,
-                        color: colors.textName,
+                  Wrap(
+                    spacing: 10,
+                    children: [
+                      Text(
+                        row.ticker,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: colors.textPrimary,
+                        ),
                       ),
+                      Text(
+                        Fmt.price(row.latestPrice),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: colors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    row.shortName,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.4,
+                      color: colors.textSecondary,
                     ),
                   ),
-                  if (CategoryChip.maybe(row.category, dense: true)
-                      case final chip?) ...[
-                    const SizedBox(width: 6),
-                    chip,
-                  ],
                 ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              Fmt.price(row.latestPrice),
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
-                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
             const SizedBox(width: 12),

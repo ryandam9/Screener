@@ -150,7 +150,7 @@ void main() {
     expect(find.text('Analysis Summary'), findsNothing);
 
     // Table headings from the design.
-    for (final heading in ['Ticker', 'Market', 'Price', 'Change', '% Gain']) {
+    for (final heading in ['Security', 'Market', 'Price', 'Change', '% Gain']) {
       expect(find.text(heading), findsWidgets, reason: '$heading missing');
     }
 

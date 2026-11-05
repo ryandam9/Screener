@@ -14,6 +14,8 @@ import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../widgets/surfaces.dart';
 import '../widgets/panels.dart';
+import '../widgets/price_chart.dart';
+import '../../models/price_bar.dart';
 import '../widgets/refresh_stamp.dart';
 import '../widgets/watchlist_highlight.dart';
 import '../widgets/watchlist_star.dart';
@@ -143,7 +145,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         // Three actions and a 20px title do not both fit at 320dp, and the
         // app's own name is a poor thing to ellipsize.
         title: Text(
-          'Stocks Analysis',
+          'Dashboard',
           style: MediaQuery.sizeOf(context).width < 360
               ? const TextStyle(fontSize: 17)
               : null,
@@ -259,7 +261,13 @@ class _DashboardBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Masthead(market: market, window: window),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Text(
+            'Market momentum, at a glance.',
+            style: TextStyle(fontSize: 13, color: colors.textSecondary),
+          ),
+        ),
         _ContextBar(market: market, window: window),
         if (gainers.isEmpty)
           SurfaceCard(
@@ -272,21 +280,59 @@ class _DashboardBody extends StatelessWidget {
             ),
           )
         else ...[
-          _HeroGainer(row: gainers.first, window: window),
-          if (gainers.length > 1) ...[
-            SectionHeader(
-              title: 'Runners-up',
-              actionLabel: 'All',
-              onAction: onSeeAllMarkets,
+          SectionHeader(
+            title: 'Top gainers',
+            actionLabel: 'View all',
+            onAction: onSeeAllMarkets,
+          ),
+          for (var index = 0; index < gainers.length; index++)
+            _RankRow(
+              row: gainers[index],
+              rank: index + 1,
+              peak: peak,
+              window: window,
             ),
-            for (var index = 1; index < gainers.length; index++)
-              _RankRow(
-                row: gainers[index],
-                rank: index + 1,
-                peak: peak,
-                window: window,
-              ),
-          ],
+        ],
+        if (gainers.isNotEmpty) ...[
+          SectionHeader(title: '${gainers.first.ticker} · Price history'),
+          SurfaceCard(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.all(12),
+            child: FutureBuilder<List<PriceBar>>(
+              future: context
+                  .read<AppState>()
+                  .databaseOf(market)
+                  ?.priceHistory(gainers.first.ticker),
+              builder: (context, snapshot) => snapshot.hasError
+                  ? const SizedBox(
+                      height: 210,
+                      child: Center(
+                        child: Text('Price history is unavailable'),
+                      ),
+                    )
+                  : snapshot.hasData
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        PriceChart(
+                          points: ChartPoint.fromBars(snapshot.data!),
+                          lineColor: colors.forChange(gainers.first.pctChange),
+                        ),
+                        Text(
+                          '${snapshot.data!.length} weekly closes · Full published history',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    )
+                  : const SizedBox(
+                      height: 210,
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+            ),
+          ),
         ],
         if (data.starredTotal > 0) ...[
           SectionHeader(
@@ -347,185 +393,6 @@ class _DashboardBody extends StatelessWidget {
 }
 
 /// Market context above the mobile dashboard cards.
-class _Masthead extends StatelessWidget {
-  const _Masthead({required this.market, required this.window});
-
-  final Market market;
-  final GrowthWindow window;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 4),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    market.label,
-                    maxLines: 1,
-                    style: TextStyle(
-                      fontSize: 32,
-                      height: 1,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -1,
-                      color: colors.textPrimary,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              SurfaceTag(
-                label: '${window.label} screen',
-                fill: colors.warningSurface,
-                foreground: colors.onAccent,
-                fontSize: 10.5,
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            market.longName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1.1,
-              color: colors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(height: AppBorders.hairline, color: colors.cardBorder),
-        ],
-      ),
-    );
-  }
-}
-
-/// The strongest mover in the selected market and window.
-class _HeroGainer extends StatelessWidget {
-  const _HeroGainer({required this.row, required this.window});
-
-  final StockRow row;
-  final GrowthWindow window;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-
-    return ActionCard(
-      margin: const EdgeInsets.fromLTRB(16, 18, 16, 4),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      // A starred ticker is marked wherever it is listed, so the wash belongs
-      // here too — it is the card's fill rather than a tint laid over it.
-      fill: starredRowColor(context, row.market, row.ticker) ?? colors.card,
-      semanticLabel:
-          'Top gainer ${row.ticker}, ${row.shortName}, '
-          'up ${row.pctChange.toStringAsFixed(1)} percent',
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => StockDetailScreen(
-            market: row.market,
-            ticker: row.ticker,
-            initialWindow: window,
-          ),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              SurfaceTag(
-                label: 'No. 1 this ${window.label}',
-                fill: colors.interactive,
-                foreground: colors.onInteractive,
-              ),
-              const Spacer(),
-              WatchlistStar(
-                market: row.market,
-                ticker: row.ticker,
-                dense: true,
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              row.ticker,
-              maxLines: 1,
-              style: TextStyle(
-                fontSize: 36,
-                height: 1,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -1,
-                color: colors.textPrimary,
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            row.shortName,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 13,
-              height: 1.25,
-              fontWeight: FontWeight.w600,
-              color: colors.textName,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: DeltaBadge(pctChange: row.pctChange, fontSize: 24),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    row.market.money(row.latestPrice),
-                    maxLines: 1,
-                    style: TextStyle(
-                      fontSize: 24,
-                      height: 1.1,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.8,
-                      color: colors.textPrimary,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// One of the runners-up: rank, ticker, name, and a bar drawn to scale against
-/// the strongest move on the page.
 class _RankRow extends StatelessWidget {
   const _RankRow({
     required this.row,
@@ -1159,7 +1026,7 @@ class _DashboardSkeletonState extends State<_DashboardSkeleton>
                   ],
                 ),
               ),
-              const SectionHeader(title: 'Runners-up'),
+              const SectionHeader(title: 'Top gainers'),
               Panel(
                 child: Column(
                   children: [

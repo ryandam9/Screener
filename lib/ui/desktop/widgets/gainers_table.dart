@@ -9,12 +9,9 @@ import '../../widgets/category_chip.dart';
 import '../../widgets/google_finance_button.dart';
 import '../../widgets/watchlist_highlight.dart';
 import '../../widgets/watchlist_star.dart';
-import 'desktop_cards.dart';
 
-/// The Top Gainers table: rank, ticker, company, market, price, change, % gain.
-///
-/// Desktop has the width for the columns the handset layout has to stack, so
-/// this is a real table rather than a list of tiles.
+/// Ranked securities with ticker and company name in one column. Numeric
+/// columns stay aligned; narrow panels omit optional market/change columns.
 class GainersTable extends StatelessWidget {
   const GainersTable({
     super.key,
@@ -29,16 +26,6 @@ class GainersTable extends StatelessWidget {
   /// Row currently charted below the table, marked so the link is obvious.
   final StockRow? selected;
 
-  // The company name takes what these leave. They were wide enough that on a
-  // 1280-wide window the name ellipsized to "Moder…", so they are sized to the
-  // values they actually hold ("139.22", "+75.33", "+117.9%") plus a little
-  // slack, not to their headings.
-  static const _rank = 28.0;
-
-  /// Wide enough for the longest symbol the files carry: NSE runs to ten
-  /// characters, and `LAMBODHARA` measures 102px in the chip. At 92 it wrapped
-  /// to a second line and took the whole row's height with it.
-  static const _ticker = 112.0;
   static const _market = 54.0;
   static const _price = 74.0;
   static const _change = 80.0;
@@ -57,13 +44,11 @@ class GainersTable extends StatelessWidget {
 
   /// The company name never gets less than this before a column is dropped
   /// instead. "Moder…" is not a company.
-  static const _minName = 96.0;
+  static const _minName = 180.0;
 
   /// Everything except the name and the gutter, for the columns in play.
   static double _fixedFor({required bool market, required bool change}) =>
       _padding * 2 +
-      _rank +
-      _ticker +
       12 +
       (market ? _market : 0) +
       _price +
@@ -145,9 +130,7 @@ class GainersTable extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(_padding, 0, _padding, 10),
           child: Row(
             children: [
-              heading('#', _rank),
-              heading('Ticker', _ticker),
-              SizedBox(width: nameWidth),
+              heading('Security', nameWidth),
               const SizedBox(width: 12),
               if (columns.market) heading('Market', _market),
               // The gutter, mirrored in the row below.
@@ -162,7 +145,6 @@ class GainersTable extends StatelessWidget {
         Divider(height: 1, color: colors.divider),
         for (var i = 0; i < rows.length; i++) ...[
           _GainerRow(
-            rank: i + 1,
             row: rows[i],
             nameWidth: nameWidth,
             columns: columns,
@@ -186,7 +168,6 @@ class GainersTable extends StatelessWidget {
 
 class _GainerRow extends StatelessWidget {
   const _GainerRow({
-    required this.rank,
     required this.row,
     required this.nameWidth,
     required this.columns,
@@ -194,7 +175,6 @@ class _GainerRow extends StatelessWidget {
     required this.onTap,
   });
 
-  final int rank;
   final StockRow row;
 
   /// Set by the table so every row's columns line up. See [GainersTable].
@@ -240,51 +220,37 @@ class _GainerRow extends StatelessWidget {
         ),
         padding: const EdgeInsets.symmetric(
           horizontal: GainersTable._padding,
-          vertical: 10,
+          vertical: 12,
         ),
         child: Row(
           children: [
             SizedBox(
-              width: GainersTable._rank,
-              child: Text(
-                '$rank',
-                style: TextStyle(fontSize: 12.5, color: colors.textTertiary),
-              ),
-            ),
-            SizedBox(
-              width: GainersTable._ticker,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: TickerChip(ticker: row.ticker),
-              ),
-            ),
-            SizedBox(
               width: nameWidth,
-              child: Row(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Flexible(
-                    child: Text(
-                      row.shortName,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13,
-                        height: 1.25,
-                        fontWeight: FontWeight.w500,
-                        color: colors.textName,
-                      ),
+                  Text(
+                    row.ticker,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: colors.textPrimary,
                     ),
                   ),
-                  // Inside the name's column, not one of its own. This panel
-                  // is about 700px on a 1440 window, and a fixed column wide
-                  // enough for "Industrial Metals" took 124px from every row
-                  // — cutting "Moderna, Inc." in half on the US rows, which
-                  // have no category to show for it. Here only a labelled row
-                  // pays, and it pays with a name the ticker already names.
+                  const SizedBox(height: 4),
+                  Text(
+                    row.shortName,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.4,
+                      color: colors.textSecondary,
+                    ),
+                  ),
                   if (CategoryChip.maybe(row.category, dense: true)
                       case final chip?) ...[
-                    const SizedBox(width: 8),
+                    const SizedBox(height: 4),
                     chip,
                   ],
                 ],

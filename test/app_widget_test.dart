@@ -79,7 +79,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Preparing dashboard'), findsOneWidget);
-    expect(find.text('Runners-up'), findsOneWidget);
+    expect(find.text('Top gainers'), findsOneWidget);
     expect(find.text('Recent analyses'), findsOneWidget);
 
     // Let the asynchronous file work finish before the temporary directories
@@ -93,7 +93,7 @@ void main() {
   ) async {
     await launch(tester);
 
-    expect(find.text('Stocks Analysis'), findsOneWidget);
+    expect(find.text('Dashboard'), findsWidgets);
 
     // Every file is a block on the context bar; one of them is on screen.
     for (final market in Market.values) {
@@ -130,25 +130,16 @@ void main() {
     expect(tester.getTopLeft(find.text('MRNA')).dy, lessThan(400));
   });
 
-  testWidgets('the leader is prominent and the rest are numbered', (
+  testWidgets('gainers use consistent security rows and rank every stock', (
     tester,
   ) async {
     await launch(tester);
-
-    // The strongest mover gets the whole width and the biggest type on the
-    // page; a ranked list whose first row looks like its fourth wastes the
-    // one thing the screener actually produces.
-    final hero = tester.getSize(find.text('MRNA').first);
+    final first = tester.getSize(find.text('MRNA').first);
     final second = tester.getSize(find.text('AMLX').first);
-    expect(
-      hero.height,
-      greaterThan(second.height * 1.5),
-      reason: 'the leader stays distinct from the runners-up',
-    );
-
-    // And the runners-up carry their position, starting at two.
+    expect(first.height, second.height);
+    expect(find.text('1'), findsOneWidget);
     expect(find.text('2'), findsOneWidget);
-    expect(find.text('1'), findsNothing, reason: 'the hero is rank one');
+    expect(find.text('MRNA · Price history'), findsOneWidget);
   });
 
   testWidgets('the watchlist snapshot counts what the window leaves out', (
