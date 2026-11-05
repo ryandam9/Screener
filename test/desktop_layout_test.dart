@@ -439,7 +439,7 @@ void main() {
   testWidgets('a consistent row runs to the edge of the list', (tester) async {
     // Wide enough that the row has real slack to strand, and still a
     // handset: the desktop list pane is capped at 560, and the test font is
-    // roughly twice Inter's width, so at that size the trailing block fills
+    // roughly twice the app font's width, so at that size the trailing block fills
     // its whole flex allocation and the defect cannot show.
     await launchApp(
       tester,

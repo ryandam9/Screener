@@ -33,17 +33,19 @@ flutter:
   assets:
     - assets/icon/app_icon.png
 
-  # Inter, bundled rather than fetched at runtime: the app is offline-first and
-  # the type must render identically with no connection. SIL Open Font License,
-  # see assets/fonts/Inter-LICENSE.txt.
+  # Roboto Condensed, the face of the approved mockups. Bundled rather than
+  # fetched at runtime: the app is offline-first and the type must render
+  # identically with no connection. Static instances cut from Google Fonts'
+  # variable font; SIL Open Font License, see
+  # assets/fonts/RobotoCondensed-LICENSE.txt.
   fonts:
-    - family: Inter
+    - family: Roboto Condensed
       fonts:
-        - asset: assets/fonts/Inter-Regular.ttf
+        - asset: assets/fonts/RobotoCondensed-Regular.ttf
           weight: 400
-        - asset: assets/fonts/Inter-Medium.ttf
+        - asset: assets/fonts/RobotoCondensed-Medium.ttf
           weight: 500
-        - asset: assets/fonts/Inter-SemiBold.ttf
+        - asset: assets/fonts/RobotoCondensed-SemiBold.ttf
           weight: 600
-        - asset: assets/fonts/Inter-Bold.ttf
+        - asset: assets/fonts/RobotoCondensed-Bold.ttf
           weight: 700

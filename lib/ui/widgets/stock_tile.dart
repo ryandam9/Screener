@@ -158,7 +158,7 @@ class StockTile extends StatelessWidget {
 
     final name = _NameLine(
       name: row.shortName,
-      // Three lines is generous for one line's worth of name in Inter, and
+      // Three lines is generous for one line's worth of name in the app font, and
       // it is what keeps long names whole at large text sizes.
       maxLines: dense ? 2 : 3,
       fontSize: dense ? 11.5 : 12.5,

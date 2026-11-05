@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 ///
 /// Widgets inherit it through the theme; the chart painters do not (a
 /// `TextPainter` has no ancestor to inherit from), so they name it explicitly.
-const String kFontFamily = 'Inter';
+const String kFontFamily = 'Roboto Condensed';
 
 /// Geometry shared by cards, tables, dialogs and controls.
 class AppRadii {
