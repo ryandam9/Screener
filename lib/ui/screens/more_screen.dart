@@ -1265,6 +1265,7 @@ class _InlineSegments<T> extends StatelessWidget {
             selected: option == value,
             excludeSemantics: true,
             label: label,
+            onTap: () => onChanged(option),
             child: Material(
               color: option == value ? colors.interactive : Colors.transparent,
               borderRadius: BorderRadius.circular(6),

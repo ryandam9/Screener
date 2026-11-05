@@ -12,8 +12,8 @@ const String kFontFamily = 'Roboto Condensed';
 /// The sizes across the app were chosen for Inter. Roboto Condensed has
 /// nearly the same letter height but is ~18% narrower, so at the same size
 /// it read as small type. Applied once, on top of the reader's own text
-/// scale, by [BoostedTextScaler] — and by the chart painters, which draw
-/// text outside the widget tree and so never see a text scale.
+/// scale, by [BoostedTextScaler]. Chart painters receive that same scaler
+/// from MediaQuery so labels and tooltips follow the reader’s preferences.
 const double kTypeScale = 1.15;
 
 /// The reader's text scale, with [kTypeScale] applied before it.

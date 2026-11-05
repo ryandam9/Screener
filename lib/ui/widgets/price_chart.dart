@@ -148,6 +148,7 @@ class _PriceChartState extends State<PriceChart> {
                   tooltipForeground: colors.card,
                   selectedIndex: _selectedIndex,
                   textDirection: Directionality.of(context),
+                  textScaler: MediaQuery.textScalerOf(context),
                 ),
               ),
             );
@@ -168,6 +169,7 @@ class _PriceChartPainter extends CustomPainter {
     required this.tooltipForeground,
     required this.selectedIndex,
     required this.textDirection,
+    required this.textScaler,
   });
 
   final List<ChartPoint> points;
@@ -178,6 +180,7 @@ class _PriceChartPainter extends CustomPainter {
   final Color tooltipForeground;
   final int? selectedIndex;
   final TextDirection textDirection;
+  final TextScaler textScaler;
 
   static const _leftPadding = _PriceChartState._leftPadding;
   static const _rightPadding = _PriceChartState._rightPadding;
@@ -239,7 +242,7 @@ class _PriceChartPainter extends CustomPainter {
         Fmt.price(max - span * t),
         Offset(_leftPadding + plotWidth + 6, y - 6),
         color: labelColor,
-        fontSize: 10 * kTypeScale,
+        fontSize: 10,
       );
     }
 
@@ -315,7 +318,7 @@ class _PriceChartPainter extends CustomPainter {
         Fmt.shortDate(points[index].date),
         Offset(x, y),
         color: labelColor,
-        fontSize: 10 * kTypeScale,
+        fontSize: 10,
         centreOn: x,
         maxX: size.width - _rightPadding,
       );
@@ -345,7 +348,7 @@ class _PriceChartPainter extends CustomPainter {
             style: TextStyle(
               fontFamily: kFontFamily,
               color: tooltipForeground,
-              fontSize: 12.5 * kTypeScale,
+              fontSize: 12.5,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -354,20 +357,24 @@ class _PriceChartPainter extends CustomPainter {
             style: TextStyle(
               fontFamily: kFontFamily,
               color: tooltipForeground.withValues(alpha: 0.75),
-              fontSize: 10.5 * kTypeScale,
+              fontSize: 10.5,
             ),
           ),
         ],
       ),
       textDirection: textDirection,
+      textScaler: textScaler,
     )..layout();
 
     const padding = 8.0;
     final width = painter.width + padding * 2;
     final height = painter.height + padding * 1.4;
     var left = offset.dx - width / 2;
-    left = left.clamp(0.0, size.width - width);
-    final top = (offset.dy - height - 12).clamp(0.0, size.height - height);
+    left = left.clamp(0.0, (size.width - width).clamp(0.0, double.infinity));
+    final top = (offset.dy - height - 12).clamp(
+      0.0,
+      (size.height - height).clamp(0.0, double.infinity),
+    );
 
     final rect = RRect.fromRectAndRadius(
       Rect.fromLTWH(left, top, width, height),
@@ -395,14 +402,17 @@ class _PriceChartPainter extends CustomPainter {
         style: TextStyle(
           fontFamily: kFontFamily,
           color: color,
-          fontSize: fontSize * kTypeScale,
+          fontSize: fontSize,
         ),
       ),
       textDirection: textDirection,
+      textScaler: textScaler,
     )..layout();
 
     var dx = centreOn != null ? centreOn - painter.width / 2 : offset.dx;
-    if (maxX != null) dx = dx.clamp(0.0, maxX - painter.width);
+    if (maxX != null) {
+      dx = dx.clamp(0.0, (maxX - painter.width).clamp(0.0, double.infinity));
+    }
     painter.paint(canvas, Offset(dx, offset.dy));
   }
 
@@ -411,5 +421,10 @@ class _PriceChartPainter extends CustomPainter {
       old.points != points ||
       old.selectedIndex != selectedIndex ||
       old.lineColor != lineColor ||
-      old.gridColor != gridColor;
+      old.gridColor != gridColor ||
+      old.textScaler != textScaler ||
+      old.textDirection != textDirection ||
+      old.labelColor != labelColor ||
+      old.tooltipBackground != tooltipBackground ||
+      old.tooltipForeground != tooltipForeground;
 }
