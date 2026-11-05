@@ -366,69 +366,111 @@ class _MarketListScreenState extends State<MarketListScreen>
     AppState appState,
     GrowthWindow window,
   ) {
+    Widget buildPicker(BuildContext sheetContext) {
+      final windows =
+          appState.databaseOf(_market)?.availableWindows ?? GrowthWindow.values;
+      return SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 8),
+              const SectionHeader(
+                title: 'Market',
+                padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: SegmentedButton<Market>(
+                  segments: [
+                    for (final market in Market.values)
+                      ButtonSegment(value: market, label: Text(market.label)),
+                  ],
+                  selected: {_market},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (selection) {
+                    setState(() {
+                      _market = selection.first;
+                      _exchange = null;
+                      _categories = const {};
+                    });
+                    appState.selectMarket(selection.first);
+                    Navigator.of(sheetContext).pop();
+                  },
+                ),
+              ),
+              const SectionHeader(
+                title: 'Analysis window',
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+              ),
+              for (final value in windows)
+                ListTile(
+                  title: Text('${value.longLabel} analysis'),
+                  trailing: value == window
+                      ? Icon(Icons.check, color: context.colors.interactive)
+                      : null,
+                  onTap: () {
+                    setState(() => _window = value);
+                    appState.selectWindow(value);
+                    Navigator.of(sheetContext).pop();
+                  },
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (context.layoutSize.hasSidebar) {
+      return showDialog<void>(
+        context: context,
+        builder: (dialogContext) => Dialog(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 520,
+              maxHeight: MediaQuery.sizeOf(dialogContext).height * 0.85,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Choose market and window',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: context.colors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Close',
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                      ),
+                    ],
+                  ),
+                ),
+                Flexible(child: buildPicker(dialogContext)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return showModalBottomSheet<void>(
       context: context,
       backgroundColor: context.colors.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
-      builder: (sheetContext) {
-        final windows =
-            appState.databaseOf(_market)?.availableWindows ??
-            GrowthWindow.values;
-        return SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 8),
-                const SectionHeader(
-                  title: 'Market',
-                  padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: SegmentedButton<Market>(
-                    segments: [
-                      for (final market in Market.values)
-                        ButtonSegment(value: market, label: Text(market.label)),
-                    ],
-                    selected: {_market},
-                    showSelectedIcon: false,
-                    onSelectionChanged: (selection) {
-                      setState(() {
-                        _market = selection.first;
-                        _exchange = null;
-                        _categories = const {};
-                      });
-                      appState.selectMarket(selection.first);
-                      Navigator.of(sheetContext).pop();
-                    },
-                  ),
-                ),
-                const SectionHeader(
-                  title: 'Analysis window',
-                  padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
-                ),
-                for (final value in windows)
-                  ListTile(
-                    title: Text('${value.longLabel} analysis'),
-                    trailing: value == window
-                        ? Icon(Icons.check, color: context.colors.interactive)
-                        : null,
-                    onTap: () {
-                      setState(() => _window = value);
-                      appState.selectWindow(value);
-                      Navigator.of(sheetContext).pop();
-                    },
-                  ),
-                const SizedBox(height: 8),
-              ],
-            ),
-          ),
-        );
-      },
+      builder: buildPicker,
     );
   }
 

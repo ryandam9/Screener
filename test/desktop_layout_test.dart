@@ -60,6 +60,44 @@ void main() {
     devicePixelRatio: 1.0,
   );
 
+  for (final width in [390.0, 900.0, 1440.0]) {
+    // On a desktop window the market/window picker is a centred dialog; a
+    // sheet rising from the bottom edge is a phone idiom.
+    testWidgets('scope picker adapts at $width', (tester) async {
+      await launchApp(
+        tester,
+        cacheDir: cacheDir,
+        payloads: payloads,
+        size: Size(width, 900),
+        devicePixelRatio: 1,
+      );
+      // The compact rail (720–1099dp) has icons only, no labels.
+      final markets = find.text('Markets');
+      await tester.tap(
+        markets.evaluate().isEmpty
+            ? find.byIcon(Icons.public_outlined)
+            : markets.last,
+      );
+      await settle(tester);
+      await tester.tap(find.byIcon(Icons.arrow_drop_down).first);
+      await settle(tester);
+      expect(find.byType(Dialog), width >= 720 ? findsOneWidget : findsNothing);
+      expect(
+        find.byType(BottomSheet),
+        width < 720 ? findsOneWidget : findsNothing,
+      );
+      await tester.tap(find.text('1 Month analysis'));
+      await settle(tester);
+      expect(find.byType(Dialog), findsNothing);
+      expect(find.byType(BottomSheet), findsNothing);
+      expect(
+        find.textContaining(width < 360 ? 'US · 1M' : 'US - 1 Month Analysis'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('a wide window gets the sidebar layout', (tester) async {
     await launchDesktop(tester);
 
