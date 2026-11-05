@@ -87,9 +87,14 @@ class SurfaceTag extends StatelessWidget {
     this.foreground,
     this.fontSize = 10,
     this.dense = false,
+    this.leadingIcon,
   });
 
   final String label;
+
+  /// Drawn before the label at the text's size, for a mark the app font
+  /// does not carry (Roboto Condensed has no ▲ or ▼).
+  final IconData? leadingIcon;
   final Color? fill;
   final Color? foreground;
   final double fontSize;
@@ -105,16 +110,31 @@ class SurfaceTag extends StatelessWidget {
       color: fill ?? context.colors.neutralSurface,
       borderRadius: BorderRadius.circular(6),
     ),
-    child: Text(
-      label,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        fontSize: fontSize,
-        height: 1.2,
-        fontWeight: FontWeight.w600,
-        color: foreground ?? context.colors.textSecondary,
-      ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (leadingIcon != null)
+          Icon(
+            leadingIcon,
+            // Scaled with the text beside it, so the pair keeps proportion
+            // at any text size.
+            size: MediaQuery.textScalerOf(context).scale(fontSize * 1.4),
+            color: foreground ?? context.colors.textSecondary,
+          ),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: fontSize,
+              height: 1.2,
+              fontWeight: FontWeight.w600,
+              color: foreground ?? context.colors.textSecondary,
+            ),
+          ),
+        ),
+      ],
     ),
   );
 }
@@ -132,12 +152,19 @@ class DeltaBadge extends StatelessWidget {
   final bool dense;
 
   @override
-  Widget build(BuildContext context) => SurfaceTag(
+  Widget build(BuildContext context) => Semantics(
+    // The arrow is an icon, so it is said in words.
     label:
-        '${pctChange >= 0 ? '▲' : '▼'} ${pctChange.abs().toStringAsFixed(1)}%',
-    fill: context.colors.surfaceForChange(pctChange),
-    foreground: context.colors.forChange(pctChange),
-    fontSize: fontSize,
-    dense: dense,
+        '${pctChange >= 0 ? 'up' : 'down'} '
+        '${pctChange.abs().toStringAsFixed(1)}%',
+    excludeSemantics: true,
+    child: SurfaceTag(
+      leadingIcon: pctChange >= 0 ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+      label: '${pctChange.abs().toStringAsFixed(1)}%',
+      fill: context.colors.surfaceForChange(pctChange),
+      foreground: context.colors.forChange(pctChange),
+      fontSize: fontSize,
+      dense: dense,
+    ),
   );
 }

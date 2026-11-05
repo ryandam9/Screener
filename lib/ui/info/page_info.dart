@@ -173,7 +173,7 @@ class PageInfos {
       InfoExample(
         title: 'A 7-day window',
         lines: [
-          'Weekly bars:  Aug 14 → Aug 21   +78.7%',
+          'Weekly bars:  Aug 14 – Aug 21   +78.7%',
           'Screener:     its own endpoints  +81.9%',
           'The gap is the sampling, not an error in either figure.',
         ],

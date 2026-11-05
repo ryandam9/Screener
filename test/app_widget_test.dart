@@ -1,10 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:screener/main.dart';
 import 'package:screener/models/market.dart';
+import 'package:screener/theme/app_theme.dart';
 import 'package:screener/ui/screens/stock_detail_screen.dart';
 import 'package:screener/ui/widgets/refresh_stamp.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -287,6 +289,29 @@ void main() {
     );
   });
 
+  // Roboto Condensed reads small at the sizes chosen for Inter; the app draws
+  // every piece of text kTypeScale larger, on top of the reader's own scale.
+  testWidgets('text is drawn larger than its nominal size', (tester) async {
+    await launch(tester);
+    tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await settle(tester, frames: 4);
+
+    final paragraph = tester.renderObject<RenderParagraph>(
+      find
+          .descendant(
+            // Body text: the navigation bar caps its own labels at 1.3.
+            of: find.textContaining('Refreshed').first,
+            matching: find.byType(RichText),
+          )
+          .first,
+    );
+    expect(
+      paragraph.textScaler.scale(10),
+      closeTo(10 * kTypeScale * 1.3, 1e-9),
+    );
+  });
+
   testWidgets('the detail screen switches windows and inner tabs', (
     tester,
   ) async {
@@ -295,13 +320,21 @@ void main() {
     await tester.tap(find.text('MRNA').first);
     await settle(tester);
 
-    // MRNA appears in both the 7D and 1Y fixture tables.
+    // MRNA appears in both the 7D and 1Y fixture tables. Scrolled to first:
+    // at handset size the selector can sit under the navigation bar.
+    await tester.ensureVisible(find.text('1Y'));
+    await settle(tester, frames: 4);
     await tester.tap(find.text('1Y'));
     await settle(tester);
 
     // The headline follows the weekly closes the chart draws: the fixture's
     // bars run 57.10 -> 139.225, which is +143.83%, not the screener's
-    // +472.50% measured from its own calendar start.
+    // +472.50% measured from its own calendar start. Back up to it first:
+    // the selector sits below the headline.
+    await tester.ensureVisible(
+      find.text('1 Year change, weekly closes', skipOffstage: false),
+    );
+    await settle(tester, frames: 4);
     expect(find.textContaining('+143.83%'), findsWidgets);
     expect(find.text('1 Year change, weekly closes'), findsOneWidget);
     // The published figure stays on screen rather than being replaced.

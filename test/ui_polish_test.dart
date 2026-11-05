@@ -239,11 +239,18 @@ void main() {
       await tester.tap(find.text('MRNA').first);
       await settle(tester);
 
+      await tester.ensureVisible(find.text('1Y'));
+      await settle(tester, frames: 4);
       await tester.tap(find.text('1Y'));
       await settle(tester);
 
       // A single app-wide number would be wrong: the published files screen
       // the year at 25%, not 10%.
+      // Back up to it: the selector sits below the explanation.
+      await tester.ensureVisible(
+        find.textContaining('past the 25.0% cut-off', skipOffstage: false),
+      );
+      await settle(tester, frames: 4);
       expect(find.textContaining('past the 25.0% cut-off'), findsOneWidget);
     });
 

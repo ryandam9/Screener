@@ -99,6 +99,17 @@ class ScreenerApp extends StatelessWidget {
             theme: AppTheme.light(),
             darkTheme: AppTheme.dark(),
             themeMode: settings.themeMode,
+            // Every text size up by kTypeScale, on top of the reader's own
+            // scale: the app's sizes were set for a wider face.
+            builder: (context, child) {
+              final media = MediaQuery.of(context);
+              return MediaQuery(
+                data: media.copyWith(
+                  textScaler: BoostedTextScaler(media.textScaler),
+                ),
+                child: child!,
+              );
+            },
             // Selection is per screen, not app-wide. One SelectionArea over
             // the whole navigator crashes the framework when routes come and
             // go under it — the selectable set changes mid-frame and the

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -25,6 +26,12 @@ void main() {
       expect(pubspec, contains(asset));
       expect(File(asset).existsSync(), isTrue, reason: asset);
     }
+  });
+
+  test('the boost multiplies the reader\'s own text scale', () {
+    const scaler = BoostedTextScaler(TextScaler.linear(1.3));
+    expect(scaler.scale(10), closeTo(10 * kTypeScale * 1.3, 1e-9));
+    expect(kTypeScale, greaterThan(1));
   });
 
   // A button's textStyle replaces the theme's rather than merging with it, so
@@ -60,4 +67,75 @@ void main() {
       expect(paragraph.text.style?.fontFamily, kFontFamily, reason: label);
     }
   });
+
+  // Inter carried ▲, ▼ and →; Roboto Condensed does not, and a character the
+  // bundled face lacks is drawn by whatever font the device falls back to —
+  // or as an empty box. Every character the screens use must be in the font.
+  test('every character the screens draw is in the bundled font', () {
+    final covered = _bmpCoverage(
+      File('assets/fonts/RobotoCondensed-Regular.ttf').readAsBytesSync(),
+    );
+    // Drawn by someone else's font, not ours: emoji (the system's emoji
+    // face) and the clipboard text the detail screen copies.
+    bool exempt(int rune, String path) =>
+        rune >= 0x1F000 ||
+        (rune == 0x2192 && path.endsWith('stock_detail_screen.dart'));
+
+    final missing = <String>{};
+    for (final file in Directory('lib/ui').listSync(recursive: true)) {
+      if (file is! File || !file.path.endsWith('.dart')) continue;
+      for (final line in file.readAsLinesSync()) {
+        if (line.trimLeft().startsWith('//')) continue;
+        for (final rune in line.runes) {
+          if (rune < 0x80 || covered.contains(rune)) continue;
+          if (exempt(rune, file.path)) continue;
+          missing.add('${String.fromCharCode(rune)} in ${file.path}');
+        }
+      }
+    }
+    expect(missing, isEmpty);
+  });
+}
+
+/// The Basic Multilingual Plane characters a TrueType font maps, read from
+/// its cmap's format 4 subtable.
+Set<int> _bmpCoverage(List<int> bytes) {
+  final data = ByteData.sublistView(Uint8List.fromList(bytes));
+  final tables = data.getUint16(4);
+  var cmap = -1;
+  for (var i = 0; i < tables; i++) {
+    final record = 12 + i * 16;
+    if (String.fromCharCodes(bytes.sublist(record, record + 4)) == 'cmap') {
+      cmap = data.getUint32(record + 8);
+    }
+  }
+  final covered = <int>{};
+  final subtables = data.getUint16(cmap + 2);
+  for (var i = 0; i < subtables; i++) {
+    final at = cmap + data.getUint32(cmap + 4 + i * 8 + 4);
+    if (data.getUint16(at) != 4) continue;
+    final segments = data.getUint16(at + 6) ~/ 2;
+    final ends = at + 14;
+    final starts = ends + segments * 2 + 2;
+    final deltas = starts + segments * 2;
+    final offsets = deltas + segments * 2;
+    for (var s = 0; s < segments; s++) {
+      final end = data.getUint16(ends + s * 2);
+      final start = data.getUint16(starts + s * 2);
+      final delta = data.getUint16(deltas + s * 2);
+      final rangeOffset = data.getUint16(offsets + s * 2);
+      for (var c = start; c <= end && c != 0xFFFF; c++) {
+        int glyph;
+        if (rangeOffset == 0) {
+          glyph = (c + delta) & 0xFFFF;
+        } else {
+          final where = offsets + s * 2 + rangeOffset + (c - start) * 2;
+          glyph = data.getUint16(where);
+          if (glyph != 0) glyph = (glyph + delta) & 0xFFFF;
+        }
+        if (glyph != 0) covered.add(c);
+      }
+    }
+  }
+  return covered;
 }
